@@ -33,7 +33,6 @@ this function requires a filesystem I/O, so it contains both a block and non-blo
 #### dirWatcher
 ```javascript
 var fsWin=require('fsWin.node');
-var fsWin=require("D:\\Documents\\Visual Studio 2010\\Projects\\fsWin\\Release\\fsWin.node");
 var options={},e;
 options[fsWin.dirWatcher.options.WATCH_SUB_DIRECTORYS]=true;//watch the dir tree
 options[fsWin.dirWatcher.options.CHANGE_FILE_SIZE]=true;//watch file size changes, will fire in 'modified' event
