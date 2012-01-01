@@ -5,8 +5,8 @@
 using namespace v8;
 using namespace node;
 
-#include <iostream>//for debug only
-using namespace std;
+//#include <iostream>//for debug only
+//using namespace std;
 
 //dirWatcher requires vista or latter to call GetFinalPathNameByHandleW.
 //the API is necessary since the dir we are watching could also be moved to another path.
