@@ -32,6 +32,7 @@ this function requires a filesystem I/O, so it contains both a block and non-blo
 
 #### dirWatcher
 ```javascript
+var fsWin=require('fsWin.node');
 var options={},e;
 options[fsWin.dirWatcher.options.subDirs]=true;//watch the dir tree
 options[fsWin.dirWatcher.options.fileSize]=true;//watch file size changes, will fire in 'modified' event
