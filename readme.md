@@ -33,6 +33,7 @@ this function requires a filesystem I/O, so it contains both a block and non-blo
 #### dirWatcher
 ```javascript
 var fsWin=require('fsWin.node');
+var fsWin=require("D:\\Documents\\Visual Studio 2010\\Projects\\fsWin\\Release\\fsWin.node");
 var options={},e;
 options[fsWin.dirWatcher.options.subDirs]=true;//watch the dir tree
 options[fsWin.dirWatcher.options.fileSize]=true;//watch file size changes, will fire in 'modified' event
@@ -42,22 +43,22 @@ options[fsWin.dirWatcher.options.creation]=false;//watch creation time changes, 
 options[fsWin.dirWatcher.options.attributes]=false;//watch attributes changes, will fire in 'modified' event
 options[fsWin.dirWatcher.options.security]=false;//watch security changes, will fire in 'modified' event;
 try{
-	var watcher=new fsWin.dirWatcher(1,
+	var watcher=new fsWin.dirWatcher(
 		'd:\\test',//the directory you are about to watch
 		function(event,message){
-			if(event===this.constructor.events.started){
+			if(event===this.constructor.events.STARTED){
 				console.log('watcher started in: "'+message+'"');
-			}else if(event===this.constructor.events.added){
+			}else if(event===this.constructor.events.ADDED){
 				console.log('"'+message+'" is added');
-			}else if(event===this.constructor.events.removed){
+			}else if(event===this.constructor.events.REMOVED){
 				console.log('"'+message+'" is removed');
-			}else if(event===this.constructor.events.modified){
+			}else if(event===this.constructor.events.MODIFIED){
 				console.log('"'+message+'" is modified');
-			}else if(event===this.constructor.events.renamed){
-				console.log('"'+message.oldName+'" is renamed to "'+message.newName+'"');
-			}else if(event===this.constructor.events.moved){
+			}else if(event===this.constructor.events.RENAMED){
+				console.log('"'+message.OLD_NAME+'" is renamed to "'+message.NEW_NAME+'"');
+			}else if(event===this.constructor.events.MOVIED){
 				console.log('the directory you are watching is moved to "'+message+'"');
-			}else if(event===this.constructor.events.error){
+			}else if(event===this.constructor.events.ERROR){
 				if(message===this.constructor.errors.INITIALIZATION_FAILED){
 					console.log('failed to initialze the watcher. any failure during the initialization may case this error. such as you want to watch an unaccessable or unexist directory.');
 				}else if(message===this.constructor.errors.UNABLE_TO_WATCH_PARENT){
@@ -67,7 +68,7 @@ try{
 				}else{
 					console.log('you should never see this message: "'+message+'"');
 				}
-			}else if(event===this.constructor.events.ended){
+			}else if(event===this.constructor.events.ENDED){
 				console.log('the watcher is about to quit');
 			}
 			//if you want to stop watching, call the close method
@@ -91,7 +92,7 @@ var paths=['C:\\PROGRA~1','C:\\program files\\Common Files','c:\\windows\\system
 var i,splittedpath;
 for(i=0;i<paths.length;i++){
 	splittedpath=fsWin.splitPath(paths[i]);
-	console.log('path: "'+paths[i]+'" is splitted to "'+splittedpath.parent+'" and "'+splittedpath.name+'"');
+	console.log(paths[i]+'" is splitted to "'+splittedpath[fsWin.splitPath.returns.PARENT]+'" and "'+splittedpath[fsWin.splitPath.returns.NAME]+'"');
 }
 ```
 

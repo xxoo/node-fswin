@@ -21,64 +21,98 @@ using namespace node;
 namespace fsWin{
 	static const Persistent<String> global_syb_err_wrong_arguments=NODE_PSYMBOL("WRONG_ARGUMENTS");
 	static const Persistent<String> global_syb_err_not_a_constructor=NODE_PSYMBOL("THIS_FUNCTION_IS_NOT_A_CONSTRUCTOR");
-	static const Persistent<String> global_syb_err_out_of_memory=NODE_PSYMBOL("OUT_OF_MEMORY");
 	static const Persistent<String> global_syb_err_initialization_failed=NODE_PSYMBOL("INITIALIZATION_FAILED");
 
-	//this function returns an Object with two properties: parent and name
-	//the parent property could be empty if path is a rootdir
-	static Handle<Object> splitPath(Handle<String> path){
-		HandleScope scope;
-		String::Value p1(path);
-		Handle<Object> r=Object::New();
-		wchar_t *p2=(wchar_t*)*p1,*s=L"\\\\";
-		size_t i,j=0,k=0,l=wcslen(p2),m=wcslen(s);
-		if(wcsncmp(s,p2,m)==0){//is network path
-			for(i=m+1;i<l-1;i++){
-				if(p2[i]==L'\\'){
-					if(++k==2){
-						j=i;
-						break;
+	class splitPath{
+	public:
+		static const Persistent<String> syb_return_parent;
+		static const Persistent<String> syb_return_name;
+		static struct splitedPath{
+			size_t parentLen;//the length of the parent
+			wchar_t* name;//this could be also considered as the start position of the name
+		};
+		static splitedPath* basic(wchar_t* path){//you need to delete the return value your self if it is not NULL;
+			wchar_t *s=L"\\\\",s1=L'\\';
+			size_t i,j=0,k=0,l=wcslen(path),m=wcslen(s);
+			if(wcsncmp(s,path,m)==0){//is network path
+				for(i=m+1;i<l-1;i++){
+					if(path[i]==s1){
+						if(++k==2){
+							j=i;
+							break;
+						}
+					}
+				}
+				if(k==2){
+					for(i=l-2;i>j+1;i--){
+						if(path[i]==s1){
+							j=i;
+							break;
+						}
+					}
+				}
+				k=j>0?j+1:0;
+			}else{//is local path
+				for(i=l-2;i>1;i--){
+					if(path[i]==s1){
+						if(j==0){//perhaps it's a rootdir
+							j=i+1;
+						}else{//it's not a rootdir
+							j-=1;
+							k=1;
+							break;
+						}
 					}
 				}
 			}
-			if(k==2){
-				for(i=l-2;i>j+1;i--){
-					if(p2[i]==L'\\'){
-						j=i;
-						break;
-					}
-				}
-			}
-			k=0;
-		}else{//is local path
-			for(i=l-2;i>1;i--){
-				if(p2[i]==L'\\'){
-					if(j==0){//perhaps it's a rootdir
-						j=i+1;
-					}else{//it's not a rootdir
-						j-=1;
-						k=1;
-						break;
-					}
-				}
-			}
+			splitedPath* r=new splitedPath;
+			r->parentLen=j;
+			r->name=&path[j>0?j+k:j];
+			return r;
 		}
-		r->Set(String::NewSymbol("parent"),String::New(*p1,j));
-		r->Set(String::NewSymbol("name"),String::New(j>0?&(*p1)[j+k]:*p1));
-		return scope.Close(r);
-	}
-	static Handle<Value> splitPathForJs(const Arguments& args){
-		HandleScope scope;
-		if(args.IsConstructCall()){
-			return ThrowException(global_syb_err_not_a_constructor);
-		}else{
-			if(args.Length()>0&&(args[0]->IsString()||args[0]->IsStringObject())){
-				return scope.Close(splitPath(Handle<String>::Cast(args[0])));
+		//this function returns an Object with two properties: parent and name
+		//the parent property could be empty if path is a rootdir
+		static Handle<Object> js(Handle<String> path){
+			HandleScope scope;
+			String::Value p1(path);
+			splitedPath* s=basic((wchar_t*)*p1);
+			Handle<Object> r=Object::New();
+			r->Set(syb_return_parent,String::New(*p1,s->parentLen));
+			r->Set(syb_return_name,String::New((uint16_t*)s->name));
+			delete s;
+			return scope.Close(r);
+		}
+		static Handle<Function> initModle(){
+			Handle<FunctionTemplate> t=FunctionTemplate::New(jsSync);
+
+			//set properties of the return value
+			Handle<Object> returns=Object::New();
+			returns->Set(syb_return_parent,syb_return_parent,(PropertyAttribute)(ReadOnly|DontDelete));
+			returns->Set(syb_return_name,syb_return_name,(PropertyAttribute)(ReadOnly|DontDelete));
+			t->Set(String::NewSymbol("returns"),returns,(PropertyAttribute)(ReadOnly|DontDelete));
+
+			return t->GetFunction();
+		}
+	private:
+		static Handle<Value> jsSync(const Arguments& args){
+			HandleScope scope;
+			if(args.IsConstructCall()){
+				return ThrowException(Exception::Error(syb_err_not_a_constructor));
 			}else{
-				return ThrowException(global_syb_err_wrong_arguments);
+				if(args.Length()>0&&(args[0]->IsString()||args[0]->IsStringObject())){
+					return scope.Close(js(Handle<String>::Cast(args[0])));
+				}else{
+					return ThrowException(Exception::Error(syb_err_wrong_arguments));
+				}
 			}
 		}
-	}
+		static const Persistent<String> syb_err_wrong_arguments;
+		static const Persistent<String> syb_err_not_a_constructor;
+	};
+	const Persistent<String> splitPath::syb_return_parent=NODE_PSYMBOL("PARENT");
+	const Persistent<String> splitPath::syb_return_name=NODE_PSYMBOL("NAME");
+	const Persistent<String> splitPath::syb_err_wrong_arguments=global_syb_err_wrong_arguments;
+	const Persistent<String> splitPath::syb_err_not_a_constructor=global_syb_err_not_a_constructor;
 
 	class convertPath{
 	public:
@@ -106,22 +140,26 @@ namespace fsWin{
 			}
 			return scope.Close(r);
 		}
+		static Handle<Function> initModle(bool isAsyncVersion){
+			return FunctionTemplate::New(isAsyncVersion?jsAsync:jsSync)->GetFunction();
+		}
+	private:
 		static Handle<Value> jsSync(const Arguments& args){
 			HandleScope scope;
 			if(args.IsConstructCall()){
-				return ThrowException(global_syb_err_not_a_constructor);
+				return ThrowException(Exception::Error(syb_err_not_a_constructor));
 			}else{
 				if(args.Length()>0&&(args[0]->IsString()||args[0]->IsStringObject())){
 					return scope.Close(js(Handle<String>::Cast(args[0]),args[1]->ToBoolean()->IsTrue()));
 				}else{
-					return ThrowException(global_syb_err_wrong_arguments);
+					return ThrowException(Exception::Error(syb_err_wrong_arguments));
 				}
 			}
 		}
 		static Handle<Value> jsAsync(const Arguments& args){
 			HandleScope scope;
 			if(args.IsConstructCall()){
-				return ThrowException(global_syb_err_not_a_constructor);
+				return ThrowException(Exception::Error(syb_err_not_a_constructor));
 			}else{
 				if(args.Length()>1&&(args[0]->IsString()||args[0]->IsStringObject())&&args[1]->IsFunction()){
 					workdata *data=new workdata;
@@ -132,11 +170,10 @@ namespace fsWin{
 					data->path=_wcsdup((wchar_t*)*String::Value(Local<String>::Cast(args[0])));
 					return uv_queue_work(uv_default_loop(),&data->req,beginWork,afterWork)==0?True():False();
 				}else{
-					return ThrowException(global_syb_err_wrong_arguments);
+					return ThrowException(Exception::Error(syb_err_wrong_arguments));
 				}
 			}
 		}
-	private:
 		static struct workdata{
 			uv_work_t req;
 			Persistent<Object> self;
@@ -165,69 +202,14 @@ namespace fsWin{
 			data->self.Dispose();
 			delete data;
 		}
+		static const Persistent<String> syb_err_wrong_arguments;
+		static const Persistent<String> syb_err_not_a_constructor;
 	};
+	const Persistent<String> convertPath::syb_err_wrong_arguments=global_syb_err_wrong_arguments;
+	const Persistent<String> convertPath::syb_err_not_a_constructor=global_syb_err_not_a_constructor;
 
 	class dirWatcher:ObjectWrap{
 	public:
-		static Handle<Function> init(Handle<String> classname){
-			HandleScope scope;
-			Handle<FunctionTemplate> t=FunctionTemplate::New(New);
-			t->InstanceTemplate()->SetInternalFieldCount(1);
-			//set methods
-			NODE_SET_PROTOTYPE_METHOD(t,"close",close);
-
-			//set error messages
-			Handle<Object> errmsgs=Object::New();
-			errmsgs->Set(syb_err_unable_to_watch_parent,syb_err_unable_to_watch_parent,(PropertyAttribute)(ReadOnly|DontDelete));
-			errmsgs->Set(syb_err_unable_to_continue_watching,syb_err_unable_to_continue_watching,(PropertyAttribute)(ReadOnly|DontDelete));
-			errmsgs->Set(syb_err_initialization_failed,syb_err_initialization_failed,(PropertyAttribute)(ReadOnly|DontDelete));
-			errmsgs->Set(syb_err_wrong_arguments,syb_err_wrong_arguments,(PropertyAttribute)(ReadOnly|DontDelete));
-			t->Set(String::NewSymbol("errors"),errmsgs,(PropertyAttribute)(ReadOnly|DontDelete));
-
-			//set events
-			Handle<Object> evts=Object::New();
-			evts->Set(syb_evt_sta,syb_evt_sta,(PropertyAttribute)(ReadOnly|DontDelete));
-			evts->Set(syb_evt_end,syb_evt_end,(PropertyAttribute)(ReadOnly|DontDelete));
-			evts->Set(syb_evt_new,syb_evt_new,(PropertyAttribute)(ReadOnly|DontDelete));
-			evts->Set(syb_evt_del,syb_evt_del,(PropertyAttribute)(ReadOnly|DontDelete));
-			evts->Set(syb_evt_ren,syb_evt_ren,(PropertyAttribute)(ReadOnly|DontDelete));
-			evts->Set(syb_evt_chg,syb_evt_chg,(PropertyAttribute)(ReadOnly|DontDelete));
-			evts->Set(syb_evt_mov,syb_evt_mov,(PropertyAttribute)(ReadOnly|DontDelete));
-			evts->Set(syb_evt_err,syb_evt_err,(PropertyAttribute)(ReadOnly|DontDelete));
-			t->Set(String::NewSymbol("events"),evts,(PropertyAttribute)(ReadOnly|DontDelete));
-
-			//set options
-			Handle<Object> opts=Object::New();
-			opts->Set(syb_opt_subDirs,syb_opt_subDirs,(PropertyAttribute)(ReadOnly|DontDelete));
-			opts->Set(syb_opt_fileSize,syb_opt_fileSize,(PropertyAttribute)(ReadOnly|DontDelete));
-			opts->Set(syb_opt_lastWrite,syb_opt_lastWrite,(PropertyAttribute)(ReadOnly|DontDelete));
-			opts->Set(syb_opt_lastAccess,syb_opt_lastAccess,(PropertyAttribute)(ReadOnly|DontDelete));
-			opts->Set(syb_opt_creation,syb_opt_creation,(PropertyAttribute)(ReadOnly|DontDelete));
-			opts->Set(syb_opt_attributes,syb_opt_attributes,(PropertyAttribute)(ReadOnly|DontDelete));
-			opts->Set(syb_opt_security,syb_opt_security,(PropertyAttribute)(ReadOnly|DontDelete));
-			t->Set(String::NewSymbol("options"),opts,(PropertyAttribute)(ReadOnly|DontDelete));
-
-			t->SetClassName(classname);
-			return scope.Close(t->GetFunction());
-		}
-		static Handle<Value> New(const Arguments& args){
-			HandleScope scope;
-			uint32_t i,l=args.Length();
-			Handle<Value> *a=(Handle<Value>*)malloc(sizeof(Local<Value>)*l);
-			Handle<Value> r;
-			for(i=0;i<l;i++){
-				a[i]=args[i];
-			}
-			if(args.IsConstructCall()){
-				Handle<Object> obj=args.This();
-				new dirWatcher(obj,a,l);
-				r=obj;
-			}else{
-				r=args.Callee()->CallAsConstructor(l,a);
-			}
-			free(a);
-			return scope.Close(r);
-		}
 		dirWatcher(Handle<Object> handle,Handle<Value> *args,uint32_t argc):ObjectWrap(){
 			HandleScope scope;
 			if(argc>1&&(args[0]->IsString()||args[0]->IsStringObject())&&args[1]->IsFunction()){
@@ -277,8 +259,8 @@ namespace fsWin{
 							if((void*)GetFinalPathNameByHandleW){//check if GetFinalPathNameByHandleW is supported
 								path=getCurrentPathByHandle(pathhnd);//get the real path, it could be defferent from args[0]
 								definitions->Set(syb_path,path);
-								if(Handle<String>::Cast(splitPath(path)->Get(String::NewSymbol("parent")))->Length()>0){//path is not a rootdir, so we need to watch its parent to know if the path we are watching has been changed
-									definitions->Set(syb_shortName,splitPath(convertPath::js(path,false))->Get(String::NewSymbol("name")));//we also need the shortname to makesure the event will be captured
+								if(Handle<String>::Cast(splitPath::js(path)->Get(splitPath::syb_return_parent))->Length()>0){//path is not a rootdir, so we need to watch its parent to know if the path we are watching has been changed
+									definitions->Set(syb_shortName,splitPath::js(convertPath::js(path,false))->Get(splitPath::syb_return_name));//we also need the shortname to makesure the event will be captured
 									if(!watchParent(this)){
 										e=true;
 									}
@@ -316,6 +298,65 @@ namespace fsWin{
 			definitions.Dispose();
 			definitions.Clear();
 		}
+		static Handle<Function> initModle(){
+			HandleScope scope;
+			Handle<FunctionTemplate> t=FunctionTemplate::New(New);
+			t->InstanceTemplate()->SetInternalFieldCount(1);
+			//set methods
+			NODE_SET_PROTOTYPE_METHOD(t,"close",close);
+
+			//set error messages
+			Handle<Object> errmsgs=Object::New();
+			errmsgs->Set(syb_err_unable_to_watch_parent,syb_err_unable_to_watch_parent,(PropertyAttribute)(ReadOnly|DontDelete));
+			errmsgs->Set(syb_err_unable_to_continue_watching,syb_err_unable_to_continue_watching,(PropertyAttribute)(ReadOnly|DontDelete));
+			errmsgs->Set(syb_err_initialization_failed,syb_err_initialization_failed,(PropertyAttribute)(ReadOnly|DontDelete));
+			errmsgs->Set(syb_err_wrong_arguments,syb_err_wrong_arguments,(PropertyAttribute)(ReadOnly|DontDelete));
+			t->Set(String::NewSymbol("errors"),errmsgs,(PropertyAttribute)(ReadOnly|DontDelete));
+
+			//set events
+			Handle<Object> evts=Object::New();
+			evts->Set(syb_evt_sta,syb_evt_sta,(PropertyAttribute)(ReadOnly|DontDelete));
+			evts->Set(syb_evt_end,syb_evt_end,(PropertyAttribute)(ReadOnly|DontDelete));
+			evts->Set(syb_evt_new,syb_evt_new,(PropertyAttribute)(ReadOnly|DontDelete));
+			evts->Set(syb_evt_del,syb_evt_del,(PropertyAttribute)(ReadOnly|DontDelete));
+			evts->Set(syb_evt_ren,syb_evt_ren,(PropertyAttribute)(ReadOnly|DontDelete));
+			evts->Set(syb_evt_chg,syb_evt_chg,(PropertyAttribute)(ReadOnly|DontDelete));
+			evts->Set(syb_evt_mov,syb_evt_mov,(PropertyAttribute)(ReadOnly|DontDelete));
+			evts->Set(syb_evt_err,syb_evt_err,(PropertyAttribute)(ReadOnly|DontDelete));
+			t->Set(String::NewSymbol("events"),evts,(PropertyAttribute)(ReadOnly|DontDelete));
+
+			//set options
+			Handle<Object> opts=Object::New();
+			opts->Set(syb_opt_subDirs,syb_opt_subDirs,(PropertyAttribute)(ReadOnly|DontDelete));
+			opts->Set(syb_opt_fileSize,syb_opt_fileSize,(PropertyAttribute)(ReadOnly|DontDelete));
+			opts->Set(syb_opt_lastWrite,syb_opt_lastWrite,(PropertyAttribute)(ReadOnly|DontDelete));
+			opts->Set(syb_opt_lastAccess,syb_opt_lastAccess,(PropertyAttribute)(ReadOnly|DontDelete));
+			opts->Set(syb_opt_creation,syb_opt_creation,(PropertyAttribute)(ReadOnly|DontDelete));
+			opts->Set(syb_opt_attributes,syb_opt_attributes,(PropertyAttribute)(ReadOnly|DontDelete));
+			opts->Set(syb_opt_security,syb_opt_security,(PropertyAttribute)(ReadOnly|DontDelete));
+			t->Set(String::NewSymbol("options"),opts,(PropertyAttribute)(ReadOnly|DontDelete));
+
+			return scope.Close(t->GetFunction());
+		}
+	private:
+		static Handle<Value> New(const Arguments& args){
+			HandleScope scope;
+			uint32_t i,l=args.Length();
+			Handle<Value> *a=(Handle<Value>*)malloc(sizeof(Local<Value>)*l);
+			Handle<Value> r;
+			for(i=0;i<l;i++){
+				a[i]=args[i];
+			}
+			if(args.IsConstructCall()){
+				Handle<Object> obj=args.This();
+				new dirWatcher(obj,a,l);
+				r=obj;
+			}else{
+				r=args.Callee()->CallAsConstructor(l,a);
+			}
+			free(a);
+			return scope.Close(r);
+		}
 		static Handle<Value> close(const Arguments& args){
 			HandleScope scope;
 			dirWatcher* self=ObjectWrap::Unwrap<dirWatcher>(args.This());
@@ -326,7 +367,6 @@ namespace fsWin{
 				return False();
 			}
 		}
-	private:
 		static bool watchParent(dirWatcher *self){
 			bool result;
 			self->parentreq=(uv_work_t*)malloc(sizeof(uv_work_t));
@@ -336,7 +376,7 @@ namespace fsWin{
 				self->parentreq->data=self;
 				self->parentreq->after_work_cb=finishWatchingParent;
 				self->parentreq->type=UV_WORK;
-				String::Value parent(splitPath(Handle<String>::Cast(self->definitions->Get(syb_path)))->Get(String::NewSymbol("parent")));
+				String::Value parent(splitPath::js(Handle<String>::Cast(self->definitions->Get(syb_path)))->Get(splitPath::syb_return_parent));
 				self->parenthnd=CreateFileW((wchar_t*)*parent,FILE_LIST_DIRECTORY,FILE_SHARE_READ|FILE_SHARE_DELETE|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OVERLAPPED,NULL);
 				if(self->parenthnd){
 					if(CreateIoCompletionPort(self->parenthnd,self->parentreq->loop->iocp,(ULONG_PTR)self->parenthnd,0)){
@@ -405,14 +445,14 @@ namespace fsWin{
 					if(!beginWatchingParent(self)){
 						e=true;
 					}
-					Handle<Value> oldname=splitPath(Handle<String>::Cast(self->definitions->Get(syb_path)))->Get(String::NewSymbol("name"));
+					Handle<Value> oldname=splitPath::js(Handle<String>::Cast(self->definitions->Get(syb_path)))->Get(splitPath::syb_return_name);
 					do{
 						pInfo=(FILE_NOTIFY_INFORMATION*)((ULONG_PTR)buffer+d);
 						Handle<String> filename=String::New((uint16_t*)pInfo->FileName,pInfo->FileNameLength/sizeof(wchar_t));
 						if((pInfo->Action==FILE_ACTION_REMOVED||pInfo->Action==FILE_ACTION_RENAMED_OLD_NAME)&&(filename->StrictEquals(oldname)||filename->StrictEquals(self->definitions->Get(syb_shortName)))){
 							Handle<String> newpath=getCurrentPathByHandle(self->pathhnd);
 							self->definitions->Set(syb_path,newpath);
-							self->definitions->Set(syb_shortName,splitPath(convertPath::js(newpath,false))->Get(String::NewSymbol("name")));
+							self->definitions->Set(syb_shortName,splitPath::js(convertPath::js(newpath,false))->Get(splitPath::syb_return_name));
 							if(pInfo->Action==FILE_ACTION_REMOVED){
 								CloseHandle(self->parenthnd);
 								if(!watchParent(self)){
@@ -565,26 +605,26 @@ namespace fsWin{
 		static const Persistent<String> syb_err_initialization_failed;
 		static const Persistent<String> syb_err_wrong_arguments;
 	};
-	const Persistent<String> dirWatcher::syb_path=NODE_PSYMBOL("path");
-	const Persistent<String> dirWatcher::syb_shortName=NODE_PSYMBOL("shortName");
-	const Persistent<String> dirWatcher::syb_callback=NODE_PSYMBOL("callback");
-	const Persistent<String> dirWatcher::syb_opt_subDirs=NODE_PSYMBOL("subDirs");
-	const Persistent<String> dirWatcher::syb_opt_fileSize=NODE_PSYMBOL("fileSize");
-	const Persistent<String> dirWatcher::syb_opt_lastWrite=NODE_PSYMBOL("lastWrite");
-	const Persistent<String> dirWatcher::syb_opt_lastAccess=NODE_PSYMBOL("lastAccess");
-	const Persistent<String> dirWatcher::syb_opt_creation=NODE_PSYMBOL("creation");
-	const Persistent<String> dirWatcher::syb_opt_attributes=NODE_PSYMBOL("attributes");
-	const Persistent<String> dirWatcher::syb_opt_security=NODE_PSYMBOL("security");
-	const Persistent<String> dirWatcher::syb_evt_sta=NODE_PSYMBOL("started");
-	const Persistent<String> dirWatcher::syb_evt_end=NODE_PSYMBOL("ended");
-	const Persistent<String> dirWatcher::syb_evt_new=NODE_PSYMBOL("added");
-	const Persistent<String> dirWatcher::syb_evt_del=NODE_PSYMBOL("removed");
-	const Persistent<String> dirWatcher::syb_evt_ren=NODE_PSYMBOL("renamed");
-	const Persistent<String> dirWatcher::syb_evt_chg=NODE_PSYMBOL("modified");
-	const Persistent<String> dirWatcher::syb_evt_mov=NODE_PSYMBOL("moved");
-	const Persistent<String> dirWatcher::syb_evt_err=NODE_PSYMBOL("error");
-	const Persistent<String> dirWatcher::syb_evt_ren_oldName=NODE_PSYMBOL("oldName");
-	const Persistent<String> dirWatcher::syb_evt_ren_newName=NODE_PSYMBOL("newName");
+	const Persistent<String> dirWatcher::syb_path=NODE_PSYMBOL("PATH");
+	const Persistent<String> dirWatcher::syb_shortName=NODE_PSYMBOL("SHORT_NAME");
+	const Persistent<String> dirWatcher::syb_callback=NODE_PSYMBOL("CALLBACK");
+	const Persistent<String> dirWatcher::syb_opt_subDirs=NODE_PSYMBOL("WATCH_SUB_DIRECTORYS");
+	const Persistent<String> dirWatcher::syb_opt_fileSize=NODE_PSYMBOL("CHANGE_FILE_SIZE");
+	const Persistent<String> dirWatcher::syb_opt_lastWrite=NODE_PSYMBOL("CHANGE_LAST_WRITE");
+	const Persistent<String> dirWatcher::syb_opt_lastAccess=NODE_PSYMBOL("CHANGE_LAST_ACCESS");
+	const Persistent<String> dirWatcher::syb_opt_creation=NODE_PSYMBOL("CHANGE_CREATION");
+	const Persistent<String> dirWatcher::syb_opt_attributes=NODE_PSYMBOL("CHANGE_ATTRIBUTES");
+	const Persistent<String> dirWatcher::syb_opt_security=NODE_PSYMBOL("CHANGE_SECUTITY");
+	const Persistent<String> dirWatcher::syb_evt_sta=NODE_PSYMBOL("STARTED");
+	const Persistent<String> dirWatcher::syb_evt_end=NODE_PSYMBOL("ENDED");
+	const Persistent<String> dirWatcher::syb_evt_new=NODE_PSYMBOL("ADDED");
+	const Persistent<String> dirWatcher::syb_evt_del=NODE_PSYMBOL("REMOVED");
+	const Persistent<String> dirWatcher::syb_evt_chg=NODE_PSYMBOL("MODIFIED");
+	const Persistent<String> dirWatcher::syb_evt_ren=NODE_PSYMBOL("RENAMED");
+	const Persistent<String> dirWatcher::syb_evt_mov=NODE_PSYMBOL("MOVED");
+	const Persistent<String> dirWatcher::syb_evt_err=NODE_PSYMBOL("ERROR");
+	const Persistent<String> dirWatcher::syb_evt_ren_oldName=NODE_PSYMBOL("OLD_NAME");
+	const Persistent<String> dirWatcher::syb_evt_ren_newName=NODE_PSYMBOL("NEW_NAME");
 	const Persistent<String> dirWatcher::syb_err_unable_to_watch_parent=NODE_PSYMBOL("UNABLE_TO_WATCH_PARENT");
 	const Persistent<String> dirWatcher::syb_err_unable_to_continue_watching=NODE_PSYMBOL("UNABLE_TO_CONTINUE_WATCHING");
 	const Persistent<String> dirWatcher::syb_err_initialization_failed=global_syb_err_initialization_failed;
@@ -593,11 +633,10 @@ namespace fsWin{
 	extern "C"{
 		static void init(Handle<Object> target){
 			HandleScope scope;
-			Handle<String> classname=String::NewSymbol("fsWin");
-			target->Set(String::NewSymbol("dirWatcher"),dirWatcher::init(classname));
-			NODE_SET_METHOD(target,"splitPath",splitPathForJs);
-			NODE_SET_METHOD(target,"convertPath",convertPath::jsAsync);
-			NODE_SET_METHOD(target,"convertPathSync",convertPath::jsSync);
+			target->Set(String::NewSymbol("dirWatcher"),dirWatcher::initModle());
+			target->Set(String::NewSymbol("splitPath"),splitPath::initModle());
+			target->Set(String::NewSymbol("convertPath"),convertPath::initModle(true));
+			target->Set(String::NewSymbol("convertPathSync"),convertPath::initModle(false));
 
 			target->Set(String::NewSymbol("version"),String::NewSymbol(FSWIN_VERSION));
 		}
