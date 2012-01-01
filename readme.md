@@ -35,13 +35,13 @@ this function requires a filesystem I/O, so it contains both a block and non-blo
 var fsWin=require('fsWin.node');
 var fsWin=require("D:\\Documents\\Visual Studio 2010\\Projects\\fsWin\\Release\\fsWin.node");
 var options={},e;
-options[fsWin.dirWatcher.options.subDirs]=true;//watch the dir tree
-options[fsWin.dirWatcher.options.fileSize]=true;//watch file size changes, will fire in 'modified' event
-options[fsWin.dirWatcher.options.lastWrite]=true;//watch last write time changes, will fire in 'modified' event
-options[fsWin.dirWatcher.options.lastAccess]=false;//watch last access time changes, will fire in 'modified' event
-options[fsWin.dirWatcher.options.creation]=false;//watch creation time changes, will fire in 'modified' event
-options[fsWin.dirWatcher.options.attributes]=false;//watch attributes changes, will fire in 'modified' event
-options[fsWin.dirWatcher.options.security]=false;//watch security changes, will fire in 'modified' event;
+options[fsWin.dirWatcher.options.WATCH_SUB_DIRECTORYS]=true;//watch the dir tree
+options[fsWin.dirWatcher.options.CHANGE_FILE_SIZE]=true;//watch file size changes, will fire in 'modified' event
+options[fsWin.dirWatcher.options.CHANGE_LAST_WRITE]=true;//watch last write time changes, will fire in 'modified' event
+options[fsWin.dirWatcher.options.CHANGE_LAST_ACCESS]=false;//watch last access time changes, will fire in 'modified' event
+options[fsWin.dirWatcher.options.CHANGE_CREATION]=false;//watch creation time changes, will fire in 'modified' event
+options[fsWin.dirWatcher.options.CHANGE_ATTRIBUTES]=false;//watch attributes changes, will fire in 'modified' event
+options[fsWin.dirWatcher.options.CHANGE_SECUTITY]=false;//watch security changes, will fire in 'modified' event;
 try{
 	var watcher=new fsWin.dirWatcher(
 		'd:\\test',//the directory you are about to watch
