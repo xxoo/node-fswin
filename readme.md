@@ -7,6 +7,7 @@ node-fsWin is a native windows add-on for node.js. It contains some platform spe
 #### dirWatcher
 a directory watcher object that is more suitable for windows then the internal fs.watch().
 it supplies some freture that the fs.watch() doesn't contain.
+
 1. directory tree watching(with higher performance then recursion functions).
 2. more events(including added,removed,modified,renamed).
 3. more options.
@@ -31,38 +32,55 @@ this function requires a filesystem I/O, so it contains both a block and non-blo
 
 #### dirWatcher
 ```javascript
-var fsWin=require('fsWin.node');
-var watcher=new fsWin.dirWatcher('d:\\test',
-function(event,detail){
-	if(event==='started'){
-		console.log('watcher started in: "'+detail+'"');
-	}else if(event==='added'){
-		console.log('"'+detail+'" is added');
-	}else if(event==='removed'){
-		console.log('"'+detail+'" is removed');
-	}else if(event==='modified'){
-		console.log('"'+detail+'" is modified');
-	}else if(event==='renamed'){
-		console.log('"'+detail.from+'" is renamed to "'+detail.to+'"');
-	}else if(event==='moved'){
-		console.log('the directory you are watching is moved to "'+detail+'"');
-	}else if(event==='error'){
-		console.log('an error occured: "'+detail.message+'"');
-	}else if(event==='ended'){
-		console.log('the watcher is about to quit');
+var options={},e;
+options[fsWin.dirWatcher.options.subDirs]=true;//watch the dir tree
+options[fsWin.dirWatcher.options.fileSize]=true;//watch file size changes, will fire in 'modified' event
+options[fsWin.dirWatcher.options.lastWrite]=true;//watch last write time changes, will fire in 'modified' event
+options[fsWin.dirWatcher.options.lastAccess]=false;//watch last access time changes, will fire in 'modified' event
+options[fsWin.dirWatcher.options.creation]=false;//watch creation time changes, will fire in 'modified' event
+options[fsWin.dirWatcher.options.attributes]=false;//watch attributes changes, will fire in 'modified' event
+options[fsWin.dirWatcher.options.security]=false;//watch security changes, will fire in 'modified' event;
+try{
+	var watcher=new fsWin.dirWatcher(
+		'd:\\test1',//the directory you are about to watch
+		function(event,detail){
+			if(event===this.constructor.events.started){
+				console.log('watcher started in: "'+detail+'"');
+			}else if(event===this.constructor.events.added){
+				console.log('"'+detail+'" is added');
+			}else if(event===this.constructor.events.removed){
+				console.log('"'+detail+'" is removed');
+			}else if(event===this.constructor.events.modified){
+				console.log('"'+detail+'" is modified');
+			}else if(event===this.constructor.events.renamed){
+				console.log('"'+detail.from+'" is renamed to "'+detail.to+'"');
+			}else if(event===this.constructor.events.moved){
+				console.log('the directory you are watching is moved to "'+detail+'"');
+			}else if(event===this.constructor.events.error){
+				if(detail===this.constructor.errors.INITIALIZATION_FAILED){
+					console.log('failed to initialze the watcher. any failure during the initialization may case this error. such as you are watching an unaccessable or unexist directory.');
+				}else if(detail===this.constructor.errors.UNABLE_TO_WATCH_PARENT){
+					console.log('failed to watch parent diectory. it means the "moved" event will nolonger fire. this error always occurs at the start up under winxp. since the GetFinalPathNameByHandleW API is not available.');
+				}else if(detail===this.constructor.errors.UNABLE_TO_CONTINUE_WATCHING){
+					console.log('some error makes the watcher can not continue work. it means the watcher will exit soon.');
+				}else{
+					console.log('you should never see this message: "'+detail+'"');
+				}
+			}else if(event===this.constructor.events.ended){
+				console.log('the watcher is about to quit');
+			}
+			//if you want to stop watching, call the close method
+			//this.close();
+		},
+		options//options is not required, and this is the default value
+	);
+}catch(e){
+	if(e===fsWin.dirWatcher.errors.WRONG_ARGUMENTS){
+		console.log('check the argumens you\'ve passed in. make sure there are at least two arguments. the first is a string, and the second is a function.');
+	}else{
+		console.log('an unexcepted error occurs: '+ e);
 	}
-	//if you want to stop watching, call the close method
-	//this.close();
-},
-{//options is not required, and this is the default value
-	subDirs:true,//watch the dir tree
-	fileSize:true,//watch file size changes, will fire in 'modified' event
-	lastWrite:true,//watch last write time changes, will fire in 'modified' event
-	lastAccess:false,//watch last access time changes, will fire in 'modified' event
-	creation:false,//watch creation time changes, will fire in 'modified' event
-	attributes:false,//watch attributes changes, will fire in 'modified' event
-	security:false//watch security changes, will fire in 'modified' event;
-});
+}
 ```
 
 #### splitPath

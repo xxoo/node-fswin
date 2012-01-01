@@ -182,7 +182,6 @@ namespace fsWin{
 			errmsgs->Set(syb_err_unable_to_continue_watching,syb_err_unable_to_continue_watching,(PropertyAttribute)(ReadOnly|DontDelete));
 			errmsgs->Set(syb_err_initialization_failed,syb_err_initialization_failed,(PropertyAttribute)(ReadOnly|DontDelete));
 			errmsgs->Set(syb_err_wrong_arguments,syb_err_wrong_arguments,(PropertyAttribute)(ReadOnly|DontDelete));
-			errmsgs->Set(syb_err_out_of_memory,syb_err_out_of_memory,(PropertyAttribute)(ReadOnly|DontDelete));
 			t->Set(String::NewSymbol("errors"),errmsgs,(PropertyAttribute)(ReadOnly|DontDelete));
 
 			//set events
@@ -196,6 +195,17 @@ namespace fsWin{
 			evts->Set(syb_evt_mov,syb_evt_mov,(PropertyAttribute)(ReadOnly|DontDelete));
 			evts->Set(syb_evt_err,syb_evt_err,(PropertyAttribute)(ReadOnly|DontDelete));
 			t->Set(String::NewSymbol("events"),evts,(PropertyAttribute)(ReadOnly|DontDelete));
+
+			//set options
+			Handle<Object> opts=Object::New();
+			opts->Set(syb_opt_subDirs,syb_opt_subDirs,(PropertyAttribute)(ReadOnly|DontDelete));
+			opts->Set(syb_opt_fileSize,syb_opt_fileSize,(PropertyAttribute)(ReadOnly|DontDelete));
+			opts->Set(syb_opt_lastWrite,syb_opt_lastWrite,(PropertyAttribute)(ReadOnly|DontDelete));
+			opts->Set(syb_opt_lastAccess,syb_opt_lastAccess,(PropertyAttribute)(ReadOnly|DontDelete));
+			opts->Set(syb_opt_creation,syb_opt_creation,(PropertyAttribute)(ReadOnly|DontDelete));
+			opts->Set(syb_opt_attributes,syb_opt_attributes,(PropertyAttribute)(ReadOnly|DontDelete));
+			opts->Set(syb_opt_security,syb_opt_security,(PropertyAttribute)(ReadOnly|DontDelete));
+			t->Set(String::NewSymbol("options"),opts,(PropertyAttribute)(ReadOnly|DontDelete));
 
 			t->SetClassName(classname);
 			return scope.Close(t->GetFunction());
@@ -220,7 +230,12 @@ namespace fsWin{
 		}
 		dirWatcher(Handle<Object> handle,Handle<Value> *args,uint32_t argc):ObjectWrap(){
 			HandleScope scope;
+			Wrap(handle);
+			Ref();
 			if(argc>1&&(args[0]->IsString()||args[0]->IsStringObject())&&args[1]->IsFunction()){
+				bool e=false;
+				definitions=Persistent<Object>::New(Object::New());
+				definitions->Set(syb_callback,args[1]);
 				String::Value spath(args[0]);
 				pathhnd=CreateFileW((wchar_t*)*spath,FILE_LIST_DIRECTORY,FILE_SHARE_READ|FILE_SHARE_DELETE|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OVERLAPPED,NULL);
 				if(pathhnd){
@@ -258,11 +273,6 @@ namespace fsWin{
 							}
 						}
 						if(beginWatchingPath(this)){
-							bool e=false;
-							Wrap(handle);
-							Ref();
-							definitions=Persistent<Object>::New(Object::New());
-							definitions->Set(syb_callback,args[1]);
 							Handle<String> path;
 							if((void*)GetFinalPathNameByHandleW){//check if GetFinalPathNameByHandleW is supported
 								path=getCurrentPathByHandle(pathhnd);//get the real path, it could be defferent from args[0]
@@ -281,20 +291,25 @@ namespace fsWin{
 							}
 							callJs(this,syb_evt_sta,path);
 							if(e){
-								callJs(this,syb_evt_err,Exception::Error(syb_err_unable_to_watch_parent));
+								callJs(this,syb_evt_err,syb_err_unable_to_watch_parent);
+								e=false;
 							}
 						}else{
-							CloseHandle(pathhnd);
-							ThrowException(syb_err_out_of_memory);
+							e=true;
 						}
 					}else{
-						CloseHandle(pathhnd);
-						ThrowException(syb_err_initialization_failed);
+						e=true;
 					}
 				}else{
-					ThrowException(syb_err_initialization_failed);
+					e=true;
+				}
+				if(e){
+					callJs(this,syb_evt_err,syb_err_initialization_failed);
+					stopWatching(this);
 				}
 			}else{
+				pathhnd=NULL;
+				stopWatching(this);
 				ThrowException(syb_err_wrong_arguments);
 			}
 		}
@@ -411,10 +426,10 @@ namespace fsWin{
 						d+=pInfo->NextEntryOffset;
 					}while(pInfo->NextEntryOffset>0);
 					if(e){
-						callJs(self,syb_evt_err,Exception::Error(syb_err_unable_to_watch_parent));
+						callJs(self,syb_evt_err,syb_err_unable_to_watch_parent);
 					}
 				}else{
-					callJs(self,syb_evt_err,Exception::Error(syb_err_unable_to_watch_parent));
+					callJs(self,syb_evt_err,syb_err_unable_to_watch_parent);
 					CloseHandle(self->parenthnd);
 					self->parenthnd=NULL;
 				}
@@ -430,7 +445,7 @@ namespace fsWin{
 				FILE_NOTIFY_INFORMATION* pInfo;
 				DWORD d=0;
 				if(!beginWatchingPath(self)){
-					callJs(self,syb_evt_err,Exception::Error(syb_err_unable_to_continue_watching));
+					callJs(self,syb_evt_err,syb_err_unable_to_continue_watching);
 				}
 				do{
 					pInfo=(FILE_NOTIFY_INFORMATION*)((ULONG_PTR)buffer+d);
@@ -465,14 +480,16 @@ namespace fsWin{
 					d+=pInfo->NextEntryOffset;
 				}while(pInfo->NextEntryOffset>0);
 			}else{
-				callJs(self,syb_evt_err,Exception::Error(syb_err_unable_to_continue_watching));
+				callJs(self,syb_evt_err,syb_err_unable_to_continue_watching);
 				stopWatching(self);
 			}
 			free(buffer);
 		}
 		static void stopWatching(dirWatcher *self){
-			CloseHandle(self->pathhnd);
-			self->pathhnd=NULL;
+			if(self->pathhnd){
+				CloseHandle(self->pathhnd);
+				self->pathhnd=NULL;
+			}
 			if(self->pathref>0){
 				self->pathreq.type=UV_UNKNOWN_REQ;//mute this request
 				uv_unref(self->pathreq.loop);
@@ -544,7 +561,6 @@ namespace fsWin{
 		static const Persistent<String> syb_evt_err;
 		static const Persistent<String> syb_evt_ren_from;
 		static const Persistent<String> syb_evt_ren_to;
-		static const Persistent<String> syb_err_out_of_memory;
 		static const Persistent<String> syb_err_unable_to_watch_parent;
 		static const Persistent<String> syb_err_unable_to_continue_watching;
 		static const Persistent<String> syb_err_initialization_failed;
@@ -574,7 +590,6 @@ namespace fsWin{
 	const Persistent<String> dirWatcher::syb_err_unable_to_continue_watching=NODE_PSYMBOL("UNABLE_TO_CONTINUE_WATCHING");
 	const Persistent<String> dirWatcher::syb_err_initialization_failed=global_syb_err_initialization_failed;
 	const Persistent<String> dirWatcher::syb_err_wrong_arguments=global_syb_err_wrong_arguments;
-	const Persistent<String> dirWatcher::syb_err_out_of_memory=global_syb_err_out_of_memory;
 
 	extern "C"{
 		static void init(Handle<Object> target){
