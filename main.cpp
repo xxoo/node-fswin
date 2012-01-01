@@ -9,8 +9,8 @@
 using namespace v8;
 using namespace node;
 
-#include <iostream>//for debug only
-using namespace std;
+//#include <iostream>//for debug only
+//using namespace std;
 
 namespace fsWin{
 	static const Persistent<String> global_syb_err_wrong_arguments=NODE_PSYMBOL("WRONG_ARGUMENTS");

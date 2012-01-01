@@ -36,9 +36,9 @@ function(event,detail){
 	}else if(event==='added'){
 		console.log(detail+' is added');
 	}else if(event==='removed'){
-		console.log(detail+'is removed');
+		console.log(detail+' is removed');
 	}else if(event==='changed'){
-		console.log(detail+'is changed');
+		console.log(detail+' is changed');
 	}else if(event==='renamed'){
 		console.log(detail.from+' is renamed to '+detail.to);
 	}else if(event==='moved'){
