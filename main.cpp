@@ -1,13 +1,16 @@
 //dirWatcher requires vista or latter to call GetFinalPathNameByHandleW.
 //the API is necessary since the dir we are watching could also be moved to another path.
 //and it is the only way to get the new path at that kind of situation.
+#define FSWIN_VERSION "0.1.2012.0101"
+
 #define _WIN32_WINNT 0x0600
 #include <node.h>
 #pragma comment(lib,"node.lib")
-#include <iostream>
-using namespace std;
 using namespace v8;
 using namespace node;
+
+#include <iostream>//for debug only
+using namespace std;
 
 namespace fsWin{
 	static const Persistent<String> global_syb_err_wrong_arguments=NODE_PSYMBOL("WRONG_ARGUMENTS");
@@ -103,13 +106,7 @@ namespace fsWin{
 				return ThrowException(global_syb_err_not_a_constructor);
 			}else{
 				if(args.Length()>0&&(args[0]->IsString()||args[0]->IsStringObject())){
-					bool b;
-					if(args.Length()>2){
-						b=args[2]->Equals(True());
-					}else{
-						b=true;
-					}
-					return scope.Close(js(Handle<String>::Cast(args[0]),b));
+					return scope.Close(js(Handle<String>::Cast(args[0]),args[1]->ToBoolean()->IsTrue()));
 				}else{
 					return ThrowException(global_syb_err_wrong_arguments);
 				}
@@ -120,19 +117,13 @@ namespace fsWin{
 			if(args.IsConstructCall()){
 				return ThrowException(global_syb_err_not_a_constructor);
 			}else{
-				if(args.Length()>1&&(args[0]->IsString()||args[0]->IsStringObject())&&((args.Length()>2&&args[2]->IsFunction())||args[1]->IsFunction())){
+				if(args.Length()>1&&(args[0]->IsString()||args[0]->IsStringObject())&&args[1]->IsFunction()){
 					workdata *data=new workdata();
 					data->req.data=data;
 					data->self=Persistent<Object>::New(args.This());
-					Local<String> path=Local<String>::Cast(args[0]);
-					if(args.Length()>2&&args[2]->IsFunction()){
-						data->func=Persistent<Function>::New(Handle<Function>::Cast(args[2]));
-						data->islong=args[1]->ToBoolean()->IsTrue();
-					}else{
-						data->func=Persistent<Function>::New(Handle<Function>::Cast(args[1]));
-						data->islong=true;
-					}
-					data->path=_wcsdup((wchar_t*)*String::Value(path));
+					data->func=Persistent<Function>::New(Handle<Function>::Cast(args[1]));
+					data->islong=args[2]->ToBoolean()->IsTrue();
+					data->path=_wcsdup((wchar_t*)*String::Value(Local<String>::Cast(args[0])));
 					return uv_queue_work(uv_default_loop(),&data->req,beginWork,afterWork)==0?True():False();
 				}else{
 					return ThrowException(global_syb_err_wrong_arguments);
@@ -178,6 +169,7 @@ namespace fsWin{
 			t->InstanceTemplate()->SetInternalFieldCount(1);
 			//set methods
 			NODE_SET_PROTOTYPE_METHOD(t,"close",close);
+
 			//set error messages
 			Handle<Object> errmsgs=Object::New();
 			errmsgs->Set(syb_err_unable_to_watch_parent,syb_err_unable_to_watch_parent,(PropertyAttribute)(ReadOnly|DontDelete));
@@ -186,6 +178,18 @@ namespace fsWin{
 			errmsgs->Set(syb_err_wrong_arguments,syb_err_wrong_arguments,(PropertyAttribute)(ReadOnly|DontDelete));
 			errmsgs->Set(syb_err_out_of_memory,syb_err_out_of_memory,(PropertyAttribute)(ReadOnly|DontDelete));
 			t->Set(String::NewSymbol("errors"),errmsgs,(PropertyAttribute)(ReadOnly|DontDelete));
+
+			//set events
+			Handle<Object> evts=Object::New();
+			evts->Set(syb_evt_sta,syb_evt_sta,(PropertyAttribute)(ReadOnly|DontDelete));
+			evts->Set(syb_evt_end,syb_evt_end,(PropertyAttribute)(ReadOnly|DontDelete));
+			evts->Set(syb_evt_new,syb_evt_new,(PropertyAttribute)(ReadOnly|DontDelete));
+			evts->Set(syb_evt_del,syb_evt_del,(PropertyAttribute)(ReadOnly|DontDelete));
+			evts->Set(syb_evt_ren,syb_evt_ren,(PropertyAttribute)(ReadOnly|DontDelete));
+			evts->Set(syb_evt_chg,syb_evt_chg,(PropertyAttribute)(ReadOnly|DontDelete));
+			evts->Set(syb_evt_mov,syb_evt_mov,(PropertyAttribute)(ReadOnly|DontDelete));
+			evts->Set(syb_evt_err,syb_evt_err,(PropertyAttribute)(ReadOnly|DontDelete));
+			t->Set(String::NewSymbol("events"),evts,(PropertyAttribute)(ReadOnly|DontDelete));
 
 			t->SetClassName(classname);
 			return scope.Close(t->GetFunction());
@@ -298,7 +302,7 @@ namespace fsWin{
 		static Handle<Value> close(const Arguments& args){
 			HandleScope scope;
 			dirWatcher* self=ObjectWrap::Unwrap<dirWatcher>(args.This());
-			if(self->refs_>0){//this method returns false if dirWatcher is failed to create or already closed
+			if(self->pathhnd){//this method returns false if dirWatcher is failed to create or already closed
 				stopWatching(self);
 				return True();
 			}else{
@@ -577,6 +581,8 @@ namespace fsWin{
 			NODE_SET_METHOD(target,"splitPath",splitPathForJs);
 			NODE_SET_METHOD(target,"convertPath",convertPath::jsAsync);
 			NODE_SET_METHOD(target,"convertPathSync",convertPath::jsSync);
+
+			target->Set(String::NewSymbol("version"),String::NewSymbol(FSWIN_VERSION));
 		}
 		NODE_MODULE(fsWin,init);
 	};
