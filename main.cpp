@@ -5,8 +5,8 @@
 using namespace v8;
 using namespace node;
 
-//#include <iostream>//for debug only
-//using namespace std;
+#include <iostream>//for debug only
+using namespace std;
 
 //dirWatcher requires vista or latter to call GetFinalPathNameByHandleW.
 //the API is necessary since the dir we are watching could also be moved to another path.
@@ -230,10 +230,10 @@ namespace fsWin{
 		}
 		dirWatcher(Handle<Object> handle,Handle<Value> *args,uint32_t argc):ObjectWrap(){
 			HandleScope scope;
-			Wrap(handle);
-			Ref();
 			if(argc>1&&(args[0]->IsString()||args[0]->IsStringObject())&&args[1]->IsFunction()){
 				bool e=false;
+				Wrap(handle);
+				Ref();
 				definitions=Persistent<Object>::New(Object::New());
 				definitions->Set(syb_callback,args[1]);
 				String::Value spath(args[0]);
@@ -308,9 +308,8 @@ namespace fsWin{
 					stopWatching(this);
 				}
 			}else{
-				pathhnd=NULL;
-				stopWatching(this);
-				ThrowException(syb_err_wrong_arguments);
+				ThrowException(Exception::Error(syb_err_wrong_arguments));
+				delete this;
 			}
 		}
 		virtual ~dirWatcher(){
@@ -457,24 +456,24 @@ namespace fsWin{
 					}else if(pInfo->Action==FILE_ACTION_MODIFIED){
 						callJs(self,syb_evt_chg,filename);
 					}else if(pInfo->Action==FILE_ACTION_RENAMED_OLD_NAME){
-						if(self->definitions->HasOwnProperty(syb_evt_ren_to)){
+						if(self->definitions->HasOwnProperty(syb_evt_ren_newName)){
 							Handle<Object> arg=Object::New();
-							arg->Set(syb_evt_ren_from,filename);
-							arg->Set(syb_evt_ren_to,self->definitions->Get(syb_evt_ren_to));
-							self->definitions->Delete(syb_evt_ren_to);
+							arg->Set(syb_evt_ren_oldName,filename);
+							arg->Set(syb_evt_ren_newName,self->definitions->Get(syb_evt_ren_newName));
+							self->definitions->Delete(syb_evt_ren_newName);
 							callJs(self,syb_evt_ren,arg);
 						}else{
-							self->definitions->Set(syb_evt_ren_from,filename);
+							self->definitions->Set(syb_evt_ren_oldName,filename);
 						}
 					}else if(pInfo->Action==FILE_ACTION_RENAMED_NEW_NAME){
-						if(self->definitions->HasOwnProperty(syb_evt_ren_from)){
+						if(self->definitions->HasOwnProperty(syb_evt_ren_oldName)){
 							Handle<Object> arg=Object::New();
-							arg->Set(syb_evt_ren_from,self->definitions->Get(syb_evt_ren_from));
-							arg->Set(syb_evt_ren_to,filename);
-							self->definitions->Delete(syb_evt_ren_from);
+							arg->Set(syb_evt_ren_oldName,self->definitions->Get(syb_evt_ren_oldName));
+							arg->Set(syb_evt_ren_newName,filename);
+							self->definitions->Delete(syb_evt_ren_oldName);
 							callJs(self,syb_evt_ren,arg);
 						}else{
-							self->definitions->Set(syb_evt_ren_to,filename);
+							self->definitions->Set(syb_evt_ren_newName,filename);
 						}
 					}
 					d+=pInfo->NextEntryOffset;
@@ -559,8 +558,8 @@ namespace fsWin{
 		static const Persistent<String> syb_evt_chg;
 		static const Persistent<String> syb_evt_mov;
 		static const Persistent<String> syb_evt_err;
-		static const Persistent<String> syb_evt_ren_from;
-		static const Persistent<String> syb_evt_ren_to;
+		static const Persistent<String> syb_evt_ren_oldName;
+		static const Persistent<String> syb_evt_ren_newName;
 		static const Persistent<String> syb_err_unable_to_watch_parent;
 		static const Persistent<String> syb_err_unable_to_continue_watching;
 		static const Persistent<String> syb_err_initialization_failed;
@@ -584,8 +583,8 @@ namespace fsWin{
 	const Persistent<String> dirWatcher::syb_evt_chg=NODE_PSYMBOL("modified");
 	const Persistent<String> dirWatcher::syb_evt_mov=NODE_PSYMBOL("moved");
 	const Persistent<String> dirWatcher::syb_evt_err=NODE_PSYMBOL("error");
-	const Persistent<String> dirWatcher::syb_evt_ren_from=NODE_PSYMBOL("from");
-	const Persistent<String> dirWatcher::syb_evt_ren_to=NODE_PSYMBOL("to");
+	const Persistent<String> dirWatcher::syb_evt_ren_oldName=NODE_PSYMBOL("oldName");
+	const Persistent<String> dirWatcher::syb_evt_ren_newName=NODE_PSYMBOL("newName");
 	const Persistent<String> dirWatcher::syb_err_unable_to_watch_parent=NODE_PSYMBOL("UNABLE_TO_WATCH_PARENT");
 	const Persistent<String> dirWatcher::syb_err_unable_to_continue_watching=NODE_PSYMBOL("UNABLE_TO_CONTINUE_WATCHING");
 	const Persistent<String> dirWatcher::syb_err_initialization_failed=global_syb_err_initialization_failed;

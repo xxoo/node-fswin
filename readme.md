@@ -54,7 +54,7 @@ try{
 			}else if(event===this.constructor.events.modified){
 				console.log('"'+detail+'" is modified');
 			}else if(event===this.constructor.events.renamed){
-				console.log('"'+detail.from+'" is renamed to "'+detail.to+'"');
+				console.log('"'+detail.oldName+'" is renamed to "'+detail.newName+'"');
 			}else if(event===this.constructor.events.moved){
 				console.log('the directory you are watching is moved to "'+detail+'"');
 			}else if(event===this.constructor.events.error){
