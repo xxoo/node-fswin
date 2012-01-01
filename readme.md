@@ -42,30 +42,30 @@ options[fsWin.dirWatcher.options.creation]=false;//watch creation time changes, 
 options[fsWin.dirWatcher.options.attributes]=false;//watch attributes changes, will fire in 'modified' event
 options[fsWin.dirWatcher.options.security]=false;//watch security changes, will fire in 'modified' event;
 try{
-	var watcher=new fsWin.dirWatcher(
-		'd:\\test1',//the directory you are about to watch
-		function(event,detail){
+	var watcher=new fsWin.dirWatcher(1,
+		'd:\\test',//the directory you are about to watch
+		function(event,message){
 			if(event===this.constructor.events.started){
-				console.log('watcher started in: "'+detail+'"');
+				console.log('watcher started in: "'+message+'"');
 			}else if(event===this.constructor.events.added){
-				console.log('"'+detail+'" is added');
+				console.log('"'+message+'" is added');
 			}else if(event===this.constructor.events.removed){
-				console.log('"'+detail+'" is removed');
+				console.log('"'+message+'" is removed');
 			}else if(event===this.constructor.events.modified){
-				console.log('"'+detail+'" is modified');
+				console.log('"'+message+'" is modified');
 			}else if(event===this.constructor.events.renamed){
-				console.log('"'+detail.oldName+'" is renamed to "'+detail.newName+'"');
+				console.log('"'+message.oldName+'" is renamed to "'+message.newName+'"');
 			}else if(event===this.constructor.events.moved){
-				console.log('the directory you are watching is moved to "'+detail+'"');
+				console.log('the directory you are watching is moved to "'+message+'"');
 			}else if(event===this.constructor.events.error){
-				if(detail===this.constructor.errors.INITIALIZATION_FAILED){
-					console.log('failed to initialze the watcher. any failure during the initialization may case this error. such as you are watching an unaccessable or unexist directory.');
-				}else if(detail===this.constructor.errors.UNABLE_TO_WATCH_PARENT){
+				if(message===this.constructor.errors.INITIALIZATION_FAILED){
+					console.log('failed to initialze the watcher. any failure during the initialization may case this error. such as you want to watch an unaccessable or unexist directory.');
+				}else if(message===this.constructor.errors.UNABLE_TO_WATCH_PARENT){
 					console.log('failed to watch parent diectory. it means the "moved" event will nolonger fire. this error always occurs at the start up under winxp. since the GetFinalPathNameByHandleW API is not available.');
-				}else if(detail===this.constructor.errors.UNABLE_TO_CONTINUE_WATCHING){
+				}else if(message===this.constructor.errors.UNABLE_TO_CONTINUE_WATCHING){
 					console.log('some error makes the watcher can not continue work. it means the watcher will exit soon.');
 				}else{
-					console.log('you should never see this message: "'+detail+'"');
+					console.log('you should never see this message: "'+message+'"');
 				}
 			}else if(event===this.constructor.events.ended){
 				console.log('the watcher is about to quit');
@@ -76,10 +76,10 @@ try{
 		options//options is not required, and this is the default value
 	);
 }catch(e){
-	if(e===fsWin.dirWatcher.errors.WRONG_ARGUMENTS){
+	if(e.message===fsWin.dirWatcher.errors.WRONG_ARGUMENTS){
 		console.log('check the argumens you\'ve passed in. make sure there are at least two arguments. the first is a string, and the second is a function.');
 	}else{
-		console.log('an unexcepted error occurs: '+ e);
+		console.log('an unexcepted error occurs: '+ e.message);
 	}
 }
 ```
