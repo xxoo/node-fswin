@@ -3,7 +3,7 @@ Introduction
 node-fsWin is a native windows add-on for node.js.
 It contains some platform specified functions
 
-1. dirWatcher
+dirWatcher
 a directory watcher object that is more suitable for windows then the internal fs.watch()
 it supplies some freture that the fs.watch() doesn't contain
 a) directory tree watching(with higher performance then recursion functions)
@@ -11,7 +11,7 @@ b) more events(including added,removed,modified,renamed)
 c) more options
 d) also watchs the directory itself, not only its contents(this feature requires vista or latter)
 
-2. splitPath
+splitPath
 a function that split a path to its parent and name
 this function can recognize rootdirs(including local and network paths).
 and if a path that passed in is a rootdir the parent part will be empty
@@ -19,13 +19,13 @@ and the name is just the path that passed in
 note: this function is only suitable for windows full paths
 passing a relative path or any other kind of path will case a unexpected return value
 
-3. convertPath and convertPathSync
+convertPath and convertPathSync
 it converts paths between 8.3 name and long name.
 this function requires a filesystem I/O, so it contains both a block and non-block version
 
 Examples
 
-1. dirWatcher
+dirWatcher
 
 ```javascript
 var fsWin=require('fsWin.node');
@@ -62,7 +62,7 @@ function(event,detail){
 });
 ```
 
-2. splitPath
+splitPath
 
 ```javascript
 var fsWin=require('fsWin.node');
@@ -74,7 +74,7 @@ for(i=0;i<paths.length;i++){
 }
 ```
 
-3. convertPath and convertPathSync
+convertPath and convertPathSync
 
 ```javascript
 var fsWin=require('fsWin.node');
