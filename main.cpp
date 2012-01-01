@@ -1,9 +1,5 @@
-//dirWatcher requires vista or latter to call GetFinalPathNameByHandleW.
-//the API is necessary since the dir we are watching could also be moved to another path.
-//and it is the only way to get the new path at that kind of situation.
 #define FSWIN_VERSION "0.1.2012.0101"
 
-#define _WIN32_WINNT 0x0600
 #include <node.h>
 #pragma comment(lib,"node.lib")
 using namespace v8;
@@ -11,6 +7,16 @@ using namespace node;
 
 //#include <iostream>//for debug only
 //using namespace std;
+
+//dirWatcher requires vista or latter to call GetFinalPathNameByHandleW.
+//the API is necessary since the dir we are watching could also be moved to another path.
+//and it is the only way to get the new path at that kind of situation.
+//however, if you still need to use dirWatcher in winxp, it will work without watching
+//the parent dir. and always fire an error at start up.
+#ifndef GetFinalPathNameByHandle
+	typedef DWORD (WINAPI *GetFinalPathNameByHandle)(__in HANDLE hFile,__out_ecount(cchFilePath) LPWSTR lpszFilePath,__in DWORD cchFilePath,__in DWORD dwFlags);
+	static const GetFinalPathNameByHandle GetFinalPathNameByHandleW=(GetFinalPathNameByHandle)GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "GetFinalPathNameByHandleW");
+#endif
 
 namespace fsWin{
 	static const Persistent<String> global_syb_err_wrong_arguments=NODE_PSYMBOL("WRONG_ARGUMENTS");
@@ -118,7 +124,7 @@ namespace fsWin{
 				return ThrowException(global_syb_err_not_a_constructor);
 			}else{
 				if(args.Length()>1&&(args[0]->IsString()||args[0]->IsStringObject())&&args[1]->IsFunction()){
-					workdata *data=new workdata();
+					workdata *data=new workdata;
 					data->req.data=data;
 					data->self=Persistent<Object>::New(args.This());
 					data->func=Persistent<Function>::New(Handle<Function>::Cast(args[1]));
@@ -131,7 +137,7 @@ namespace fsWin{
 			}
 		}
 	private:
-		struct workdata{
+		static struct workdata{
 			uv_work_t req;
 			Persistent<Object> self;
 			Persistent<Function> func;
@@ -257,11 +263,8 @@ namespace fsWin{
 							Ref();
 							definitions=Persistent<Object>::New(Object::New());
 							definitions->Set(syb_callback,args[1]);
-							OSVERSIONINFOW osinfo;
-							osinfo.dwOSVersionInfoSize=sizeof(OSVERSIONINFOW);
-							GetVersionExW(&osinfo);
 							Handle<String> path;
-							if(osinfo.dwMajorVersion>5){
+							if((void*)GetFinalPathNameByHandleW){//check if GetFinalPathNameByHandleW is supported
 								path=getCurrentPathByHandle(pathhnd);//get the real path, it could be defferent from args[0]
 								definitions->Set(syb_path,path);
 								if(Handle<String>::Cast(splitPath(path)->Get(String::NewSymbol("parent")))->Length()>0){//path is not a rootdir, so we need to watch its parent to know if the path we are watching has been changed
