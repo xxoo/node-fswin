@@ -79,7 +79,7 @@ function watchFolder(path){
   return new DirectoryWatcher(path);
 }
 
-function DirectoryWatcher(path, options){
+function DirectoryWatcher(path){
   this.path = resolve(path);
   if (!this.path) throw new Error('Path not found');
 
@@ -111,7 +111,7 @@ function handler(name, message){
       event.changed = message.NEW_NAME;
       break;
     case 'MOVED':
-      event.target = this.directory;
+      event.target = this.path;
       event.changed = message;
       break;
     case 'ERROR':
