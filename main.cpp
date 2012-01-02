@@ -1,4 +1,4 @@
-#define FSWIN_VERSION "0.1.2012.0102"
+#define FSWIN_VERSION "0.1.2012.102"
 
 #include <node.h>
 #pragma comment(lib,"node.lib")
@@ -8,6 +8,11 @@ using namespace node;
 //#include <iostream>//for debug only
 //using namespace std;
 
+namespace fsWin{
+	static const Persistent<String> global_syb_err_wrong_arguments=NODE_PSYMBOL("WRONG_ARGUMENTS");
+	static const Persistent<String> global_syb_err_not_a_constructor=NODE_PSYMBOL("THIS_FUNCTION_IS_NOT_A_CONSTRUCTOR");
+	static const Persistent<String> global_syb_err_initialization_failed=NODE_PSYMBOL("INITIALIZATION_FAILED");
+	
 //dirWatcher requires vista or latter to call GetFinalPathNameByHandleW.
 //the API is necessary since the dir we are watching could also be moved to another path.
 //and it is the only way to get the new path at that kind of situation.
@@ -17,11 +22,35 @@ using namespace node;
 	typedef DWORD (WINAPI *GetFinalPathNameByHandle)(__in HANDLE hFile,__out_ecount(cchFilePath) LPWSTR lpszFilePath,__in DWORD cchFilePath,__in DWORD dwFlags);
 	static const GetFinalPathNameByHandle GetFinalPathNameByHandleW=(GetFinalPathNameByHandle)GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "GetFinalPathNameByHandleW");
 #endif
-
-namespace fsWin{
-	static const Persistent<String> global_syb_err_wrong_arguments=NODE_PSYMBOL("WRONG_ARGUMENTS");
-	static const Persistent<String> global_syb_err_not_a_constructor=NODE_PSYMBOL("THIS_FUNCTION_IS_NOT_A_CONSTRUCTOR");
-	static const Persistent<String> global_syb_err_initialization_failed=NODE_PSYMBOL("INITIALIZATION_FAILED");
+	static Handle<String> getCurrentPathByHandle(HANDLE hnd){
+		HandleScope scope;
+		Handle<String> r;
+		if((void*)GetFinalPathNameByHandleW){//check if GetFinalPathNameByHandleW is supported
+			size_t sz=GetFinalPathNameByHandleW(hnd,NULL,0,FILE_NAME_NORMALIZED);
+			if(sz>0){
+				wchar_t* s=(wchar_t*)malloc(sizeof(wchar_t)*sz);
+				wchar_t* s1=L"\\\\?\\UNC\\";//for network paths
+				wchar_t* s2=L"\\\\?\\";//for local paths
+				size_t sz1=wcslen(s1);
+				size_t sz2=wcslen(s2);
+				GetFinalPathNameByHandleW(hnd,s,sz,FILE_NAME_NORMALIZED);
+				if(wcsncmp(s,s1,sz1)==0){
+					sz=sz1-2;
+					s[sz]=L'\\';
+				}else if(wcsncmp(s,s2,sz2)==0&&((s[sz2]>=L'a'&&s[sz2]<=L'z')||(s[sz2]>=L'A'&&s[sz2]<=L'Z'))&&s[sz2+1]==L':'){
+					sz=wcslen(s2);
+				}else{
+					sz=0;
+				}
+				r=String::New((uint16_t*)(sz>0?&s[sz]:s));
+				free(s);
+			}
+		}
+		if(r.IsEmpty()){
+			r=String::NewSymbol("");
+		}
+		return scope.Close(r);
+	}
 
 	class splitPath{
 	public:
@@ -137,7 +166,7 @@ namespace fsWin{
 				r=String::New((uint16_t*)tpath);
 				free(tpath);
 			}else{
-				r=String::New("");
+				r=String::NewSymbol("");
 			}
 			return scope.Close(r);
 		}
@@ -197,7 +226,7 @@ namespace fsWin{
 				p=String::New((uint16_t*)data->path);
 				free(data->path);
 			}else{
-				p=String::New("");
+				p=String::NewSymbol("");
 			}
 			data->func->Call(data->self,1,&p);
 			data->func.Dispose();
@@ -257,9 +286,8 @@ namespace fsWin{
 							}
 						}
 						if(beginWatchingPath(this)){
-							Handle<String> path;
-							if((void*)GetFinalPathNameByHandleW){//check if GetFinalPathNameByHandleW is supported
-								path=getCurrentPathByHandle(pathhnd);//get the real path, it could be defferent from args[0]
+							Handle<String> path=getCurrentPathByHandle(pathhnd);//get the real path, it could be defferent from args[0]
+							if(path->Length()>0){
 								definitions->Set(syb_path,path);
 								if(Handle<String>::Cast(splitPath::js(path)->Get(splitPath::syb_return_parent))->Length()>0){//path is not a rootdir, so we need to watch its parent to know if the path we are watching has been changed
 									definitions->Set(syb_shortName,splitPath::js(convertPath::js(path,false))->Get(splitPath::syb_return_name));//we also need the shortname to makesure the event will be captured
@@ -543,27 +571,6 @@ namespace fsWin{
 				callJs(self,syb_evt_end,Null());
 				self->Unref();
 			}
-		}
-		static Handle<String> getCurrentPathByHandle(HANDLE hnd){
-			HandleScope scope;
-			size_t sz=GetFinalPathNameByHandleW(hnd,NULL,0,FILE_NAME_NORMALIZED);
-			wchar_t* s=(wchar_t*)malloc(sizeof(wchar_t)*sz);
-			wchar_t* s1=L"\\\\?\\UNC\\";//for network paths
-			wchar_t* s2=L"\\\\?\\";//for local paths
-			size_t sz1=wcslen(s1);
-			size_t sz2=wcslen(s2);
-			GetFinalPathNameByHandleW(hnd,s,sz,FILE_NAME_NORMALIZED);
-			if(wcsncmp(s,s1,sz1)==0){
-				sz=sz1-2;
-				s[sz]=L'\\';
-			}else if(wcsncmp(s,s2,sz2)==0&&s[sz2+1]==L':'){
-				sz=wcslen(s2);
-			}else{
-				sz=0;
-			}
-			Handle<String> r=String::New((uint16_t*)(sz>0?&s[sz]:s));
-			free(s);
-			return scope.Close(r);
 		}
 		static void callJs(dirWatcher *self,Persistent<String> evt_type,Handle<Value> src){
 			HandleScope scope;
