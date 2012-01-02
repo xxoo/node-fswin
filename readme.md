@@ -16,8 +16,8 @@ a function that split a path to its parent and name.
 this function can recognize rootdirs(including local and network paths).
 if a path that passed in is a rootdir the parent part will be empty.
 and the name is just the path that passed in.
-local rootdirs always contain a back slash in the end, such as *c:\*
-network rootdir is something like *\\mycomputer\sharedfolder*.
+local rootdirs always contain a back slash in the end, such as *c:\\*
+network rootdir is something like *\\\\mycomputer\\sharedfolder*.
 note: this function is only suitable for windows full paths.
 passing a relative path or any other kind of path will case an unexpected return value.
 
