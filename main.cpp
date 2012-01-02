@@ -80,7 +80,7 @@ namespace fsWin{
 						}
 					}
 				}
-				k=j>0?j+1:0;
+				k=j>0?1:0;
 			}else{//is local path
 				for(i=l-2;i>1;i--){
 					if(path[i]==s1){
