@@ -148,13 +148,13 @@ function resolve(name){
 }
 
 var defaults = {
-  WATCH_SUB_DIRECTORYS: true,
-  CHANGE_FILE_SIZE:     true,
-  CHANGE_LAST_WRITE:    true,
-  CHANGE_LAST_ACCESS:   true,
-  CHANGE_CREATION:      true,
-  CHANGE_ATTRIBUTES:    true,
-  CHANGE_SECUTITY:      true,
+  WATCH_SUB_DIRECTORIES: true,
+  CHANGE_FILE_SIZE:      true,
+  CHANGE_LAST_WRITE:     true,
+  CHANGE_LAST_ACCESS:    true,
+  CHANGE_CREATION:       true,
+  CHANGE_ATTRIBUTES:     true,
+  CHANGE_SECUTITY:       true,
 };
 
 var errors = {
