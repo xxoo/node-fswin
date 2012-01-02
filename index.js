@@ -44,14 +44,14 @@ function shortName(path, callback){
  */
 function convertName(path, long, callback){
   if (!callback) {
-    return fsWin.convertPathSync(path, long);
+    return fsWin.convertPathSync(path, long) || new Error('convertPath failed');
   }
 
-  var error = fsWin.convertPath(path, function(path){
+  var error = !fsWin.convertPath(path, function(path){
     callback(null, path);
   }, long);
   if (error) {
-    callback(error);
+    callback(new Error('convertPath failed'));
   }
 }
 
