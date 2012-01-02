@@ -1,4 +1,4 @@
-#define FSWIN_VERSION "0.1.2012.0101"
+#define FSWIN_VERSION "0.1.2012.0102"
 
 #include <node.h>
 #pragma comment(lib,"node.lib")
@@ -29,9 +29,9 @@ namespace fsWin{
 		static const Persistent<String> syb_return_name;
 		static struct splitedPath{
 			size_t parentLen;//the length of the parent
-			wchar_t* name;//this could be also considered as the start position of the name
+			const wchar_t* name;//this could be also considered as the start position of the name
 		};
-		static splitedPath* basic(wchar_t* path){//you need to delete the return value your self if it is not NULL;
+		static splitedPath* basic(const wchar_t* path){//you need to delete the return value your self if it is not NULL;
 			wchar_t *s=L"\\\\",s1=L'\\';
 			size_t i,j=0,k=0,l=wcslen(path),m=wcslen(s);
 			if(wcsncmp(s,path,m)==0){//is network path
@@ -82,7 +82,7 @@ namespace fsWin{
 			delete s;
 			return scope.Close(r);
 		}
-		static Handle<Function> initModle(){
+		static Handle<Function> initModule(){
 			Handle<FunctionTemplate> t=FunctionTemplate::New(jsSync);
 
 			//set properties of the return value
@@ -140,7 +140,7 @@ namespace fsWin{
 			}
 			return scope.Close(r);
 		}
-		static Handle<Function> initModle(bool isAsyncVersion){
+		static Handle<Function> initModule(bool isAsyncVersion){
 			return FunctionTemplate::New(isAsyncVersion?jsAsync:jsSync)->GetFunction();
 		}
 	private:
@@ -298,7 +298,7 @@ namespace fsWin{
 			definitions.Dispose();
 			definitions.Clear();
 		}
-		static Handle<Function> initModle(){
+		static Handle<Function> initModule(){
 			HandleScope scope;
 			Handle<FunctionTemplate> t=FunctionTemplate::New(New);
 			t->InstanceTemplate()->SetInternalFieldCount(1);
@@ -578,7 +578,7 @@ namespace fsWin{
 		BOOL subDirs;
 		void *pathbuffer;
 		void *parentbuffer;
-		Persistent<Object> definitions;//to store glbal v8 types
+		Persistent<Object> definitions;//to store global v8 types
 		static const size_t bufferSize=64*1024;
 		static const Persistent<String> syb_path;
 		static const Persistent<String> syb_shortName;
@@ -633,10 +633,10 @@ namespace fsWin{
 	extern "C"{
 		static void init(Handle<Object> target){
 			HandleScope scope;
-			target->Set(String::NewSymbol("dirWatcher"),dirWatcher::initModle());
-			target->Set(String::NewSymbol("splitPath"),splitPath::initModle());
-			target->Set(String::NewSymbol("convertPath"),convertPath::initModle(true));
-			target->Set(String::NewSymbol("convertPathSync"),convertPath::initModle(false));
+			target->Set(String::NewSymbol("dirWatcher"),dirWatcher::initModule());
+			target->Set(String::NewSymbol("splitPath"),splitPath::initModule());
+			target->Set(String::NewSymbol("convertPath"),convertPath::initModule(true));
+			target->Set(String::NewSymbol("convertPathSync"),convertPath::initModule(false));
 
 			target->Set(String::NewSymbol("version"),String::NewSymbol(FSWIN_VERSION));
 		}

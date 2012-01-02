@@ -20,7 +20,7 @@ this function can recognize rootdirs(including local and network paths).
 and if a path that passed in is a rootdir the parent part will be empty.
 and the name is just the path that passed in.
 note: this function is only suitable for windows full paths.
-passing a relative path or any other kind of path will case a unexpected return value.
+passing a relative path or any other kind of path will case an unexpected return value.
 
 
 #### convertPath and convertPathSync
@@ -34,13 +34,13 @@ this function requires a filesystem I/O, so it contains both a block and non-blo
 ```javascript
 var fsWin=require('fsWin.node');
 var options={},e;
-options[fsWin.dirWatcher.options.WATCH_SUB_DIRECTORYS]=true;//watch the dir tree
-options[fsWin.dirWatcher.options.CHANGE_FILE_SIZE]=true;//watch file size changes, will fire in 'modified' event
-options[fsWin.dirWatcher.options.CHANGE_LAST_WRITE]=true;//watch last write time changes, will fire in 'modified' event
-options[fsWin.dirWatcher.options.CHANGE_LAST_ACCESS]=false;//watch last access time changes, will fire in 'modified' event
-options[fsWin.dirWatcher.options.CHANGE_CREATION]=false;//watch creation time changes, will fire in 'modified' event
-options[fsWin.dirWatcher.options.CHANGE_ATTRIBUTES]=false;//watch attributes changes, will fire in 'modified' event
-options[fsWin.dirWatcher.options.CHANGE_SECUTITY]=false;//watch security changes, will fire in 'modified' event;
+options[fsWin.dirWatcher.options.subDirs]=true;//watch the dir tree
+options[fsWin.dirWatcher.options.fileSize]=true;//watch file size changes, will fire in 'modified' event
+options[fsWin.dirWatcher.options.lastWrite]=true;//watch last write time changes, will fire in 'modified' event
+options[fsWin.dirWatcher.options.lastAccess]=false;//watch last access time changes, will fire in 'modified' event
+options[fsWin.dirWatcher.options.creation]=false;//watch creation time changes, will fire in 'modified' event
+options[fsWin.dirWatcher.options.attributes]=false;//watch attributes changes, will fire in 'modified' event
+options[fsWin.dirWatcher.options.security]=false;//watch security changes, will fire in 'modified' event;
 try{
 	var watcher=new fsWin.dirWatcher(
 		'd:\\test',//the directory you are about to watch
@@ -55,15 +55,15 @@ try{
 				console.log('"'+message+'" is modified');
 			}else if(event===this.constructor.events.RENAMED){
 				console.log('"'+message.OLD_NAME+'" is renamed to "'+message.NEW_NAME+'"');
-			}else if(event===this.constructor.events.MOVIED){
+			}else if(event===this.constructor.events.MOVED){
 				console.log('the directory you are watching is moved to "'+message+'"');
 			}else if(event===this.constructor.events.ERROR){
 				if(message===this.constructor.errors.INITIALIZATION_FAILED){
 					console.log('failed to initialze the watcher. any failure during the initialization may case this error. such as you want to watch an unaccessable or unexist directory.');
 				}else if(message===this.constructor.errors.UNABLE_TO_WATCH_PARENT){
-					console.log('failed to watch parent diectory. it means the "moved" event will nolonger fire. this error always occurs at the start up under winxp. since the GetFinalPathNameByHandleW API is not available.');
+					console.log('failed to watch parent diectory. it means the "MOVED" event will nolonger fire. this error always occurs at the start up under winxp. since the GetFinalPathNameByHandleW API is not available.');
 				}else if(message===this.constructor.errors.UNABLE_TO_CONTINUE_WATCHING){
-					console.log('some error makes the watcher can not continue work. it means the watcher will exit soon.');
+					console.log('some error makes the watcher can not continue working. it also means the watcher will exit soon.');
 				}else{
 					console.log('you should never see this message: "'+message+'"');
 				}
