@@ -32,7 +32,7 @@ this function requires a filesystem I/O, so it contains both a block and non-blo
 ```javascript
 var fsWin=require('fsWin.node');
 var options={},e;
-options[fsWin.dirWatcher.options.WATCH_SUB_DIRECTORYS]=true;//watch the dir tree
+options[fsWin.dirWatcher.options.WATCH_SUB_DIRECTORIES]=true;//watch the dir tree
 options[fsWin.dirWatcher.options.CHANGE_FILE_SIZE]=true;//watch file size changes, will fire in 'MODIFIED' event
 options[fsWin.dirWatcher.options.CHANGE_LAST_WRITE]=true;//watch last write time changes, will fire in 'MODIFIED' event
 options[fsWin.dirWatcher.options.CHANGE_LAST_ACCESS]=false;//watch last access time changes, will fire in 'MODIFIED' event

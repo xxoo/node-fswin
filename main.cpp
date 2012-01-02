@@ -83,6 +83,7 @@ namespace fsWin{
 			return scope.Close(r);
 		}
 		static Handle<Function> initModule(){
+			HandleScope scope;
 			Handle<FunctionTemplate> t=FunctionTemplate::New(jsSync);
 
 			//set properties of the return value
@@ -141,6 +142,7 @@ namespace fsWin{
 			return scope.Close(r);
 		}
 		static Handle<Function> initModule(bool isAsyncVersion){
+			HandleScope scope;
 			return FunctionTemplate::New(isAsyncVersion?jsAsync:jsSync)->GetFunction();
 		}
 	private:
@@ -608,7 +610,7 @@ namespace fsWin{
 	const Persistent<String> dirWatcher::syb_path=NODE_PSYMBOL("PATH");
 	const Persistent<String> dirWatcher::syb_shortName=NODE_PSYMBOL("SHORT_NAME");
 	const Persistent<String> dirWatcher::syb_callback=NODE_PSYMBOL("CALLBACK");
-	const Persistent<String> dirWatcher::syb_opt_subDirs=NODE_PSYMBOL("WATCH_SUB_DIRECTORYS");
+	const Persistent<String> dirWatcher::syb_opt_subDirs=NODE_PSYMBOL("WATCH_SUB_DIRECTORIES");
 	const Persistent<String> dirWatcher::syb_opt_fileSize=NODE_PSYMBOL("CHANGE_FILE_SIZE");
 	const Persistent<String> dirWatcher::syb_opt_lastWrite=NODE_PSYMBOL("CHANGE_LAST_WRITE");
 	const Persistent<String> dirWatcher::syb_opt_lastAccess=NODE_PSYMBOL("CHANGE_LAST_ACCESS");
