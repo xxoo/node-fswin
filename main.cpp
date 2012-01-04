@@ -326,6 +326,7 @@ namespace fsWin{
 				WIN32_FIND_DATAW* info=new WIN32_FIND_DATAW;
 				if(data->hnd==INVALID_HANDLE_VALUE){
 					data->hnd=FindFirstFileExW((wchar_t*)data->data,FindExInfoStandard,info,FindExSearchNameMatch,NULL,NULL);
+					free(data->data);
 					if(data->hnd!=INVALID_HANDLE_VALUE){
 						while(!isValidInfo(info)){
 							if(!FindNextFileW(data->hnd,info)){
