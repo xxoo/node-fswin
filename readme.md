@@ -32,7 +32,7 @@ both the block and non-block versions contain a basic mode and progressive mode.
 basic mode will wait till the search finish and return all results in an array.
 the progressive mode will return a single result for each callback.
 this is useful when you are listing many files or the callback has much works to do.
-during the process the file infomathing maight be outdated.
+during the process the file information might be outdated.
 and you also want to save an I/O for each result doing this job.
 
 
