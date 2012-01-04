@@ -33,7 +33,7 @@ basic mode will wait till the search finish and return all results in an array.
 the progressive mode will return a single result for each callback.
 this is useful when you are listing many files or the callback has much works to do.
 during the process the file information might be outdated.
-and you also want to save an I/O for each result doing this job.
+and you also want to save an I/O for doing this job.
 
 
 # Examples
