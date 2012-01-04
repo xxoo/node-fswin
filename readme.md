@@ -1,44 +1,54 @@
-# Introduction
+Introduction
+============
 
 node-fsWin is a native windows add-on for node.js. It contains some platform specified functions.
 
-#### dirWatcher
-a directory watcher object that is more suitable for windows then the internal fs.watch().
-it supplies some freture the fs.watch() doesn't contain.
 
-1. directory tree watching(with higher performance then recursion functions).
-2. more events(including added, removed, modified, renamed).
-3. with options.
-4. also watches the directory itself, not only its children(this feature requires vista or latter).
+### dirWatcher
 
-#### splitPath
-a function that split a path to its parent and name.
-this function can recognize rootdirs(including local and network paths).
-if a path that passed in is a rootdir the parent part will be empty.
-and the name is just the path that passed in.
-local rootdirs always contain a back slash in the end, such as **c:\\**.
-network rootdir is something like **\\\\mycomputer\\sharedfolder**.
+a directory watcher object that is more suitable for windows then the internal `fs.watch()`.
+it supplies some freture the `fs.watch()` doesn't contain.
+
+- directory tree watching(with higher performance then recursion functions).
+- more events(including added, removed, modified, renamed).
+- with options.
+- also watches the directory itself, not only its children(this feature requires vista or latter).
+
+
+### splitPath
+
+a function that split a path to its parent and name that recognizes rootdirs(including local and network paths).
+if a path passed in is a rootdir the parent part will be empty, and the name is just the path itself.
+local rootdirs always contain a back slash in the end, such as `c:\\`.
+network rootdir is something like `\\\\mycomputer\\sharedfolder`.
 note: this function is only suitable for windows full paths.
 passing a relative path or any other kind of path will case an unexpected return value.
 
-#### convertPath and convertPathSync
+
+### convertPath and convertPathSync
+
 converts paths between 8.3 name and long name.
 these functions require a filesystem or network I/O, so there are both a block and non-block versions.
 
-#### find and findSync
-find file or directory by path.
+
+### find and findSync
+
+find files or directories by path.
 these functions are like the dir command. using wild cards are allowed.
 both the block and non-block versions contain a basic mode and progressive mode.
 basic mode will wait till the search finish and return all results in an array.
-the progressive mode will return a single result for each callback.
+the progressive mode doesn't wait and returns a single result for each callback.
 this is useful when you are listing many files or the callback has much works to do.
-during the process the file information might be outdated.
-and you also want to save an I/O for doing this job.
+during the process the returned file information might be outdated.
+if you don't want to waste an I/O on each file for doing this job, try this mode.
 
 
-# Examples
+Examples
+========
 
-#### dirWatcher
+you might need to set your own path to `fsWin.node`
+
+### dirWatcher
 
 ```javascript
 var fsWin=require('fsWin.node');
@@ -54,11 +64,8 @@ try{
 	var watcher=new fsWin.dirWatcher(
 		'd:\\test',//the directory you are about to watch
 		function(event,message){
-			if(event in this.constructor.events){
-			}else{
-			}
 			if(event===this.constructor.events.STARTED){
-				console.log('watcher started in: "'+message+'"');
+				console.log('watcher started in: "'+message+'". this message is an absolute path. and it could be different from the path that you passed in, as symlink will be resolved to its target.');
 			}else if(event===this.constructor.events.ADDED){
 				console.log('"'+message+'" is added');
 			}else if(event===this.constructor.events.REMOVED){
@@ -68,7 +75,7 @@ try{
 			}else if(event===this.constructor.events.RENAMED){
 				console.log('"'+message.OLD_NAME+'" is renamed to "'+message.NEW_NAME+'"');
 			}else if(event===this.constructor.events.MOVED){
-				console.log('the directory you are watching is moved to "'+message+'"');
+				console.log('the directory you are watching is moved to "'+message+'". this message is also an absolute path. just like the "started" event');
 			}else if(event===this.constructor.events.ENDED){
 				console.log('the watcher is about to quit');
 			}else if(event===this.constructor.events.ERROR){
@@ -101,7 +108,8 @@ try{
 }
 ```
 
-#### splitPath
+
+### splitPath
 
 ```javascript
 var fsWin=require('fsWin.node');
@@ -113,7 +121,8 @@ for(i=0;i<paths.length;i++){
 }
 ```
 
-#### convertPath and convertPathSync
+
+### convertPath and convertPathSync
 
 ```javascript
 var fsWin=require('fsWin.node');
@@ -139,24 +148,25 @@ for(i=0;i<paths.length;i++){
 }
 ```
 
-#### convertPath and convertPathSync
+
+### convertPath and convertPathSync
 
 ```javascript
 var fsWin=require('fsWin.node');
 var path='c:\\windows\\system32\\*';
 
-//a list of properties of the file object
+//list property names of the file object that the following functions will return.
 //for more infomation see http://msdn.microsoft.com/en-us/library/windows/desktop/aa365740
 var n;
 for(n in fsWin.find.returns){
-	console.log(n);
+	console.log(fsWin.find.returns[n]);
 }
 
 //sync basic mode
 var i;
-var result=fsWin.findSync(path);
+var files=fsWin.findSync(path);
 for(i=0;i<result.length;i++){
-	console.log(result[i].LONG_NAME+'	'+(result[i].IS_DIRECTORY?'<DIR>':result[i].SIZE));
+	console.log(files[i].LONG_NAME+'	'+(files[i].IS_DIRECTORY?'<DIR>':files[i].SIZE));
 }
 
 //sync progressive mode
@@ -165,10 +175,10 @@ console.log('found ',+fsWin.findSync(path,function(file){
 })+' file(s) or dir(s)');
 
 //async basic mode
-console.log(fsWin.find(path,function(result){
+console.log(fsWin.find(path,function(files){
 	var i;
-	for(i=0;i<result.length;i++){
-		console.log(result[i].LONG_NAME+'	'+(result[i].IS_DIRECTORY?'<DIR>':result[i].SIZE));
+	for(i=0;i<files.length;i++){
+		console.log(files[i].LONG_NAME+'	'+(files[i].IS_DIRECTORY?'<DIR>':files[i].SIZE));
 	}
 })?'succeeded':'failed');
 

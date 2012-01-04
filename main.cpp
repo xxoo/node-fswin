@@ -5,8 +5,8 @@
 using namespace v8;
 using namespace node;
 
-#include <iostream>//for debug only
-using namespace std;
+//#include <iostream>//for debug only
+//using namespace std;
 
 namespace fsWin{
 	//global constants are common messages that will be used in different classes to make syncing easier
@@ -31,9 +31,9 @@ namespace fsWin{
 		if((void*)GetFinalPathNameByHandleW){//check if GetFinalPathNameByHandleW is supported
 			size_t sz=GetFinalPathNameByHandleW(hnd,NULL,0,FILE_NAME_NORMALIZED);
 			if(sz>0){
-				wchar_t* s=(wchar_t*)malloc(sizeof(wchar_t)*sz);
-				wchar_t* s1=L"\\\\?\\UNC\\";//for network paths
-				wchar_t* s2=L"\\\\?\\";//for local paths
+				wchar_t *s=(wchar_t*)malloc(sizeof(wchar_t)*sz);
+				wchar_t *s1=L"\\\\?\\UNC\\";//for network paths
+				wchar_t *s2=L"\\\\?\\";//for local paths
 				size_t sz1=wcslen(s1);
 				size_t sz2=wcslen(s2);
 				GetFinalPathNameByHandleW(hnd,s,sz,FILE_NAME_NORMALIZED);
@@ -99,10 +99,10 @@ namespace fsWin{
 		static const Persistent<String> syb_reparsePoint_symlink;
 		static struct resultData{//this is a linked table
 			WIN32_FIND_DATAW data;
-			resultData* next;
+			resultData *next;
 		};
-		typedef void (*findResultCall)(const WIN32_FIND_DATAW* info,void* data);//step by step callback type, the contents of info will be rewrited or released after the callback returns, so make a copy before starting a new thread
-		static size_t basicWithCallback(const wchar_t* path,const findResultCall callback,void* data){//data could be anything that will directly pass to the callback
+		typedef void (*findResultCall)(const WIN32_FIND_DATAW *info,void *data);//step by step callback type, the contents of info will be rewrited or released after the callback returns, so make a copy before starting a new thread
+		static size_t basicWithCallback(const wchar_t *path,const findResultCall callback,void *data){//data could be anything that will directly pass to the callback
 			WIN32_FIND_DATAW info;
 			HANDLE hnd=FindFirstFileExW(path,FindExInfoStandard,&info,FindExSearchNameMatch,NULL,NULL);
 			size_t result=0;
@@ -121,8 +121,8 @@ namespace fsWin{
 			}
 			return result;
 		}
-		static resultData* basic(const wchar_t* path){//you have to delete every linked data yourself if it is not NULL
-			resultData* result=new resultData;
+		static resultData *basic(const wchar_t *path){//you have to delete every linked data yourself if it is not NULL
+			resultData *result=new resultData;
 			HANDLE hnd=FindFirstFileExW(path,FindExInfoStandard,&result->data,FindExSearchNameMatch,NULL,NULL);
 			if(hnd==INVALID_HANDLE_VALUE){
 				delete result;
@@ -156,7 +156,7 @@ namespace fsWin{
 			}
 			return result;
 		}
-		static Handle<Object> fileInfoToJs(const WIN32_FIND_DATAW* info){//this function does not check whether info is NULL, make sure it is not before calling
+		static Handle<Object> fileInfoToJs(const WIN32_FIND_DATAW *info){//this function does not check whether info is NULL, make sure it is not before calling
 			HandleScope scope;
 			Handle<Object> o=Object::New();
 			o->Set(syb_returns_longName,String::New((uint16_t*)info->cFileName));
@@ -200,12 +200,12 @@ namespace fsWin{
 			o->Set(syb_returns_isTemporary,info->dwFileAttributes&FILE_ATTRIBUTE_TEMPORARY?True():False());
 			return scope.Close(o);
 		}
-		static Handle<Array> basicToJs(resultData* data){
+		static Handle<Array> basicToJs(resultData *data){
 			HandleScope scope;
 			Handle<Array> a=Array::New();
 			while(data){
 				a->Set(a->Length(),fileInfoToJs(&data->data));
-				resultData* old=data;
+				resultData *old=data;
 				data=old->next;
 				delete old;
 			}
@@ -258,7 +258,7 @@ namespace fsWin{
 			return scope.Close(t->GetFunction());
 		}
 	private:
-		static bool isValidInfo(const WIN32_FIND_DATAW* info){//determine whether it is the real content 
+		static bool isValidInfo(const WIN32_FIND_DATAW *info){//determine whether it is the real content 
 			return wcscmp(info->cFileName,L".")!=0&&wcscmp(info->cFileName,L"..")!=0;
 		}
 		static Handle<Value> jsSync(const Arguments& args){
@@ -281,7 +281,7 @@ namespace fsWin{
 			}
 			return scope.Close(result);
 		}
-		static void jsSyncCallback(const WIN32_FIND_DATAW* info,void* data){
+		static void jsSyncCallback(const WIN32_FIND_DATAW *info,void *data){
 			HandleScope scope;
 			Handle<Value> o=fileInfoToJs(info);
 			jsCallbackData *d=(jsCallbackData*)data;
@@ -294,7 +294,7 @@ namespace fsWin{
 				result=ThrowException(Exception::Error(syb_err_not_a_constructor));
 			}else{
 				if(args.Length()>1&&(args[0]->IsString()||args[0]->IsStringObject())&&args[1]->IsFunction()){
-					workdata* data=new workdata;
+					workdata *data=new workdata;
 					data->req.data=data;
 					data->req.type=UV_WORK;
 					data->self=Persistent<Object>::New(args.This());
@@ -323,7 +323,7 @@ namespace fsWin{
 		static void beginWork(uv_work_t *req){
 			workdata *data=(workdata*)req->data;
 			if(data->hnd){
-				WIN32_FIND_DATAW* info=new WIN32_FIND_DATAW;
+				WIN32_FIND_DATAW *info=new WIN32_FIND_DATAW;
 				if(data->hnd==INVALID_HANDLE_VALUE){
 					data->hnd=FindFirstFileExW((wchar_t*)data->data,FindExInfoStandard,info,FindExSearchNameMatch,NULL,NULL);
 					free(data->data);
@@ -445,9 +445,9 @@ namespace fsWin{
 		static const Persistent<String> syb_return_name;
 		static struct splitedPath{
 			size_t parentLen;//the length of the parent
-			const wchar_t* name;//this could be also considered as the start position of the name
+			const wchar_t *name;//this could be also considered as the start position of the name
 		};
-		static splitedPath* basic(const wchar_t* path){//you need to delete the return value your self if it is not NULL;
+		static splitedPath *basic(const wchar_t *path){//you need to delete the return value your self if it is not NULL;
 			wchar_t *s=L"\\\\",s1=L'\\';
 			size_t i,j=0,k=0,l=wcslen(path),m=wcslen(s);
 			if(wcsncmp(s,path,m)==0){//is network path
@@ -481,7 +481,7 @@ namespace fsWin{
 					}
 				}
 			}
-			splitedPath* r=new splitedPath;
+			splitedPath *r=new splitedPath;
 			r->parentLen=j;
 			r->name=&path[j>0?j+k:j];
 			return r;
@@ -491,7 +491,7 @@ namespace fsWin{
 		static Handle<Object> js(Handle<String> path){
 			HandleScope scope;
 			String::Value p1(path);
-			splitedPath* s=basic((wchar_t*)*p1);
+			splitedPath *s=basic((wchar_t*)*p1);
 			Handle<Object> r=Object::New();
 			r->Set(syb_return_parent,String::New(*p1,s->parentLen));
 			r->Set(syb_return_name,String::New((uint16_t*)s->name));
@@ -539,7 +539,7 @@ namespace fsWin{
 
 	class convertPath{
 	public:
-		static wchar_t* basic(const wchar_t* path,bool islong){//you need to free the result yourself if it is not NULL
+		static wchar_t *basic(const wchar_t *path,bool islong){//you need to free the result yourself if it is not NULL
 			wchar_t *tpath;
 			DWORD sz=islong?GetLongPathNameW(path,NULL,0):GetShortPathNameW(path,NULL,0);
 			if(sz>0){
@@ -554,7 +554,7 @@ namespace fsWin{
 			HandleScope scope;
 			Handle<String> r;
 			String::Value spath(path);
-			wchar_t* tpath=basic((wchar_t*)*spath,islong);
+			wchar_t *tpath=basic((wchar_t*)*spath,islong);
 			if(tpath){
 				r=String::New((uint16_t*)tpath);
 				free(tpath);
@@ -610,12 +610,12 @@ namespace fsWin{
 			uv_work_t req;
 			Persistent<Object> self;
 			Persistent<Function> func;
-			wchar_t* path;
+			wchar_t *path;
 			bool islong;
 		};
 		static void beginWork(uv_work_t *req){
 			workdata *data=(workdata*)req->data;
-			wchar_t* p=basic(data->path,data->islong);
+			wchar_t *p=basic(data->path,data->islong);
 			free(data->path);
 			data->path=p;
 		}
@@ -790,7 +790,7 @@ namespace fsWin{
 		}
 		static Handle<Value> close(const Arguments& args){
 			HandleScope scope;
-			dirWatcher* self=ObjectWrap::Unwrap<dirWatcher>(args.This());
+			dirWatcher *self=ObjectWrap::Unwrap<dirWatcher>(args.This());
 			if(self->pathhnd){//this method returns false if dirWatcher is failed to create or already closed
 				stopWatching(self);
 				return True();
@@ -860,7 +860,7 @@ namespace fsWin{
 		}
 		static void finishWatchingParent(uv_work_t *req){
 			HandleScope scope;
-			dirWatcher* self=(dirWatcher*)req->data;
+			dirWatcher *self=(dirWatcher*)req->data;
 			if(req!=self->parentreq||self->parenthnd==NULL){//this is the request we need to realase and it is ready to be released now
 				free(req);
 				if(self->pathhnd==NULL){
@@ -868,9 +868,9 @@ namespace fsWin{
 					self->Unref();
 				}
 			}else{
-				void* buffer=self->parentbuffer;
+				void *buffer=self->parentbuffer;
 				if(req->overlapped.Internal==ERROR_SUCCESS){
-					FILE_NOTIFY_INFORMATION* pInfo;
+					FILE_NOTIFY_INFORMATION *pInfo;
 					DWORD d=0;
 					bool e=false;
 					if(!beginWatchingParent(self)){
@@ -908,11 +908,11 @@ namespace fsWin{
 		}
 		static void finishWatchingPath(uv_work_t *req){
 			HandleScope scope;
-			dirWatcher* self=(dirWatcher*)req->data;
-			void* buffer=self->pathbuffer;
+			dirWatcher *self=(dirWatcher*)req->data;
+			void *buffer=self->pathbuffer;
 			self->pathref--;//uv_unref will be called when this function ends if there's no crash
 			if(req->overlapped.Internal==ERROR_SUCCESS){
-				FILE_NOTIFY_INFORMATION* pInfo;
+				FILE_NOTIFY_INFORMATION *pInfo;
 				DWORD d=0;
 				if(!beginWatchingPath(self)){
 					callJs(self,syb_evt_err,syb_err_unable_to_continue_watching);
