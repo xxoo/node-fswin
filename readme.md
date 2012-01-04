@@ -7,9 +7,9 @@ a directory watcher object that is more suitable for windows then the internal f
 it supplies some freture the fs.watch() doesn't contain.
 
 1. directory tree watching(with higher performance then recursion functions).
-2. more events(including added,removed,modified,renamed).
-3. more options.
-4. also watchs the directory itself, not only its children(this feature requires vista or latter).
+2. more events(including added, removed, modified, renamed).
+3. with options.
+4. also watches the directory itself, not only its children(this feature requires vista or latter).
 
 #### splitPath
 a function that split a path to its parent and name.
@@ -22,13 +22,24 @@ note: this function is only suitable for windows full paths.
 passing a relative path or any other kind of path will case an unexpected return value.
 
 #### convertPath and convertPathSync
-it converts paths between 8.3 name and long name.
-this function requires a filesystem I/O, so it contains both a block and non-block version.
+converts paths between 8.3 name and long name.
+these functions require a filesystem or network I/O, so there are both a block and non-block versions.
+
+#### find and findSync
+find file or directory by path.
+these functions are like the dir command. using wild cards are allowed.
+both the block and non-block versions contain a basic mode and progressive mode.
+basic mode will wait till the search finish and return all results in an array.
+the progressive mode will return a single result for each callback.
+this is useful when you are listing many files or the callback has much works to do.
+during the process the file infomathing maight be outdated.
+and you also want to save an I/O for each result doing this job.
 
 
 # Examples
 
 #### dirWatcher
+
 ```javascript
 var fsWin=require('fsWin.node');
 var options={},e;
@@ -43,6 +54,9 @@ try{
 	var watcher=new fsWin.dirWatcher(
 		'd:\\test',//the directory you are about to watch
 		function(event,message){
+			if(event in this.constructor.events){
+			}else{
+			}
 			if(event===this.constructor.events.STARTED){
 				console.log('watcher started in: "'+message+'"');
 			}else if(event===this.constructor.events.ADDED){
@@ -55,6 +69,8 @@ try{
 				console.log('"'+message.OLD_NAME+'" is renamed to "'+message.NEW_NAME+'"');
 			}else if(event===this.constructor.events.MOVED){
 				console.log('the directory you are watching is moved to "'+message+'"');
+			}else if(event===this.constructor.events.ENDED){
+				console.log('the watcher is about to quit');
 			}else if(event===this.constructor.events.ERROR){
 				if(message===this.constructor.errors.INITIALIZATION_FAILED){
 					console.log('failed to initialze the watcher. any failure during the initialization may case this error. such as you want to watch an unaccessable or unexist directory.');
@@ -65,12 +81,14 @@ try{
 				}else{
 					console.log('you should never see this message: "'+message+'"');
 				}
-			}else if(event===this.constructor.events.ENDED){
-				console.log('the watcher is about to quit');
 			}
 			//if you want to stop watching, call the close method
 			//note: this method returns false if the watcher is already or being closed. otherwise true
-			//this.close();
+			//if(this.close()){
+			//	console.log('closing the watcher.');
+			//}else{
+			//	console.log('no need to close the watcher again.');
+			//}
 		},
 		options//not required, and this is the default value
 	);
@@ -84,6 +102,7 @@ try{
 ```
 
 #### splitPath
+
 ```javascript
 var fsWin=require('fsWin.node');
 var paths=['C:\\PROGRA~1','C:\\program files\\Common Files','c:\\windows\\system32','c:\\','\\\\mycomputer\\sharefolder\\somedir','\\\\mycomputer\\sharedfolder'];
@@ -95,12 +114,13 @@ for(i=0;i<paths.length;i++){
 ```
 
 #### convertPath and convertPathSync
+
 ```javascript
 var fsWin=require('fsWin.node');
 var paths=['C:\\PROGRA~1','C:\\program files\\Common Files','c:\\windows\\system32','c:\\','\\\\mycomputer\\sharefolder\\somedir','\\\\mycomputer\\sharedfolder'];
 var i;
 //test the sync version
-//note: this function may return an empty string if the path you passed in is not found.
+//note: if the path does not exist, this function will return an empty string.
 for(i=0;i<paths.length;i++){
 	console.log('the long name of "'+paths[i]+'" is: "'+fsWin.convertPathSync(paths[i],true)+'" and its short name is "'+fsWin.convertPathSync(paths[i])+'"');
 }
@@ -117,4 +137,49 @@ for(i=0;i<paths.length;i++){
 		console.log('there is an unexpected error, the async call should not be called. but if it is called, do not trust the filename');
 	}
 }
+```
+
+#### convertPath and convertPathSync
+
+```javascript
+var fsWin=require('fsWin.node');
+var path='c:\\windows\\system32\\*';
+
+//a list of properties of the file object
+//for more infomation see http://msdn.microsoft.com/en-us/library/windows/desktop/aa365740
+var n;
+for(n in fsWin.find.returns){
+	console.log(n);
+}
+
+//sync basic mode
+var i;
+var result=fsWin.findSync(path);
+for(i=0;i<result.length;i++){
+	console.log(result[i].LONG_NAME+'	'+(result[i].IS_DIRECTORY?'<DIR>':result[i].SIZE));
+}
+
+//sync progressive mode
+console.log('found ',+fsWin.findSync(path,function(file){
+	console.log(file.LONG_NAME+'	'+(file.IS_DIRECTORY?'<DIR>':file.SIZE));
+})+' file(s) or dir(s)');
+
+//async basic mode
+console.log(fsWin.find(path,function(result){
+	var i;
+	for(i=0;i<result.length;i++){
+		console.log(result[i].LONG_NAME+'	'+(result[i].IS_DIRECTORY?'<DIR>':result[i].SIZE));
+	}
+})?'succeeded':'failed');
+
+//async progressive mode
+console.log(fsWin.find(path,function(event,message){
+	if(event==='FOUND'){
+		console.log(message.LONG_NAME+'	'+(message.IS_DIRECTORY?'<DIR>':message.SIZE));
+	}else if(event==='ENDED'){
+		console.log('this operation is complated.');
+	}else if(event==='ERROR'){
+		console.log(message);//should be 'UNABLE_TO_CONTINUE_SEARCHING' if error occurs
+	}
+},true)?'succeeded':'failed');
 ```

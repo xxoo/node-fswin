@@ -1,17 +1,20 @@
-#define FSWIN_VERSION "0.1.2012.102"
+#define FSWIN_VERSION "0.1.2012.104"
 
 #include <node.h>
 #pragma comment(lib,"node.lib")
 using namespace v8;
 using namespace node;
 
-//#include <iostream>//for debug only
-//using namespace std;
+#include <iostream>//for debug only
+using namespace std;
 
 namespace fsWin{
+	//global constants are common messages that will be used in different classes to make syncing easier
 	static const Persistent<String> global_syb_err_wrong_arguments=NODE_PSYMBOL("WRONG_ARGUMENTS");
 	static const Persistent<String> global_syb_err_not_a_constructor=NODE_PSYMBOL("THIS_FUNCTION_IS_NOT_A_CONSTRUCTOR");
 	static const Persistent<String> global_syb_err_initialization_failed=NODE_PSYMBOL("INITIALIZATION_FAILED");
+	static const Persistent<String> global_syb_evt_err=NODE_PSYMBOL("ERROR");
+	static const Persistent<String> global_syb_evt_end=NODE_PSYMBOL("ENDED");
 	
 //dirWatcher requires vista or latter to call GetFinalPathNameByHandleW.
 //the API is necessary since the dir we are watching could also be moved to another path.
@@ -21,7 +24,7 @@ namespace fsWin{
 #ifndef GetFinalPathNameByHandle
 	typedef DWORD (WINAPI *GetFinalPathNameByHandle)(__in HANDLE hFile,__out_ecount(cchFilePath) LPWSTR lpszFilePath,__in DWORD cchFilePath,__in DWORD dwFlags);
 	static const GetFinalPathNameByHandle GetFinalPathNameByHandleW=(GetFinalPathNameByHandle)GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "GetFinalPathNameByHandleW");
-#endif
+#endif//GetFinalPathNameByHandle
 	static Handle<String> getCurrentPathByHandle(HANDLE hnd){
 		HandleScope scope;
 		Handle<String> r;
@@ -51,6 +54,389 @@ namespace fsWin{
 		}
 		return scope.Close(r);
 	}
+	
+	static ULONGLONG combineHiLow(const DWORD hi,const DWORD low){
+		ULARGE_INTEGER ul;
+		ul.HighPart=hi;
+		ul.LowPart=low;
+		ULONGLONG result=ul.QuadPart;
+		return result;
+	}
+
+	static double fileTimeToJsDate(const FILETIME *ft){//Date::New(fileTimeToJsDate(&filetime)) converts FILETIME to javascript date
+		double ns=(double)combineHiLow(ft->dwHighDateTime,ft->dwLowDateTime);
+		return ns/10000-11644473600000;
+	}
+
+	class find{
+	public:
+		static const Persistent<String> syb_returns_longName;
+		static const Persistent<String> syb_returns_shortName;
+		static const Persistent<String> syb_returns_creationTime;
+		static const Persistent<String> syb_returns_lastAccessTime;
+		static const Persistent<String> syb_returns_lastWriteTime;
+		static const Persistent<String> syb_returns_size;
+		static const Persistent<String> syb_returns_reparsePointTag;
+		static const Persistent<String> syb_returns_isArchived;
+		static const Persistent<String> syb_returns_isCompressed;
+		static const Persistent<String> syb_returns_isDirectory;
+		static const Persistent<String> syb_returns_isEncrypted;
+		static const Persistent<String> syb_returns_isHidden;
+		static const Persistent<String> syb_returns_isNormal;
+		static const Persistent<String> syb_returns_isNotContentIndexed;
+		static const Persistent<String> syb_returns_isOffline;
+		static const Persistent<String> syb_returns_isReadOnly;
+		static const Persistent<String> syb_returns_isSparseFile;
+		static const Persistent<String> syb_returns_isSystem;
+		static const Persistent<String> syb_returns_isTemporary;
+		static const Persistent<String> syb_reparsePoint_unknown;
+		static const Persistent<String> syb_reparsePoint_dfs;
+		static const Persistent<String> syb_reparsePoint_dfsr;
+		static const Persistent<String> syb_reparsePoint_hsm;
+		static const Persistent<String> syb_reparsePoint_hsm2;
+		static const Persistent<String> syb_reparsePoint_mountPoint;
+		static const Persistent<String> syb_reparsePoint_sis;
+		static const Persistent<String> syb_reparsePoint_symlink;
+		static struct resultData{//this is a linked table
+			WIN32_FIND_DATAW data;
+			resultData* next;
+		};
+		typedef void (*findResultCall)(const WIN32_FIND_DATAW* info,void* data);//step by step callback type, the contents of info will be rewrited or released after the callback returns, so make a copy before starting a new thread
+		static size_t basicWithCallback(const wchar_t* path,const findResultCall callback,void* data){//data could be anything that will directly pass to the callback
+			WIN32_FIND_DATAW info;
+			HANDLE hnd=FindFirstFileExW(path,FindExInfoStandard,&info,FindExSearchNameMatch,NULL,NULL);
+			size_t result=0;
+			if(hnd!=INVALID_HANDLE_VALUE){
+				if(isValidInfo(&info)){
+					callback(&info,data);
+					result++;
+				}
+				while(FindNextFileW(hnd,&info)){
+					if(isValidInfo(&info)){
+						callback(&info,data);
+						result++;
+					}
+				}
+				FindClose(hnd);
+			}
+			return result;
+		}
+		static resultData* basic(const wchar_t* path){//you have to delete every linked data yourself if it is not NULL
+			resultData* result=new resultData;
+			HANDLE hnd=FindFirstFileExW(path,FindExInfoStandard,&result->data,FindExSearchNameMatch,NULL,NULL);
+			if(hnd==INVALID_HANDLE_VALUE){
+				delete result;
+				result=NULL;
+			}else{
+				resultData *resultnew,*resultold;
+				if(isValidInfo(&result->data)){
+					resultnew=new resultData;
+					resultold=result;
+				}else{
+					resultnew=result;
+					resultold=NULL;
+					result=NULL;
+				}
+				while(FindNextFileW(hnd,&resultnew->data)){
+					if(isValidInfo(&resultnew->data)){
+						if(resultold){
+							resultold->next=resultnew;
+						}else{
+							result=resultnew;
+						}
+						resultold=resultnew;
+						resultnew=new resultData;
+					}
+				}
+				resultold->next=NULL;
+				FindClose(hnd);
+				if(resultnew!=result){
+					delete resultnew;
+				}
+			}
+			return result;
+		}
+		static Handle<Object> fileInfoToJs(const WIN32_FIND_DATAW* info){//this function does not check whether info is NULL, make sure it is not before calling
+			HandleScope scope;
+			Handle<Object> o=Object::New();
+			o->Set(syb_returns_longName,String::New((uint16_t*)info->cFileName));
+			o->Set(syb_returns_shortName,String::New((uint16_t*)info->cAlternateFileName));
+			o->Set(syb_returns_creationTime,Date::New(fileTimeToJsDate(&info->ftCreationTime)));
+			o->Set(syb_returns_lastAccessTime,Date::New(fileTimeToJsDate(&info->ftLastAccessTime)));
+			o->Set(syb_returns_lastWriteTime,Date::New(fileTimeToJsDate(&info->ftLastWriteTime)));
+			o->Set(syb_returns_size,Number::New((double)combineHiLow(info->nFileSizeHigh,info->nFileSizeLow)));
+			if(info->dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT){
+				if(info->dwReserved0==IO_REPARSE_TAG_DFS){
+					o->Set(syb_returns_isTemporary,syb_reparsePoint_dfs);
+				}else if(info->dwReserved0==IO_REPARSE_TAG_DFSR){
+					o->Set(syb_returns_isTemporary,syb_reparsePoint_dfsr);
+				}else if(info->dwReserved0==IO_REPARSE_TAG_HSM){
+					o->Set(syb_returns_isTemporary,syb_reparsePoint_hsm);
+				}else if(info->dwReserved0==IO_REPARSE_TAG_HSM2){
+					o->Set(syb_returns_isTemporary,syb_reparsePoint_hsm2);
+				}else if(info->dwReserved0==IO_REPARSE_TAG_MOUNT_POINT){
+					o->Set(syb_returns_isTemporary,syb_reparsePoint_mountPoint);
+				}else if(info->dwReserved0==IO_REPARSE_TAG_SIS){
+					o->Set(syb_returns_isTemporary,syb_reparsePoint_sis);
+				}else if(info->dwReserved0==IO_REPARSE_TAG_SYMLINK){
+					o->Set(syb_returns_isTemporary,syb_reparsePoint_symlink);
+				}else{
+					o->Set(syb_returns_isTemporary,syb_reparsePoint_unknown);
+				}
+			}else{
+				o->Set(syb_returns_isTemporary,String::NewSymbol(""));
+			}
+			o->Set(syb_returns_isArchived,info->dwFileAttributes&FILE_ATTRIBUTE_ARCHIVE?True():False());
+			o->Set(syb_returns_isCompressed,info->dwFileAttributes&FILE_ATTRIBUTE_COMPRESSED?True():False());
+			o->Set(syb_returns_isDirectory,info->dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY?True():False());
+			o->Set(syb_returns_isEncrypted,info->dwFileAttributes&FILE_ATTRIBUTE_ENCRYPTED?True():False());
+			o->Set(syb_returns_isHidden,info->dwFileAttributes&FILE_ATTRIBUTE_HIDDEN?True():False());
+			o->Set(syb_returns_isNormal,info->dwFileAttributes&FILE_ATTRIBUTE_NORMAL?True():False());
+			o->Set(syb_returns_isNotContentIndexed,info->dwFileAttributes&FILE_ATTRIBUTE_NOT_CONTENT_INDEXED?True():False());
+			o->Set(syb_returns_isOffline,info->dwFileAttributes&FILE_ATTRIBUTE_OFFLINE?True():False());
+			o->Set(syb_returns_isReadOnly,info->dwFileAttributes&FILE_ATTRIBUTE_READONLY?True():False());
+			o->Set(syb_returns_isSparseFile,info->dwFileAttributes&FILE_ATTRIBUTE_SPARSE_FILE?True():False());
+			o->Set(syb_returns_isSystem,info->dwFileAttributes&FILE_ATTRIBUTE_SYSTEM?True():False());
+			o->Set(syb_returns_isTemporary,info->dwFileAttributes&FILE_ATTRIBUTE_TEMPORARY?True():False());
+			return scope.Close(o);
+		}
+		static Handle<Array> basicToJs(resultData* data){
+			HandleScope scope;
+			Handle<Array> a=Array::New();
+			while(data){
+				a->Set(a->Length(),fileInfoToJs(&data->data));
+				resultData* old=data;
+				data=old->next;
+				delete old;
+			}
+			return scope.Close(a);
+		}
+		static Handle<Function> functionRegister(bool isAsyncVersion){
+			HandleScope scope;
+			Handle<FunctionTemplate> t=FunctionTemplate::New(isAsyncVersion?jsAsync:jsSync);
+
+			//set error messages
+			Handle<Object> errors=Object::New();
+			errors->Set(syb_err_wrong_arguments,syb_err_wrong_arguments,(PropertyAttribute)(ReadOnly|DontDelete));
+			errors->Set(syb_err_not_a_constructor,syb_err_not_a_constructor,(PropertyAttribute)(ReadOnly|DontDelete));
+			if(isAsyncVersion){
+				errors->Set(syb_err_cannot_find_next_file,syb_err_cannot_find_next_file,(PropertyAttribute)(ReadOnly|DontDelete));
+			}
+			t->Set(String::NewSymbol("errors"),errors,(PropertyAttribute)(ReadOnly|DontDelete));
+
+			//set events
+			if(isAsyncVersion){
+				Handle<Object> events=Object::New();
+				events->Set(syb_evt_found,syb_evt_found,(PropertyAttribute)(ReadOnly|DontDelete));
+				events->Set(syb_evt_end,syb_evt_end,(PropertyAttribute)(ReadOnly|DontDelete));
+				events->Set(syb_evt_err,syb_evt_err,(PropertyAttribute)(ReadOnly|DontDelete));
+				t->Set(String::NewSymbol("events"),events,(PropertyAttribute)(ReadOnly|DontDelete));
+			}
+			//set properties of return value
+			Handle<Object> returns=Object::New();
+			returns->Set(syb_returns_longName,syb_returns_longName,(PropertyAttribute)(ReadOnly|DontDelete));
+			returns->Set(syb_returns_shortName,syb_returns_shortName,(PropertyAttribute)(ReadOnly|DontDelete));
+			returns->Set(syb_returns_creationTime,syb_returns_creationTime,(PropertyAttribute)(ReadOnly|DontDelete));
+			returns->Set(syb_returns_lastAccessTime,syb_returns_lastAccessTime,(PropertyAttribute)(ReadOnly|DontDelete));
+			returns->Set(syb_returns_lastWriteTime,syb_returns_lastWriteTime,(PropertyAttribute)(ReadOnly|DontDelete));
+			returns->Set(syb_returns_size,syb_returns_size,(PropertyAttribute)(ReadOnly|DontDelete));
+			returns->Set(syb_returns_isArchived,syb_returns_isArchived,(PropertyAttribute)(ReadOnly|DontDelete));
+			returns->Set(syb_returns_isCompressed,syb_returns_isCompressed,(PropertyAttribute)(ReadOnly|DontDelete));
+			returns->Set(syb_returns_isDirectory,syb_returns_isDirectory,(PropertyAttribute)(ReadOnly|DontDelete));
+			returns->Set(syb_returns_isEncrypted,syb_returns_isEncrypted,(PropertyAttribute)(ReadOnly|DontDelete));
+			returns->Set(syb_returns_isHidden,syb_returns_isHidden,(PropertyAttribute)(ReadOnly|DontDelete));
+			returns->Set(syb_returns_isNormal,syb_returns_isNormal,(PropertyAttribute)(ReadOnly|DontDelete));
+			returns->Set(syb_returns_isNotContentIndexed,syb_returns_isNotContentIndexed,(PropertyAttribute)(ReadOnly|DontDelete));
+			returns->Set(syb_returns_isOffline,syb_returns_isOffline,(PropertyAttribute)(ReadOnly|DontDelete));
+			returns->Set(syb_returns_isReadOnly,syb_returns_isReadOnly,(PropertyAttribute)(ReadOnly|DontDelete));
+			returns->Set(syb_returns_isSparseFile,syb_returns_isSparseFile,(PropertyAttribute)(ReadOnly|DontDelete));
+			returns->Set(syb_returns_isSystem,syb_returns_isSystem,(PropertyAttribute)(ReadOnly|DontDelete));
+			returns->Set(syb_returns_isTemporary,syb_returns_isTemporary,(PropertyAttribute)(ReadOnly|DontDelete));
+			returns->Set(syb_returns_reparsePointTag,syb_returns_reparsePointTag,(PropertyAttribute)(ReadOnly|DontDelete));
+			t->Set(String::NewSymbol("returns"),returns,(PropertyAttribute)(ReadOnly|DontDelete));
+
+			return scope.Close(t->GetFunction());
+		}
+	private:
+		static bool isValidInfo(const WIN32_FIND_DATAW* info){//determine whether it is the real content 
+			return wcscmp(info->cFileName,L".")!=0&&wcscmp(info->cFileName,L"..")!=0;
+		}
+		static Handle<Value> jsSync(const Arguments& args){
+			HandleScope scope;
+			Handle<Value> result;
+			if(args.IsConstructCall()){
+				result=ThrowException(Exception::Error(syb_err_not_a_constructor));
+			}else{
+				if(args.Length()>0&&(args[0]->IsString()||args[0]->IsStringObject())){
+					String::Value spath(args[0]);
+					if(args.Length()>1&&args[1]->IsFunction()){
+						jsCallbackData callbackdata={args.This(),Local<Function>::Cast(args[1])};
+						result=Integer::New(basicWithCallback((wchar_t*)*spath,jsSyncCallback,&callbackdata));
+					}else{
+						result=basicToJs(basic((wchar_t*)*spath));
+					}
+				}else{
+					result=ThrowException(Exception::Error(syb_err_wrong_arguments));
+				}
+			}
+			return scope.Close(result);
+		}
+		static void jsSyncCallback(const WIN32_FIND_DATAW* info,void* data){
+			HandleScope scope;
+			Handle<Value> o=fileInfoToJs(info);
+			jsCallbackData *d=(jsCallbackData*)data;
+			d->func->Call(d->self,1,&o);
+		}
+		static Handle<Value> jsAsync(const Arguments& args){
+			HandleScope scope;
+			Handle<Value> result;
+			if(args.IsConstructCall()){
+				result=ThrowException(Exception::Error(syb_err_not_a_constructor));
+			}else{
+				if(args.Length()>1&&(args[0]->IsString()||args[0]->IsStringObject())&&args[1]->IsFunction()){
+					workdata* data=new workdata;
+					data->req.data=data;
+					data->req.type=UV_WORK;
+					data->self=Persistent<Object>::New(args.This());
+					data->func=Persistent<Function>::New(Handle<Function>::Cast(args[1]));
+					String::Value spath(args[0]);
+					data->data=_wcsdup((wchar_t*)*spath);
+					data->hnd=(args.Length()>2&&args[2]->ToBoolean()->IsTrue())?INVALID_HANDLE_VALUE:NULL;
+					result=uv_queue_work(uv_default_loop(),&data->req,beginWork,afterWork)==0?True():False();
+				}else{
+					result=ThrowException(Exception::Error(syb_err_wrong_arguments));
+				}
+			}
+			return scope.Close(result);
+		}
+		static struct jsCallbackData{
+			Handle<Object> self;
+			Handle<Function> func;
+		};
+		static struct workdata{
+			uv_work_t req;
+			Persistent<Object> self;
+			Persistent<Function> func;
+			void *data;
+			HANDLE hnd;
+		};
+		static void beginWork(uv_work_t *req){
+			workdata *data=(workdata*)req->data;
+			if(data->hnd){
+				WIN32_FIND_DATAW* info=new WIN32_FIND_DATAW;
+				if(data->hnd==INVALID_HANDLE_VALUE){
+					data->hnd=FindFirstFileExW((wchar_t*)data->data,FindExInfoStandard,info,FindExSearchNameMatch,NULL,NULL);
+					if(data->hnd!=INVALID_HANDLE_VALUE){
+						while(!isValidInfo(info)){
+							if(!FindNextFileW(data->hnd,info)){
+								FindClose(data->hnd);
+								data->hnd=INVALID_HANDLE_VALUE;
+								break;
+							}
+						}
+					}
+				}else{
+					if(!FindNextFileW(data->hnd,info)){
+						FindClose(data->hnd);
+						data->hnd=INVALID_HANDLE_VALUE;
+					}else{
+						while(!isValidInfo(info)){
+							if(!FindNextFileW(data->hnd,info)){
+								FindClose(data->hnd);
+								data->hnd=INVALID_HANDLE_VALUE;
+								break;
+							}
+						}
+					}
+				}
+				if(data->hnd==INVALID_HANDLE_VALUE){
+					delete info;
+				}else{
+					data->data=info;
+				}
+			}else{
+				resultData *rdata=basic((wchar_t*)data->data);
+				free(data->data);
+				data->data=rdata;
+			}
+		}
+		static void afterWork(uv_work_t *req){
+			HandleScope scope;
+			workdata *data=(workdata*)req->data;
+			Handle<Value> result;
+			int del;
+			if(data->hnd){
+				Handle<Value> result[2];
+				if(data->hnd==INVALID_HANDLE_VALUE){
+					result[0]=syb_evt_end;
+					result[1]=Null();
+					del=1;
+				}else{
+					WIN32_FIND_DATAW *info=(WIN32_FIND_DATAW*)data->data;
+					result[0]=syb_evt_found;
+					result[1]=fileInfoToJs(info);
+					del=uv_queue_work(uv_default_loop(),&data->req,beginWork,afterWork);
+					delete info;
+				}
+				data->func->Call(data->self,2,result);
+			}else{
+				Handle<Value> result;
+				result=basicToJs((resultData*)data->data);
+				del=1;
+				data->func->Call(data->self,1,&result);
+			}
+			if(del){
+				if(del!=1){
+					Handle<Value> result[2];
+					result[0]=syb_evt_err;
+					result[1]=syb_err_cannot_find_next_file;
+					data->func->Call(data->self,2,result);
+				}
+				data->func.Dispose();
+				data->self.Dispose();
+				delete data;
+			}
+		}
+		static const Persistent<String> syb_err_wrong_arguments;
+		static const Persistent<String> syb_err_not_a_constructor;
+		static const Persistent<String> syb_err_cannot_find_next_file;
+		static const Persistent<String> syb_evt_found;
+		static const Persistent<String> syb_evt_err;
+		static const Persistent<String> syb_evt_end;
+	};
+	const Persistent<String> find::syb_err_wrong_arguments=global_syb_err_wrong_arguments;
+	const Persistent<String> find::syb_err_not_a_constructor=global_syb_err_not_a_constructor;
+	const Persistent<String> find::syb_err_cannot_find_next_file=NODE_PSYMBOL("UNABLE_TO_CONTINUE_SEARCHING");
+	const Persistent<String> find::syb_evt_found=NODE_PSYMBOL("FOUND");
+	const Persistent<String> find::syb_evt_err=global_syb_evt_err;
+	const Persistent<String> find::syb_evt_end=global_syb_evt_end;
+	const Persistent<String> find::syb_returns_longName=NODE_PSYMBOL("LONG_NAME");
+	const Persistent<String> find::syb_returns_shortName=NODE_PSYMBOL("SHORT_NAME");
+	const Persistent<String> find::syb_returns_creationTime=NODE_PSYMBOL("CREATION_TIME");
+	const Persistent<String> find::syb_returns_lastAccessTime=NODE_PSYMBOL("LAST_ACCESS_TIME");
+	const Persistent<String> find::syb_returns_lastWriteTime=NODE_PSYMBOL("LAST_WRITE_TIME");
+	const Persistent<String> find::syb_returns_size=NODE_PSYMBOL("SIZE");
+	const Persistent<String> find::syb_returns_reparsePointTag=NODE_PSYMBOL("REPARSE_POINT_TAG");
+	const Persistent<String> find::syb_returns_isDirectory=NODE_PSYMBOL("IS_DIRECTORY");
+	const Persistent<String> find::syb_returns_isArchived=NODE_PSYMBOL("IS_ARCHIVED");
+	const Persistent<String> find::syb_returns_isCompressed=NODE_PSYMBOL("IS_COMPRESSED");
+	const Persistent<String> find::syb_returns_isEncrypted=NODE_PSYMBOL("IS_ENCRYPTED");
+	const Persistent<String> find::syb_returns_isHidden=NODE_PSYMBOL("IS_HIDDEN");
+	const Persistent<String> find::syb_returns_isNormal=NODE_PSYMBOL("IS_NORMAL");
+	const Persistent<String> find::syb_returns_isNotContentIndexed=NODE_PSYMBOL("IS_NOT_CONTENT_INDEXED");
+	const Persistent<String> find::syb_returns_isOffline=NODE_PSYMBOL("IS_OFFLINE");
+	const Persistent<String> find::syb_returns_isReadOnly=NODE_PSYMBOL("IS_READ_ONLY");
+	const Persistent<String> find::syb_returns_isSparseFile=NODE_PSYMBOL("IS_SPARSE_FILE");
+	const Persistent<String> find::syb_returns_isSystem=NODE_PSYMBOL("IS_SYSTEM");
+	const Persistent<String> find::syb_returns_isTemporary=NODE_PSYMBOL("IS_TEMPORARY");
+	const Persistent<String> find::syb_reparsePoint_unknown=NODE_PSYMBOL("UNKNOWN");
+	const Persistent<String> find::syb_reparsePoint_dfs=NODE_PSYMBOL("DFS");
+	const Persistent<String> find::syb_reparsePoint_dfsr=NODE_PSYMBOL("DFSR");
+	const Persistent<String> find::syb_reparsePoint_hsm=NODE_PSYMBOL("HSM");
+	const Persistent<String> find::syb_reparsePoint_hsm2=NODE_PSYMBOL("HSM2");
+	const Persistent<String> find::syb_reparsePoint_mountPoint=NODE_PSYMBOL("MOUNT_POING");
+	const Persistent<String> find::syb_reparsePoint_sis=NODE_PSYMBOL("SIS");
+	const Persistent<String> find::syb_reparsePoint_symlink=NODE_PSYMBOL("SYMLINK");
 
 	class splitPath{
 	public:
@@ -111,9 +497,15 @@ namespace fsWin{
 			delete s;
 			return scope.Close(r);
 		}
-		static Handle<Function> initModule(){
+		static Handle<Function> functionRegister(){
 			HandleScope scope;
 			Handle<FunctionTemplate> t=FunctionTemplate::New(jsSync);
+
+			//set errmessages
+			Handle<Object> errors=Object::New();
+			errors->Set(syb_err_wrong_arguments,syb_err_wrong_arguments,(PropertyAttribute)(ReadOnly|DontDelete));
+			errors->Set(syb_err_not_a_constructor,syb_err_not_a_constructor,(PropertyAttribute)(ReadOnly|DontDelete));
+			t->Set(String::NewSymbol("errors"),errors,(PropertyAttribute)(ReadOnly|DontDelete));
 
 			//set properties of the return value
 			Handle<Object> returns=Object::New();
@@ -121,7 +513,7 @@ namespace fsWin{
 			returns->Set(syb_return_name,syb_return_name,(PropertyAttribute)(ReadOnly|DontDelete));
 			t->Set(String::NewSymbol("returns"),returns,(PropertyAttribute)(ReadOnly|DontDelete));
 
-			return t->GetFunction();
+			return scope.Close(t->GetFunction());
 		}
 	private:
 		static Handle<Value> jsSync(const Arguments& args){
@@ -170,9 +562,17 @@ namespace fsWin{
 			}
 			return scope.Close(r);
 		}
-		static Handle<Function> initModule(bool isAsyncVersion){
+		static Handle<Function> functionRegister(bool isAsyncVersion){
 			HandleScope scope;
-			return FunctionTemplate::New(isAsyncVersion?jsAsync:jsSync)->GetFunction();
+			Handle<FunctionTemplate> t=FunctionTemplate::New(isAsyncVersion?jsAsync:jsSync);
+
+			//set errmessages
+			Handle<Object> errors=Object::New();
+			errors->Set(syb_err_wrong_arguments,syb_err_wrong_arguments,(PropertyAttribute)(ReadOnly|DontDelete));
+			errors->Set(syb_err_not_a_constructor,syb_err_not_a_constructor,(PropertyAttribute)(ReadOnly|DontDelete));
+			t->Set(String::NewSymbol("errors"),errors,(PropertyAttribute)(ReadOnly|DontDelete));
+
+			return scope.Close(t->GetFunction());
 		}
 	private:
 		static Handle<Value> jsSync(const Arguments& args){
@@ -328,7 +728,7 @@ namespace fsWin{
 			definitions.Dispose();
 			definitions.Clear();
 		}
-		static Handle<Function> initModule(){
+		static Handle<Function> functionRegister(){
 			HandleScope scope;
 			Handle<FunctionTemplate> t=FunctionTemplate::New(New);
 			t->InstanceTemplate()->SetInternalFieldCount(1);
@@ -625,13 +1025,13 @@ namespace fsWin{
 	const Persistent<String> dirWatcher::syb_opt_attributes=NODE_PSYMBOL("CHANGE_ATTRIBUTES");
 	const Persistent<String> dirWatcher::syb_opt_security=NODE_PSYMBOL("CHANGE_SECUTITY");
 	const Persistent<String> dirWatcher::syb_evt_sta=NODE_PSYMBOL("STARTED");
-	const Persistent<String> dirWatcher::syb_evt_end=NODE_PSYMBOL("ENDED");
 	const Persistent<String> dirWatcher::syb_evt_new=NODE_PSYMBOL("ADDED");
 	const Persistent<String> dirWatcher::syb_evt_del=NODE_PSYMBOL("REMOVED");
 	const Persistent<String> dirWatcher::syb_evt_chg=NODE_PSYMBOL("MODIFIED");
 	const Persistent<String> dirWatcher::syb_evt_ren=NODE_PSYMBOL("RENAMED");
 	const Persistent<String> dirWatcher::syb_evt_mov=NODE_PSYMBOL("MOVED");
-	const Persistent<String> dirWatcher::syb_evt_err=NODE_PSYMBOL("ERROR");
+	const Persistent<String> dirWatcher::syb_evt_end=global_syb_evt_end;
+	const Persistent<String> dirWatcher::syb_evt_err=global_syb_evt_err;
 	const Persistent<String> dirWatcher::syb_evt_ren_oldName=NODE_PSYMBOL("OLD_NAME");
 	const Persistent<String> dirWatcher::syb_evt_ren_newName=NODE_PSYMBOL("NEW_NAME");
 	const Persistent<String> dirWatcher::syb_err_unable_to_watch_parent=NODE_PSYMBOL("UNABLE_TO_WATCH_PARENT");
@@ -639,16 +1039,16 @@ namespace fsWin{
 	const Persistent<String> dirWatcher::syb_err_initialization_failed=global_syb_err_initialization_failed;
 	const Persistent<String> dirWatcher::syb_err_wrong_arguments=global_syb_err_wrong_arguments;
 
-	extern "C"{
-		static void init(Handle<Object> target){
-			HandleScope scope;
-			target->Set(String::NewSymbol("dirWatcher"),dirWatcher::initModule());
-			target->Set(String::NewSymbol("splitPath"),splitPath::initModule());
-			target->Set(String::NewSymbol("convertPath"),convertPath::initModule(true));
-			target->Set(String::NewSymbol("convertPathSync"),convertPath::initModule(false));
+	static void moduleRegister(Handle<Object> target){
+		HandleScope scope;
+		target->Set(String::NewSymbol("dirWatcher"),dirWatcher::functionRegister());
+		target->Set(String::NewSymbol("splitPath"),splitPath::functionRegister());
+		target->Set(String::NewSymbol("convertPath"),convertPath::functionRegister(true));
+		target->Set(String::NewSymbol("convertPathSync"),convertPath::functionRegister(false));
+		target->Set(String::NewSymbol("find"),find::functionRegister(true));
+		target->Set(String::NewSymbol("findSync"),find::functionRegister(false));
 
-			target->Set(String::NewSymbol("version"),String::NewSymbol(FSWIN_VERSION));
-		}
-		NODE_MODULE(fsWin,init);
-	};
+		target->Set(String::NewSymbol("version"),String::NewSymbol(FSWIN_VERSION));
+	}
+	NODE_MODULE(fsWin,moduleRegister);
 };
