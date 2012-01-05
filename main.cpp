@@ -1,4 +1,4 @@
-#define FSWIN_VERSION "0.1.2012.104"
+#define FSWIN_VERSION "0.1.2012.105"
 
 #include <node.h>
 #pragma comment(lib,"node.lib")
@@ -101,19 +101,20 @@ namespace fsWin{
 			WIN32_FIND_DATAW data;
 			resultData *next;
 		};
-		typedef void (*findResultCall)(const WIN32_FIND_DATAW *info,void *data);//step by step callback type, the contents of info will be rewrited or released after the callback returns, so make a copy before starting a new thread
+		typedef bool (*findResultCall)(const WIN32_FIND_DATAW *info,void *data);//progressive callback type, if this callback returns true, the search will stop immediately. the contents of info will be rewrited or released after the callback returns, so make a copy before starting a new thread if you still need to use it
 		static size_t basicWithCallback(const wchar_t *path,const findResultCall callback,void *data){//data could be anything that will directly pass to the callback
 			WIN32_FIND_DATAW info;
 			HANDLE hnd=FindFirstFileExW(path,FindExInfoStandard,&info,FindExSearchNameMatch,NULL,NULL);
 			size_t result=0;
+			bool stop=false;
 			if(hnd!=INVALID_HANDLE_VALUE){
 				if(isValidInfo(&info)){
-					callback(&info,data);
+					stop=callback(&info,data);
 					result++;
 				}
-				while(FindNextFileW(hnd,&info)){
+				while(!stop&&FindNextFileW(hnd,&info)){
 					if(isValidInfo(&info)){
-						callback(&info,data);
+						stop=callback(&info,data);
 						result++;
 					}
 				}
@@ -219,19 +220,18 @@ namespace fsWin{
 			Handle<Object> errors=Object::New();
 			errors->Set(syb_err_wrong_arguments,syb_err_wrong_arguments,(PropertyAttribute)(ReadOnly|DontDelete));
 			errors->Set(syb_err_not_a_constructor,syb_err_not_a_constructor,(PropertyAttribute)(ReadOnly|DontDelete));
-			if(isAsyncVersion){
-				errors->Set(syb_err_cannot_find_next_file,syb_err_cannot_find_next_file,(PropertyAttribute)(ReadOnly|DontDelete));
-			}
 			t->Set(String::NewSymbol("errors"),errors,(PropertyAttribute)(ReadOnly|DontDelete));
 
 			//set events
 			if(isAsyncVersion){
 				Handle<Object> events=Object::New();
 				events->Set(syb_evt_found,syb_evt_found,(PropertyAttribute)(ReadOnly|DontDelete));
-				events->Set(syb_evt_end,syb_evt_end,(PropertyAttribute)(ReadOnly|DontDelete));
-				events->Set(syb_evt_err,syb_evt_err,(PropertyAttribute)(ReadOnly|DontDelete));
+				events->Set(syb_evt_succeeded,syb_evt_succeeded,(PropertyAttribute)(ReadOnly|DontDelete));
+				events->Set(syb_evt_failed,syb_evt_failed,(PropertyAttribute)(ReadOnly|DontDelete));
+				events->Set(syb_evt_interrupted,syb_evt_interrupted,(PropertyAttribute)(ReadOnly|DontDelete));
 				t->Set(String::NewSymbol("events"),events,(PropertyAttribute)(ReadOnly|DontDelete));
 			}
+
 			//set properties of return value
 			Handle<Object> returns=Object::New();
 			returns->Set(syb_returns_longName,syb_returns_longName,(PropertyAttribute)(ReadOnly|DontDelete));
@@ -281,11 +281,11 @@ namespace fsWin{
 			}
 			return scope.Close(result);
 		}
-		static void jsSyncCallback(const WIN32_FIND_DATAW *info,void *data){
+		static bool jsSyncCallback(const WIN32_FIND_DATAW *info,void *data){
 			HandleScope scope;
 			Handle<Value> o=fileInfoToJs(info);
 			jsCallbackData *d=(jsCallbackData*)data;
-			d->func->Call(d->self,1,&o);
+			return d->func->Call(d->self,1,&o)->ToBoolean()->IsTrue();
 		}
 		static Handle<Value> jsAsync(const Arguments& args){
 			HandleScope scope;
@@ -296,13 +296,24 @@ namespace fsWin{
 				if(args.Length()>1&&(args[0]->IsString()||args[0]->IsStringObject())&&args[1]->IsFunction()){
 					workdata *data=new workdata;
 					data->req.data=data;
-					data->req.type=UV_WORK;
 					data->self=Persistent<Object>::New(args.This());
 					data->func=Persistent<Function>::New(Handle<Function>::Cast(args[1]));
 					String::Value spath(args[0]);
 					data->data=_wcsdup((wchar_t*)*spath);
-					data->hnd=(args.Length()>2&&args[2]->ToBoolean()->IsTrue())?INVALID_HANDLE_VALUE:NULL;
-					result=uv_queue_work(uv_default_loop(),&data->req,beginWork,afterWork)==0?True():False();
+					if(args.Length()>2&&args[2]->ToBoolean()->IsTrue()){
+						data->hnd=INVALID_HANDLE_VALUE;
+						data->count=0;
+						data->stop=false;
+					}else{
+						data->hnd=NULL;
+					}
+					if(uv_queue_work(uv_default_loop(),&data->req,beginWork,afterWork)==0){
+						result=True();
+					}else{
+						free(data->data);
+						delete data;
+						result=False();
+					}
 				}else{
 					result=ThrowException(Exception::Error(syb_err_wrong_arguments));
 				}
@@ -318,7 +329,10 @@ namespace fsWin{
 			Persistent<Object> self;
 			Persistent<Function> func;
 			void *data;
+			//the following data only used in progressive mode
 			HANDLE hnd;
+			size_t count;
+			bool stop;
 		};
 		static void beginWork(uv_work_t *req){
 			workdata *data=(workdata*)req->data;
@@ -337,17 +351,22 @@ namespace fsWin{
 						}
 					}
 				}else{
-					if(!FindNextFileW(data->hnd,info)){
-						FindClose(data->hnd);
-						data->hnd=INVALID_HANDLE_VALUE;
-					}else{
-						while(!isValidInfo(info)){
-							if(!FindNextFileW(data->hnd,info)){
-								FindClose(data->hnd);
-								data->hnd=INVALID_HANDLE_VALUE;
-								break;
+					if(!data->stop){
+						if(!FindNextFileW(data->hnd,info)){
+							FindClose(data->hnd);
+							data->hnd=INVALID_HANDLE_VALUE;
+						}else{
+							while(!isValidInfo(info)){
+								if(!FindNextFileW(data->hnd,info)){
+									FindClose(data->hnd);
+									data->hnd=INVALID_HANDLE_VALUE;
+									break;
+								}
 							}
 						}
+					}else{
+						FindClose(data->hnd);
+						data->hnd=INVALID_HANDLE_VALUE;
 					}
 				}
 				if(data->hnd==INVALID_HANDLE_VALUE){
@@ -364,22 +383,28 @@ namespace fsWin{
 		static void afterWork(uv_work_t *req){
 			HandleScope scope;
 			workdata *data=(workdata*)req->data;
-			Handle<Value> result;
 			int del;
 			if(data->hnd){
 				Handle<Value> result[2];
 				if(data->hnd==INVALID_HANDLE_VALUE){
-					result[0]=syb_evt_end;
-					result[1]=Null();
+					result[0]=syb_evt_succeeded;
+					result[1]=Number::New((double)data->count);
 					del=1;
 				}else{
 					WIN32_FIND_DATAW *info=(WIN32_FIND_DATAW*)data->data;
-					result[0]=syb_evt_found;
-					result[1]=fileInfoToJs(info);
-					del=uv_queue_work(uv_default_loop(),&data->req,beginWork,afterWork);
+					if(data->stop){
+						result[0]=data->stop?syb_evt_interrupted:syb_evt_succeeded;
+						result[1]=Number::New((double)data->count);
+						del=1;
+					}else{
+						data->count++;
+						result[0]=syb_evt_found;
+						result[1]=fileInfoToJs(info);
+						del=uv_queue_work(uv_default_loop(),&data->req,beginWork,afterWork);
+					}
 					delete info;
 				}
-				data->func->Call(data->self,2,result);
+				data->stop=data->func->Call(data->self,2,result)->ToBoolean()->IsTrue();
 			}else{
 				Handle<Value> result;
 				result=basicToJs((resultData*)data->data);
@@ -389,8 +414,8 @@ namespace fsWin{
 			if(del){
 				if(del!=1){
 					Handle<Value> result[2];
-					result[0]=syb_evt_err;
-					result[1]=syb_err_cannot_find_next_file;
+					result[0]=syb_evt_failed;
+					result[1]=Number::New((double)data->count);
 					data->func->Call(data->self,2,result);
 				}
 				data->func.Dispose();
@@ -402,15 +427,16 @@ namespace fsWin{
 		static const Persistent<String> syb_err_not_a_constructor;
 		static const Persistent<String> syb_err_cannot_find_next_file;
 		static const Persistent<String> syb_evt_found;
-		static const Persistent<String> syb_evt_err;
-		static const Persistent<String> syb_evt_end;
+		static const Persistent<String> syb_evt_succeeded;
+		static const Persistent<String> syb_evt_failed;
+		static const Persistent<String> syb_evt_interrupted;
 	};
 	const Persistent<String> find::syb_err_wrong_arguments=global_syb_err_wrong_arguments;
 	const Persistent<String> find::syb_err_not_a_constructor=global_syb_err_not_a_constructor;
-	const Persistent<String> find::syb_err_cannot_find_next_file=NODE_PSYMBOL("UNABLE_TO_CONTINUE_SEARCHING");
 	const Persistent<String> find::syb_evt_found=NODE_PSYMBOL("FOUND");
-	const Persistent<String> find::syb_evt_err=global_syb_evt_err;
-	const Persistent<String> find::syb_evt_end=global_syb_evt_end;
+	const Persistent<String> find::syb_evt_succeeded=NODE_PSYMBOL("SUCCEEDED");
+	const Persistent<String> find::syb_evt_failed=NODE_PSYMBOL("FAILED");
+	const Persistent<String> find::syb_evt_interrupted=NODE_PSYMBOL("INTERRUPTED");
 	const Persistent<String> find::syb_returns_longName=NODE_PSYMBOL("LONG_NAME");
 	const Persistent<String> find::syb_returns_shortName=NODE_PSYMBOL("SHORT_NAME");
 	const Persistent<String> find::syb_returns_creationTime=NODE_PSYMBOL("CREATION_TIME");
@@ -519,15 +545,17 @@ namespace fsWin{
 	private:
 		static Handle<Value> jsSync(const Arguments& args){
 			HandleScope scope;
+			Handle<Value> result;
 			if(args.IsConstructCall()){
-				return ThrowException(Exception::Error(syb_err_not_a_constructor));
+				result=ThrowException(Exception::Error(syb_err_not_a_constructor));
 			}else{
 				if(args.Length()>0&&(args[0]->IsString()||args[0]->IsStringObject())){
-					return scope.Close(js(Handle<String>::Cast(args[0])));
+					result=js(Handle<String>::Cast(args[0]));
 				}else{
-					return ThrowException(Exception::Error(syb_err_wrong_arguments));
+					result=ThrowException(Exception::Error(syb_err_wrong_arguments));
 				}
 			}
+			return scope.Close(result);
 		}
 		static const Persistent<String> syb_err_wrong_arguments;
 		static const Persistent<String> syb_err_not_a_constructor;
@@ -578,20 +606,23 @@ namespace fsWin{
 	private:
 		static Handle<Value> jsSync(const Arguments& args){
 			HandleScope scope;
+			Handle<Value> result;
 			if(args.IsConstructCall()){
-				return ThrowException(Exception::Error(syb_err_not_a_constructor));
+				result=ThrowException(Exception::Error(syb_err_not_a_constructor));
 			}else{
 				if(args.Length()>0&&(args[0]->IsString()||args[0]->IsStringObject())){
-					return scope.Close(js(Handle<String>::Cast(args[0]),args[1]->ToBoolean()->IsTrue()));
+					result=js(Handle<String>::Cast(args[0]),args[1]->ToBoolean()->IsTrue());
 				}else{
-					return ThrowException(Exception::Error(syb_err_wrong_arguments));
+					result=ThrowException(Exception::Error(syb_err_wrong_arguments));
 				}
 			}
+			return scope.Close(result);
 		}
 		static Handle<Value> jsAsync(const Arguments& args){
 			HandleScope scope;
+			Handle<Value> result;
 			if(args.IsConstructCall()){
-				return ThrowException(Exception::Error(syb_err_not_a_constructor));
+				result=ThrowException(Exception::Error(syb_err_not_a_constructor));
 			}else{
 				if(args.Length()>1&&(args[0]->IsString()||args[0]->IsStringObject())&&args[1]->IsFunction()){
 					workdata *data=new workdata;
@@ -600,11 +631,18 @@ namespace fsWin{
 					data->func=Persistent<Function>::New(Handle<Function>::Cast(args[1]));
 					data->islong=args[2]->ToBoolean()->IsTrue();
 					data->path=_wcsdup((wchar_t*)*String::Value(Local<String>::Cast(args[0])));
-					return uv_queue_work(uv_default_loop(),&data->req,beginWork,afterWork)==0?True():False();
+					if(uv_queue_work(uv_default_loop(),&data->req,beginWork,afterWork)==0){
+						result=True();
+					}else{
+						free(data->path);
+						delete data;
+						result=False();
+					}
 				}else{
-					return ThrowException(Exception::Error(syb_err_wrong_arguments));
+					result=ThrowException(Exception::Error(syb_err_wrong_arguments));
 				}
 			}
+			return scope.Close(result);
 		}
 		static struct workdata{
 			uv_work_t req;
@@ -790,13 +828,15 @@ namespace fsWin{
 		}
 		static Handle<Value> close(const Arguments& args){
 			HandleScope scope;
+			Handle<Value> result;
 			dirWatcher *self=ObjectWrap::Unwrap<dirWatcher>(args.This());
 			if(self->pathhnd){//this method returns false if dirWatcher is failed to create or already closed
 				stopWatching(self);
-				return True();
+				result=True();
 			}else{
-				return False();
+				result=False();
 			}
+			return scope.Close(result);
 		}
 		static bool watchParent(dirWatcher *self){
 			bool result;

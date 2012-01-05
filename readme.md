@@ -19,8 +19,9 @@ it supplies some freture the `fs.watch()` doesn't contain.
 
 a function to split a path to its parent and name that recognizes rootdirs(including local and network paths).
 if a path passed in is a rootdir the parent part will be empty, and the name is just the path itself.
-local rootdirs always contain a back slash in the end, such as `c:\\`.
-network rootdir is something like `\\\\mycomputer\\sharedfolder`.
+local rootdirs always contain a back slash in the end, such as `C:\`.
+network rootdir looks like `\\mycomputer\sharedfolder`.
+
 note: this function is only suitable for windows full paths.
 passing a relative path or any other kind of path will case an unexpected return value.
 
@@ -28,16 +29,20 @@ passing a relative path or any other kind of path will case an unexpected return
 ### convertPath and convertPathSync
 
 converts paths between 8.3 name and long name.
+
 these functions require a filesystem or network I/O, so there are both a block and non-block versions.
 
 
 ### find and findSync
 
 find files or directories by path.
+
 these functions are like the dir command. using wild cards are allowed.
 both the block and non-block versions contain a basic mode and progressive mode.
+
 basic mode will wait till the search finish and return all results in an array.
-the progressive mode doesn't wait and returns a single result for each callback.
+the progressive mode will reutrn every single result as soon as it is available.
+
 this is useful when you are listing many files or the callback has much works to do.
 during the process the returned file information might be outdated.
 if you don't want to waste an I/O on each file for doing this job, try this mode.
@@ -172,6 +177,9 @@ for(i=0;i<result.length;i++){
 //sync progressive mode
 console.log('found ',+fsWin.findSync(path,function(file){
 	console.log(file.LONG_NAME+'	'+(file.IS_DIRECTORY?'<DIR>':file.SIZE));
+	if(file.LONG_NAME.toLowerCase()==='drivers'){
+		return true;//stop the search process by returning this value
+	}
 })+' file(s) or dir(s)');
 
 //async basic mode
@@ -186,10 +194,15 @@ console.log(fsWin.find(path,function(files){
 console.log(fsWin.find(path,function(event,message){
 	if(event==='FOUND'){
 		console.log(message.LONG_NAME+'	'+(message.IS_DIRECTORY?'<DIR>':message.SIZE));
-	}else if(event==='ENDED'){
-		console.log('this operation is complated.');
-	}else if(event==='ERROR'){
-		console.log(message);//should be 'UNABLE_TO_CONTINUE_SEARCHING' if error occurs
+		if(message.LONG_NAME.toLowerCase()==='shell32.dll'){
+			return true;//stop the search process by returning this value, and 'INTERRUPTED' event will fire
+		}
+	}else if(event==='SUCCEEDED'){
+		console.log('this operation is completed successfully. found '+message+' file(s) or dir(s)');
+	}else if(event==='FAILED'){
+		console.log('the results might be incomplete. found '+message+' file(s) or dir(s)');
+	}else if(event==='INTERRUPTED'){
+		console.log('this operation is interrupted by user. found '+message+' file(s) or dir(s)');
 	}
 },true)?'succeeded':'failed');
 ```
