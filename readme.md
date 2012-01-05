@@ -17,7 +17,8 @@ it supplies some freture the `fs.watch()` doesn't contain.
 
 ### splitPath
 
-a function that split a path to its parent and name that recognizes rootdirs(including local and network paths).
+a function that split a path to its parent and name.
+it recognizes rootdirs(including local and network paths).
 if a path passed in is a rootdir the parent part will be empty, and the name is just the path itself.
 local rootdirs always contain a back slash in the end, such as `c:\\`.
 network rootdir is something like `\\\\mycomputer\\sharedfolder`.
