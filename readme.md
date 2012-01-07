@@ -70,7 +70,9 @@ try{
 		'd:\\test',//the directory you are about to watch
 		function(event,message){
 			if(event===this.constructor.events.STARTED){
-				console.log('watcher started in: "'+message+'". this message is an absolute path. and it could be different from the path that you passed in, as symlink will be resolved to its target.');
+				console.log('watcher started in: "'+message+'". this message is a full path. and it could be different from the path that you passed in, as symlink will resolve to its target.');
+			}else if(event===this.constructor.events.MOVED){
+				console.log('the directory you are watching is moved to "'+message+'". this message is also a full path. just like the "started" event');
 			}else if(event===this.constructor.events.ADDED){
 				console.log('"'+message+'" is added');
 			}else if(event===this.constructor.events.REMOVED){
@@ -79,8 +81,6 @@ try{
 				console.log('"'+message+'" is modified');
 			}else if(event===this.constructor.events.RENAMED){
 				console.log('"'+message.OLD_NAME+'" is renamed to "'+message.NEW_NAME+'"');
-			}else if(event===this.constructor.events.MOVED){
-				console.log('the directory you are watching is moved to "'+message+'". this message is also an absolute path. just like the "started" event');
 			}else if(event===this.constructor.events.ENDED){
 				console.log('the watcher is about to quit');
 			}else if(event===this.constructor.events.ERROR){
@@ -102,7 +102,7 @@ try{
 			//	console.log('no need to close the watcher again.');
 			//}
 		},
-		options//not required, and this is the default value
+		options//not required, and this is the default value since filesize+lastwrite is always enough to determine a content change in most case.
 	);
 }catch(e){
 	if(e.message===fsWin.dirWatcher.errors.WRONG_ARGUMENTS){
@@ -175,7 +175,7 @@ for(i=0;i<result.length;i++){
 }
 
 //sync progressive mode
-console.log('found ',+fsWin.findSync(path,function(file){
+console.log('found '+fsWin.findSync(path,function(file){
 	console.log(file.LONG_NAME+'	'+(file.IS_DIRECTORY?'<DIR>':file.SIZE));
 	if(file.LONG_NAME.toLowerCase()==='drivers'){
 		return true;//stop the search process by returning this value

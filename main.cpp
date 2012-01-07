@@ -97,7 +97,7 @@ namespace fsWin{
 		static const Persistent<String> syb_reparsePoint_mountPoint;
 		static const Persistent<String> syb_reparsePoint_sis;
 		static const Persistent<String> syb_reparsePoint_symlink;
-		static struct resultData{//this is a linked table
+		static const struct resultData{//this is a linked table
 			WIN32_FIND_DATAW data;
 			resultData *next;
 		};
@@ -320,20 +320,6 @@ namespace fsWin{
 			}
 			return scope.Close(result);
 		}
-		static struct jsCallbackData{
-			Handle<Object> self;
-			Handle<Function> func;
-		};
-		static struct workdata{
-			uv_work_t req;
-			Persistent<Object> self;
-			Persistent<Function> func;
-			void *data;
-			//the following data only used in progressive mode
-			HANDLE hnd;
-			size_t count;
-			bool stop;
-		};
 		static void beginWork(uv_work_t *req){
 			workdata *data=(workdata*)req->data;
 			if(data->hnd){
@@ -423,9 +409,22 @@ namespace fsWin{
 				delete data;
 			}
 		}
+		static const struct jsCallbackData{
+			Handle<Object> self;
+			Handle<Function> func;
+		};
+		static const struct workdata{
+			uv_work_t req;
+			Persistent<Object> self;
+			Persistent<Function> func;
+			void *data;
+			//the following data only used in progressive mode
+			HANDLE hnd;
+			size_t count;
+			bool stop;
+		};
 		static const Persistent<String> syb_err_wrong_arguments;
 		static const Persistent<String> syb_err_not_a_constructor;
-		static const Persistent<String> syb_err_cannot_find_next_file;
 		static const Persistent<String> syb_evt_found;
 		static const Persistent<String> syb_evt_succeeded;
 		static const Persistent<String> syb_evt_failed;
@@ -469,7 +468,7 @@ namespace fsWin{
 	public:
 		static const Persistent<String> syb_return_parent;
 		static const Persistent<String> syb_return_name;
-		static struct splitedPath{
+		static const struct splitedPath{
 			size_t parentLen;//the length of the parent
 			const wchar_t *name;//this could be also considered as the start position of the name
 		};
@@ -644,13 +643,6 @@ namespace fsWin{
 			}
 			return scope.Close(result);
 		}
-		static struct workdata{
-			uv_work_t req;
-			Persistent<Object> self;
-			Persistent<Function> func;
-			wchar_t *path;
-			bool islong;
-		};
 		static void beginWork(uv_work_t *req){
 			workdata *data=(workdata*)req->data;
 			wchar_t *p=basic(data->path,data->islong);
@@ -672,6 +664,13 @@ namespace fsWin{
 			data->self.Dispose();
 			delete data;
 		}
+		static const struct workdata{
+			uv_work_t req;
+			Persistent<Object> self;
+			Persistent<Function> func;
+			wchar_t *path;
+			bool islong;
+		};
 		static const Persistent<String> syb_err_wrong_arguments;
 		static const Persistent<String> syb_err_not_a_constructor;
 	};
