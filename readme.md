@@ -162,7 +162,7 @@ var path='c:\\windows\\system32\\*';
 
 //list property names of the file object that the following functions will return.
 //for more infomation see http://msdn.microsoft.com/en-us/library/windows/desktop/aa365740
-//the value of property 'REPARSE_POINT_TAG' could be one of 'DFS', 'DFSR', 'HSM', 'HSM2', 'MOUNT_POING', 'SIS', 'SYMLINK', 'UNKNOWN' and ''(an empty string means no tag)
+//the value of property 'REPARSE_POINT_TAG' could be one of 'DFS', 'DFSR', 'HSM', 'HSM2', 'MOUNT_POINT', 'SIS', 'SYMLINK', 'UNKNOWN' and ''(an empty string means no tag)
 var n;
 for(n in fsWin.find.returns){
 	console.log(fsWin.find.returns[n]);

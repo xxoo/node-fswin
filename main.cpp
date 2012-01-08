@@ -462,7 +462,7 @@ namespace fsWin{
 	const Persistent<String> find::syb_reparsePoint_dfsr=NODE_PSYMBOL("DFSR");
 	const Persistent<String> find::syb_reparsePoint_hsm=NODE_PSYMBOL("HSM");
 	const Persistent<String> find::syb_reparsePoint_hsm2=NODE_PSYMBOL("HSM2");
-	const Persistent<String> find::syb_reparsePoint_mountPoint=NODE_PSYMBOL("MOUNT_POING");
+	const Persistent<String> find::syb_reparsePoint_mountPoint=NODE_PSYMBOL("MOUNT_POINT");
 	const Persistent<String> find::syb_reparsePoint_sis=NODE_PSYMBOL("SIS");
 	const Persistent<String> find::syb_reparsePoint_symlink=NODE_PSYMBOL("SYMLINK");
 
