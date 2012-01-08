@@ -89,7 +89,7 @@ try{
 				}else if(message===this.constructor.errors.UNABLE_TO_WATCH_PARENT){
 					console.log('failed to watch parent diectory. it means the "MOVED" event will nolonger fire. this error always occurs at the start up under winxp. since the GetFinalPathNameByHandleW API is not available.');
 				}else if(message===this.constructor.errors.UNABLE_TO_CONTINUE_WATCHING){
-					console.log('some error makes the watcher can not continue working. perhaps the directory you are watching is deleted or become unaccessable. the 'ENDED' event will fire after this error.');
+					console.log('some error makes the watcher stop working. perhaps the directory you are watching is deleted or become unaccessable. the "ENDED" event will fire after this error.');
 				}else{
 					console.log('you should never see this message: "'+message+'"');
 				}
