@@ -82,14 +82,14 @@ try{
 			}else if(event===this.constructor.events.RENAMED){
 				console.log('"'+message.OLD_NAME+'" is renamed to "'+message.NEW_NAME+'"');
 			}else if(event===this.constructor.events.ENDED){
-				console.log('the watcher is about to quit');
+				console.log('the watcher is about to quit. it is save to set the watcher to null or any other value now.');
 			}else if(event===this.constructor.events.ERROR){
 				if(message===this.constructor.errors.INITIALIZATION_FAILED){
 					console.log('failed to initialze the watcher. any failure during the initialization may case this error. such as you want to watch an unaccessable or unexist directory.');
 				}else if(message===this.constructor.errors.UNABLE_TO_WATCH_PARENT){
 					console.log('failed to watch parent diectory. it means the "MOVED" event will nolonger fire. this error always occurs at the start up under winxp. since the GetFinalPathNameByHandleW API is not available.');
 				}else if(message===this.constructor.errors.UNABLE_TO_CONTINUE_WATCHING){
-					console.log('some error makes the watcher can not continue working. it also means the watcher will exit soon.');
+					console.log('some error makes the watcher can not continue working. perhaps the directory you are watching is deleted or become unaccessable. the 'ENDED' event will fire after this error.');
 				}else{
 					console.log('you should never see this message: "'+message+'"');
 				}
