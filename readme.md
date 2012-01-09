@@ -4,7 +4,7 @@ Introduction
 node-fsWin is a native windows add-on for node.js. It contains some platform specified functions.
 
 
-### dirWatcher
+## dirWatcher
 
 a directory watcher object that is more suitable for windows then the internal `fs.watch()`.
 it supplies some freture the `fs.watch()` doesn't contain.
@@ -15,7 +15,7 @@ it supplies some freture the `fs.watch()` doesn't contain.
 - also watches the directory itself, not only its children(this feature requires vista or latter).
 
 
-### splitPath
+## splitPath
 
 a function to split a path to its parent and name that recognizes rootdirs(including local and network paths).
 if a path passed in is a rootdir the parent part will be empty, and the name is just the path itself.
@@ -26,14 +26,14 @@ note: this function is only suitable for windows full paths.
 passing a relative path or any other kind of path will case an unexpected return value.
 
 
-### convertPath and convertPathSync
+## convertPath and convertPathSync
 
 converts paths between 8.3 name and long name.
 
 these functions require a filesystem or network I/O, so there are both a block and non-block versions.
 
 
-### find and findSync
+## find and findSync
 
 find files or directories by path.
 
@@ -42,10 +42,9 @@ both the block and non-block versions contain a basic mode and progressive mode.
 
 basic mode will wait till the search finish and return all results in an array.
 the progressive mode will reutrn every single result as soon as it is available.
-
-this is useful when you are listing many files or the callback has much works to do.
-during the process the returned file information might be outdated.
-if you don't want to waste an I/O on each file for doing this job, try this mode.
+this mode is useful when you are listing many files or the callback has much works to do.
+during the process the file information might be outdated.
+if you don't want to waste another I/O on each file for doing this job, try this mode.
 
 
 Examples
@@ -53,68 +52,58 @@ Examples
 
 you might need to set your own path to `fsWin.node`
 
-### dirWatcher
+## dirWatcher
 
 ```javascript
 var fsWin=require('fsWin.node');
-var options={},e;
-options[fsWin.dirWatcher.options.WATCH_SUB_DIRECTORIES]=true;//watch the dir tree
+var options={};
+options[fsWin.dirWatcher.options.WATCH_SUB_DIRECTORIES]=true;//watch the directory tree
 options[fsWin.dirWatcher.options.CHANGE_FILE_SIZE]=true;//watch file size changes, will fire in 'MODIFIED' event
 options[fsWin.dirWatcher.options.CHANGE_LAST_WRITE]=true;//watch last write time changes, will fire in 'MODIFIED' event
 options[fsWin.dirWatcher.options.CHANGE_LAST_ACCESS]=false;//watch last access time changes, will fire in 'MODIFIED' event
 options[fsWin.dirWatcher.options.CHANGE_CREATION]=false;//watch creation time changes, will fire in 'MODIFIED' event
 options[fsWin.dirWatcher.options.CHANGE_ATTRIBUTES]=false;//watch attributes changes, will fire in 'MODIFIED' event
 options[fsWin.dirWatcher.options.CHANGE_SECUTITY]=false;//watch security changes, will fire in 'MODIFIED' event;
-try{
-	var watcher=new fsWin.dirWatcher(
-		'd:\\test',//the directory you are about to watch
-		function(event,message){
-			if(event===this.constructor.events.STARTED){
-				console.log('watcher started in: "'+message+'". this message is a full path. and it could be different from the path that you passed in, as symlink will resolve to its target.');
-			}else if(event===this.constructor.events.MOVED){
-				console.log('the directory you are watching is moved to "'+message+'". this message is also a full path. just like the "started" event');
-			}else if(event===this.constructor.events.ADDED){
-				console.log('"'+message+'" is added');
-			}else if(event===this.constructor.events.REMOVED){
-				console.log('"'+message+'" is removed');
-			}else if(event===this.constructor.events.MODIFIED){
-				console.log('"'+message+'" is modified');
-			}else if(event===this.constructor.events.RENAMED){
-				console.log('"'+message.OLD_NAME+'" is renamed to "'+message.NEW_NAME+'"');
-			}else if(event===this.constructor.events.ENDED){
-				console.log('the watcher is about to quit. it is save to set the watcher to null or any other value now.');
-			}else if(event===this.constructor.events.ERROR){
-				if(message===this.constructor.errors.INITIALIZATION_FAILED){
-					console.log('failed to initialze the watcher. any failure during the initialization may case this error. such as you want to watch an unaccessable or unexist directory.');
-				}else if(message===this.constructor.errors.UNABLE_TO_WATCH_PARENT){
-					console.log('failed to watch parent diectory. it means the "MOVED" event will nolonger fire. this error always occurs at the start up under winxp. since the GetFinalPathNameByHandleW API is not available.');
-				}else if(message===this.constructor.errors.UNABLE_TO_CONTINUE_WATCHING){
-					console.log('some error makes the watcher stop working. perhaps the directory you are watching is deleted or become unaccessable. the "ENDED" event will fire after this error.');
-				}else{
-					console.log('you should never see this message: "'+message+'"');
-				}
+var watcher=new fsWin.dirWatcher(//the 'new' operator can be ignored
+	'd:\\test',//the directory you are about to watch
+	function(event,message){
+		if(event===fsWin.dirWatcher.events.STARTED){
+			console.log('watcher started in: "'+message+'". on vista and latter, this message is a full path. and it could be different from the path that you passed in, as symlink will resolve to its target.');
+		}else if(event===fsWin.dirWatcher.events.MOVED){
+			console.log('the directory you are watching is moved to "'+message+'". this event will not fire on xp, and the message is also a full path. just like the "STARTED" event');
+		}else if(event===fsWin.dirWatcher.events.ADDED){
+			console.log('"'+message+'" is added. it could be created or moved to here.');
+		}else if(event===fsWin.dirWatcher.events.REMOVED){
+			console.log('"'+message+'" is removed. it could be deleted or moved from here.');
+		}else if(event===fsWin.dirWatcher.events.MODIFIED){
+			console.log('"'+message+'" is modified. this event does not contain any detail of what change is made.');
+		}else if(event===fsWin.dirWatcher.events.RENAMED){
+			console.log('"'+message.OLD_NAME+'" is renamed to "'+message.NEW_NAME+'"');
+		}else if(event===fsWin.dirWatcher.events.ENDED){
+			console.log('the watcher is about to quit. it is save to set the watcher to null or any other value now.');
+		}else if(event===fsWin.dirWatcher.events.ERROR){
+			if(message===fsWin.dirWatcher.errors.INITIALIZATION_FAILED){
+				console.log('failed to initialze the watcher. any failure during the initialization may case this error. such as you want to watch an unaccessable or unexist directory.');
+			}else if(message===fsWin.dirWatcher.errors.UNABLE_TO_WATCH_PARENT){
+				console.log('failed to watch parent diectory. it means the "MOVED" event will nolonger fire. this error always occurs at the start up under winxp. since the GetFinalPathNameByHandleW API is not available.');
+			}else if(message===fsWin.dirWatcher.errors.UNABLE_TO_CONTINUE_WATCHING){
+				console.log('some error makes the watcher stop working. perhaps the directory you are watching is deleted or become unaccessable. the "ENDED" event will fire after this error.');
 			}
-			//if you want to stop watching, call the close method
-			//note: this method returns false if the watcher is already or being closed. otherwise true
-			//if(this.close()){
-			//	console.log('closing the watcher.');
-			//}else{
-			//	console.log('no need to close the watcher again.');
-			//}
-		},
-		options//not required, and this is the default value since filesize+lastwrite is always enough to determine a content change in most case.
-	);
-}catch(e){
-	if(e.message===fsWin.dirWatcher.errors.WRONG_ARGUMENTS){
-		console.log('check the argumens you\'ve passed in. make sure there are at least two arguments. the first is a string, and the second is a function.');
-	}else{
-		console.log('an unexcepted error occurs: '+ e.message);
-	}
-}
+		}
+		//if you want to stop watching, call the close method
+		//note: this method returns false if the watcher is already or being closed. otherwise true
+		//if(this.close()){
+		//	console.log('closing the watcher.');
+		//}else{
+		//	console.log('no need to close the watcher again.');
+		//}
+	},
+	options//not required, and this is the default value since filesize+lastwrite is always enough to determine a content change in most case.
+);
 ```
 
 
-### splitPath
+## splitPath
 
 ```javascript
 var fsWin=require('fsWin.node');
@@ -127,7 +116,7 @@ for(i=0;i<paths.length;i++){
 ```
 
 
-### convertPath and convertPathSync
+## convertPath and convertPathSync
 
 ```javascript
 var fsWin=require('fsWin.node');
@@ -154,7 +143,7 @@ for(i=0;i<paths.length;i++){
 ```
 
 
-### convertPath and convertPathSync
+## convertPath and convertPathSync
 
 ```javascript
 var fsWin=require('fsWin.node');
@@ -201,7 +190,7 @@ console.log(fsWin.find(path,function(event,message){
 	}else if(event==='SUCCEEDED'){
 		console.log('this operation is completed successfully. found '+message+' file(s) or dir(s)');
 	}else if(event==='FAILED'){
-		console.log('the results might be incomplete. found '+message+' file(s) or dir(s)');
+		console.log('unable to search next file. the result might be incomplete. found '+message+' file(s) or dir(s)');
 	}else if(event==='INTERRUPTED'){
 		console.log('this operation is interrupted by user. found '+message+' file(s) or dir(s)');
 	}
