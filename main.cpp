@@ -1,12 +1,13 @@
-#define FSWIN_VERSION "0.1.2012.107"
+#define FSWIN_VERSION "0.1.2012.111"
 
+#define UNICODE
 #include <node.h>
 #pragma comment(lib,"node.lib")
 using namespace v8;
 using namespace node;
 
-//#include <iostream>//for debug only
-//using namespace std;
+#include <iostream>//for debug only
+using namespace std;
 
 namespace fsWin{
 	//global constants are common messages that will be used in different classes to make syncing easier
@@ -15,7 +16,7 @@ namespace fsWin{
 	static const Persistent<String> global_syb_err_initialization_failed=NODE_PSYMBOL("INITIALIZATION_FAILED");
 	static const Persistent<String> global_syb_evt_err=NODE_PSYMBOL("ERROR");
 	static const Persistent<String> global_syb_evt_end=NODE_PSYMBOL("ENDED");
-	static const PropertyAttribute global_syb_attr_fixed=(PropertyAttribute)(ReadOnly|DontDelete);
+	static const PropertyAttribute global_syb_attr_const=(PropertyAttribute)(ReadOnly|DontDelete);
 	
 //dirWatcher requires vista or latter to call GetFinalPathNameByHandleW.
 //the API is necessary since the dir we are watching could also be moved to another path.
@@ -25,7 +26,7 @@ namespace fsWin{
 #ifndef GetFinalPathNameByHandle
 	typedef DWORD (WINAPI *GetFinalPathNameByHandle)(__in HANDLE hFile,__out_ecount(cchFilePath) LPWSTR lpszFilePath,__in DWORD cchFilePath,__in DWORD dwFlags);
 	static const GetFinalPathNameByHandle GetFinalPathNameByHandleW=(GetFinalPathNameByHandle)GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "GetFinalPathNameByHandleW");
-#endif//GetFinalPathNameByHandle
+#endif//#ifndef GetFinalPathNameByHandle
 	static Handle<String> getCurrentPathByHandle(HANDLE hnd){
 		HandleScope scope;
 		Handle<String> r;
@@ -240,42 +241,42 @@ namespace fsWin{
 
 			//set error messages
 			Handle<Object> errors=Object::New();
-			errors->Set(syb_err_wrong_arguments,syb_err_wrong_arguments,global_syb_attr_fixed);
-			errors->Set(syb_err_not_a_constructor,syb_err_not_a_constructor,global_syb_attr_fixed);
-			t->Set(String::NewSymbol("errors"),errors,global_syb_attr_fixed);
+			errors->Set(syb_err_wrong_arguments,syb_err_wrong_arguments,global_syb_attr_const);
+			errors->Set(syb_err_not_a_constructor,syb_err_not_a_constructor,global_syb_attr_const);
+			t->Set(String::NewSymbol("errors"),errors,global_syb_attr_const);
 
 			//set events
 			if(isAsyncVersion){
 				Handle<Object> events=Object::New();
-				events->Set(syb_evt_found,syb_evt_found,global_syb_attr_fixed);
-				events->Set(syb_evt_succeeded,syb_evt_succeeded,global_syb_attr_fixed);
-				events->Set(syb_evt_failed,syb_evt_failed,global_syb_attr_fixed);
-				events->Set(syb_evt_interrupted,syb_evt_interrupted,global_syb_attr_fixed);
-				t->Set(String::NewSymbol("events"),events,global_syb_attr_fixed);
+				events->Set(syb_evt_found,syb_evt_found,global_syb_attr_const);
+				events->Set(syb_evt_succeeded,syb_evt_succeeded,global_syb_attr_const);
+				events->Set(syb_evt_failed,syb_evt_failed,global_syb_attr_const);
+				events->Set(syb_evt_interrupted,syb_evt_interrupted,global_syb_attr_const);
+				t->Set(String::NewSymbol("events"),events,global_syb_attr_const);
 			}
 
 			//set properties of return value
 			Handle<Object> returns=Object::New();
-			returns->Set(syb_returns_longName,syb_returns_longName,global_syb_attr_fixed);
-			returns->Set(syb_returns_shortName,syb_returns_shortName,global_syb_attr_fixed);
-			returns->Set(syb_returns_creationTime,syb_returns_creationTime,global_syb_attr_fixed);
-			returns->Set(syb_returns_lastAccessTime,syb_returns_lastAccessTime,global_syb_attr_fixed);
-			returns->Set(syb_returns_lastWriteTime,syb_returns_lastWriteTime,global_syb_attr_fixed);
-			returns->Set(syb_returns_size,syb_returns_size,global_syb_attr_fixed);
-			returns->Set(syb_returns_isArchived,syb_returns_isArchived,global_syb_attr_fixed);
-			returns->Set(syb_returns_isCompressed,syb_returns_isCompressed,global_syb_attr_fixed);
-			returns->Set(syb_returns_isDirectory,syb_returns_isDirectory,global_syb_attr_fixed);
-			returns->Set(syb_returns_isEncrypted,syb_returns_isEncrypted,global_syb_attr_fixed);
-			returns->Set(syb_returns_isHidden,syb_returns_isHidden,global_syb_attr_fixed);
-			returns->Set(syb_returns_isNormal,syb_returns_isNormal,global_syb_attr_fixed);
-			returns->Set(syb_returns_isNotContentIndexed,syb_returns_isNotContentIndexed,global_syb_attr_fixed);
-			returns->Set(syb_returns_isOffline,syb_returns_isOffline,global_syb_attr_fixed);
-			returns->Set(syb_returns_isReadOnly,syb_returns_isReadOnly,global_syb_attr_fixed);
-			returns->Set(syb_returns_isSparseFile,syb_returns_isSparseFile,global_syb_attr_fixed);
-			returns->Set(syb_returns_isSystem,syb_returns_isSystem,global_syb_attr_fixed);
-			returns->Set(syb_returns_isTemporary,syb_returns_isTemporary,global_syb_attr_fixed);
-			returns->Set(syb_returns_reparsePointTag,syb_returns_reparsePointTag,global_syb_attr_fixed);
-			t->Set(String::NewSymbol("returns"),returns,global_syb_attr_fixed);
+			returns->Set(syb_returns_longName,syb_returns_longName,global_syb_attr_const);
+			returns->Set(syb_returns_shortName,syb_returns_shortName,global_syb_attr_const);
+			returns->Set(syb_returns_creationTime,syb_returns_creationTime,global_syb_attr_const);
+			returns->Set(syb_returns_lastAccessTime,syb_returns_lastAccessTime,global_syb_attr_const);
+			returns->Set(syb_returns_lastWriteTime,syb_returns_lastWriteTime,global_syb_attr_const);
+			returns->Set(syb_returns_size,syb_returns_size,global_syb_attr_const);
+			returns->Set(syb_returns_isArchived,syb_returns_isArchived,global_syb_attr_const);
+			returns->Set(syb_returns_isCompressed,syb_returns_isCompressed,global_syb_attr_const);
+			returns->Set(syb_returns_isDirectory,syb_returns_isDirectory,global_syb_attr_const);
+			returns->Set(syb_returns_isEncrypted,syb_returns_isEncrypted,global_syb_attr_const);
+			returns->Set(syb_returns_isHidden,syb_returns_isHidden,global_syb_attr_const);
+			returns->Set(syb_returns_isNormal,syb_returns_isNormal,global_syb_attr_const);
+			returns->Set(syb_returns_isNotContentIndexed,syb_returns_isNotContentIndexed,global_syb_attr_const);
+			returns->Set(syb_returns_isOffline,syb_returns_isOffline,global_syb_attr_const);
+			returns->Set(syb_returns_isReadOnly,syb_returns_isReadOnly,global_syb_attr_const);
+			returns->Set(syb_returns_isSparseFile,syb_returns_isSparseFile,global_syb_attr_const);
+			returns->Set(syb_returns_isSystem,syb_returns_isSystem,global_syb_attr_const);
+			returns->Set(syb_returns_isTemporary,syb_returns_isTemporary,global_syb_attr_const);
+			returns->Set(syb_returns_reparsePointTag,syb_returns_reparsePointTag,global_syb_attr_const);
+			t->Set(String::NewSymbol("returns"),returns,global_syb_attr_const);
 
 			return scope.Close(t->GetFunction());
 		}
@@ -485,20 +486,23 @@ namespace fsWin{
 				for(i=m+1;i<l-1;i++){
 					if(path[i]==s1){
 						if(++k==2){
-							j=i;
+							j=i+1;
 							break;
 						}
 					}
 				}
 				if(k==2){
+					k=0;
 					for(i=l-2;i>j+1;i--){
 						if(path[i]==s1){
 							j=i;
+							k=1;
 							break;
 						}
 					}
+				}else{
+					k=0;
 				}
-				k=j>0?1:0;
 			}else{//is local path
 				for(i=l-2;i>1;i--){
 					if(path[i]==s1){
@@ -535,15 +539,15 @@ namespace fsWin{
 
 			//set errmessages
 			Handle<Object> errors=Object::New();
-			errors->Set(syb_err_wrong_arguments,syb_err_wrong_arguments,global_syb_attr_fixed);
-			errors->Set(syb_err_not_a_constructor,syb_err_not_a_constructor,global_syb_attr_fixed);
-			t->Set(String::NewSymbol("errors"),errors,global_syb_attr_fixed);
+			errors->Set(syb_err_wrong_arguments,syb_err_wrong_arguments,global_syb_attr_const);
+			errors->Set(syb_err_not_a_constructor,syb_err_not_a_constructor,global_syb_attr_const);
+			t->Set(String::NewSymbol("errors"),errors,global_syb_attr_const);
 
 			//set properties of the return value
 			Handle<Object> returns=Object::New();
-			returns->Set(syb_return_parent,syb_return_parent,global_syb_attr_fixed);
-			returns->Set(syb_return_name,syb_return_name,global_syb_attr_fixed);
-			t->Set(String::NewSymbol("returns"),returns,global_syb_attr_fixed);
+			returns->Set(syb_return_parent,syb_return_parent,global_syb_attr_const);
+			returns->Set(syb_return_name,syb_return_name,global_syb_attr_const);
+			t->Set(String::NewSymbol("returns"),returns,global_syb_attr_const);
 
 			return scope.Close(t->GetFunction());
 		}
@@ -567,6 +571,131 @@ namespace fsWin{
 	const Persistent<String> splitPath::syb_return_name=NODE_PSYMBOL("NAME");
 	const Persistent<String> splitPath::syb_err_wrong_arguments=global_syb_err_wrong_arguments;
 	const Persistent<String> splitPath::syb_err_not_a_constructor=global_syb_err_not_a_constructor;
+
+	class setShortName{
+	private:
+		static const Persistent<String> syb_err_wrong_arguments;
+		static const Persistent<String> syb_err_not_a_constructor;
+		static const struct workdata{
+			uv_work_t req;
+			Persistent<Object> self;
+			Persistent<Function> func;
+			wchar_t *path;
+			wchar_t *newname;
+			bool result;
+		};
+	public:
+		static bool basic(const wchar_t* path,const wchar_t* newname){
+			//make sure the process has SE_RESTORE_NAME privilege
+			HANDLE hToken;
+			PTOKEN_PRIVILEGES psToken;
+			DWORD cbToken;
+			DWORD i;
+			wchar_t abPrivilege[sizeof(SE_RESTORE_NAME)/sizeof(wchar_t)];
+			OpenProcessToken(GetCurrentProcess(),TOKEN_ADJUST_PRIVILEGES|TOKEN_QUERY,&hToken);
+			GetTokenInformation(hToken,TokenPrivileges,NULL,0,&cbToken);
+			psToken=(PTOKEN_PRIVILEGES)malloc(cbToken);
+			GetTokenInformation(hToken, TokenPrivileges, psToken, cbToken,&cbToken);
+			for(i=0;i<psToken->PrivilegeCount;i++){
+				DWORD cbPrivilege=sizeof(SE_RESTORE_NAME)/sizeof(wchar_t);
+				if(LookupPrivilegeNameW(NULL,&psToken->Privileges[i].Luid,abPrivilege,&cbPrivilege)&&wcscmp(abPrivilege,SE_RESTORE_NAME)==0){
+					if(!(psToken->Privileges[i].Attributes&SE_PRIVILEGE_ENABLED)){
+						psToken->Privileges[i].Attributes|=SE_PRIVILEGE_ENABLED;
+						AdjustTokenPrivileges(hToken,0,psToken,cbToken,NULL,NULL);
+					}
+					break;
+				}
+			}
+			CloseHandle(hToken);
+			free(psToken);
+
+			bool result;
+			HANDLE hnd=CreateFileW(path,GENERIC_WRITE|DELETE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS,NULL);
+			if(hnd==INVALID_HANDLE_VALUE){
+				result=false;
+			}else{
+				result=SetFileShortNameW(hnd,newname)?true:false;
+				CloseHandle(hnd);
+			}
+			return result;
+		}
+		static Handle<Boolean> js(const Handle<String> path,const Handle<String> newname){
+			HandleScope scope;
+			String::Value p(path);
+			String::Value n(newname);
+			Handle<Boolean> result=basic((wchar_t*)*p,(wchar_t*)*n)?True():False();
+			return scope.Close(result);
+		}
+		static Handle<Function> functionRegister(bool isAsyncVersion){
+			HandleScope scope;
+			Handle<FunctionTemplate> t=FunctionTemplate::New(isAsyncVersion?jsAsync:jsSync);
+
+			//set errmessages
+			Handle<Object> errors=Object::New();
+			errors->Set(syb_err_wrong_arguments,syb_err_wrong_arguments,global_syb_attr_const);
+			errors->Set(syb_err_not_a_constructor,syb_err_not_a_constructor,global_syb_attr_const);
+			t->Set(String::NewSymbol("errors"),errors,global_syb_attr_const);
+
+			return scope.Close(t->GetFunction());
+		}
+	private:
+		static Handle<Value> jsSync(const Arguments& args){
+			HandleScope scope;
+			Handle<Value> result;
+			if(args.IsConstructCall()){
+				result=ThrowException(Exception::Error(syb_err_not_a_constructor));
+			}else{
+				if(args.Length()>1&&(args[0]->IsString()||args[0]->IsStringObject())&&(args[1]->IsString()||args[1]->IsStringObject())){
+					result=js(Handle<String>::Cast(args[0]),Handle<String>::Cast(args[1]));
+				}else{
+					result=ThrowException(Exception::Error(syb_err_wrong_arguments));
+				}
+			}
+			return scope.Close(result);
+		}
+		static Handle<Value> jsAsync(const Arguments& args){
+			HandleScope scope;
+			Handle<Value> result;
+			if(args.IsConstructCall()){
+				result=ThrowException(Exception::Error(syb_err_not_a_constructor));
+			}else{
+				if(args.Length()>2&&(args[0]->IsString()||args[0]->IsStringObject())&&(args[1]->IsString()||args[1]->IsStringObject())&&args[2]->IsFunction()){
+					workdata *data=new workdata;
+					data->req.data=data;
+					data->self=Persistent<Object>::New(args.This());
+					data->path=_wcsdup((wchar_t*)*String::Value(Local<String>::Cast(args[0])));
+					data->newname=_wcsdup((wchar_t*)*String::Value(Local<String>::Cast(args[1])));
+					data->func=Persistent<Function>::New(Handle<Function>::Cast(args[2]));
+					if(uv_queue_work(uv_default_loop(),&data->req,beginWork,afterWork)==0){
+						result=True();
+					}else{
+						free(data->path);
+						free(data->newname);
+						delete data;
+						result=False();
+					}
+				}
+			}
+			return scope.Close(result);
+		}
+		static void beginWork(uv_work_t *req){
+			workdata *data=(workdata*)req->data;
+			data->result=basic(data->path,data->newname);
+			free(data->path);
+			free(data->newname);
+		}
+		static void afterWork(uv_work_t *req){
+			HandleScope scope;
+			workdata *data=(workdata*)req->data;
+			Handle<Value> p=data->result?True():False();
+			data->func->Call(data->self,1,&p);
+			data->func.Dispose();
+			data->self.Dispose();
+			delete data;
+		}
+	};
+	const Persistent<String> setShortName::syb_err_wrong_arguments=global_syb_err_wrong_arguments;
+	const Persistent<String> setShortName::syb_err_not_a_constructor=global_syb_err_not_a_constructor;
 
 	class convertPath{
 	private:
@@ -610,9 +739,9 @@ namespace fsWin{
 
 			//set errmessages
 			Handle<Object> errors=Object::New();
-			errors->Set(syb_err_wrong_arguments,syb_err_wrong_arguments,global_syb_attr_fixed);
-			errors->Set(syb_err_not_a_constructor,syb_err_not_a_constructor,global_syb_attr_fixed);
-			t->Set(String::NewSymbol("errors"),errors,global_syb_attr_fixed);
+			errors->Set(syb_err_wrong_arguments,syb_err_wrong_arguments,global_syb_attr_const);
+			errors->Set(syb_err_not_a_constructor,syb_err_not_a_constructor,global_syb_attr_const);
+			t->Set(String::NewSymbol("errors"),errors,global_syb_attr_const);
 
 			return scope.Close(t->GetFunction());
 		}
@@ -730,7 +859,9 @@ namespace fsWin{
 				definitions->Set(syb_callback,args[1]);
 				String::Value spath(args[0]);
 				pathhnd=CreateFileW((wchar_t*)*spath,FILE_LIST_DIRECTORY,FILE_SHARE_READ|FILE_SHARE_DELETE|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OVERLAPPED,NULL);
-				if(pathhnd){
+				if(pathhnd==INVALID_HANDLE_VALUE){
+					e=true;
+				}else{
 					ZeroMemory(&pathreq,sizeof(pathreq));
 					pathreq.loop=uv_default_loop();
 					if(CreateIoCompletionPort(pathhnd,pathreq.loop->iocp,(ULONG_PTR)pathhnd,0)){
@@ -774,7 +905,7 @@ namespace fsWin{
 										e=true;
 									}
 								}else{
-									parenthnd=NULL;
+									parenthnd=INVALID_HANDLE_VALUE;
 								}
 							}else{
 								path=Handle<String>::Cast(args[0]);
@@ -791,8 +922,6 @@ namespace fsWin{
 					}else{
 						e=true;
 					}
-				}else{
-					e=true;
 				}
 				if(e){
 					callJs(this,syb_evt_err,syb_err_initialization_failed);
@@ -816,34 +945,34 @@ namespace fsWin{
 
 			//set error messages
 			Handle<Object> errmsgs=Object::New();
-			errmsgs->Set(syb_err_unable_to_watch_parent,syb_err_unable_to_watch_parent,global_syb_attr_fixed);
-			errmsgs->Set(syb_err_unable_to_continue_watching,syb_err_unable_to_continue_watching,global_syb_attr_fixed);
-			errmsgs->Set(syb_err_initialization_failed,syb_err_initialization_failed,global_syb_attr_fixed);
-			errmsgs->Set(syb_err_wrong_arguments,syb_err_wrong_arguments,global_syb_attr_fixed);
-			t->Set(String::NewSymbol("errors"),errmsgs,global_syb_attr_fixed);
+			errmsgs->Set(syb_err_unable_to_watch_parent,syb_err_unable_to_watch_parent,global_syb_attr_const);
+			errmsgs->Set(syb_err_unable_to_continue_watching,syb_err_unable_to_continue_watching,global_syb_attr_const);
+			errmsgs->Set(syb_err_initialization_failed,syb_err_initialization_failed,global_syb_attr_const);
+			errmsgs->Set(syb_err_wrong_arguments,syb_err_wrong_arguments,global_syb_attr_const);
+			t->Set(String::NewSymbol("errors"),errmsgs,global_syb_attr_const);
 
 			//set events
 			Handle<Object> evts=Object::New();
-			evts->Set(syb_evt_sta,syb_evt_sta,global_syb_attr_fixed);
-			evts->Set(syb_evt_end,syb_evt_end,global_syb_attr_fixed);
-			evts->Set(syb_evt_new,syb_evt_new,global_syb_attr_fixed);
-			evts->Set(syb_evt_del,syb_evt_del,global_syb_attr_fixed);
-			evts->Set(syb_evt_ren,syb_evt_ren,global_syb_attr_fixed);
-			evts->Set(syb_evt_chg,syb_evt_chg,global_syb_attr_fixed);
-			evts->Set(syb_evt_mov,syb_evt_mov,global_syb_attr_fixed);
-			evts->Set(syb_evt_err,syb_evt_err,global_syb_attr_fixed);
-			t->Set(String::NewSymbol("events"),evts,global_syb_attr_fixed);
+			evts->Set(syb_evt_sta,syb_evt_sta,global_syb_attr_const);
+			evts->Set(syb_evt_end,syb_evt_end,global_syb_attr_const);
+			evts->Set(syb_evt_new,syb_evt_new,global_syb_attr_const);
+			evts->Set(syb_evt_del,syb_evt_del,global_syb_attr_const);
+			evts->Set(syb_evt_ren,syb_evt_ren,global_syb_attr_const);
+			evts->Set(syb_evt_chg,syb_evt_chg,global_syb_attr_const);
+			evts->Set(syb_evt_mov,syb_evt_mov,global_syb_attr_const);
+			evts->Set(syb_evt_err,syb_evt_err,global_syb_attr_const);
+			t->Set(String::NewSymbol("events"),evts,global_syb_attr_const);
 
 			//set options
 			Handle<Object> opts=Object::New();
-			opts->Set(syb_opt_subDirs,syb_opt_subDirs,global_syb_attr_fixed);
-			opts->Set(syb_opt_fileSize,syb_opt_fileSize,global_syb_attr_fixed);
-			opts->Set(syb_opt_lastWrite,syb_opt_lastWrite,global_syb_attr_fixed);
-			opts->Set(syb_opt_lastAccess,syb_opt_lastAccess,global_syb_attr_fixed);
-			opts->Set(syb_opt_creation,syb_opt_creation,global_syb_attr_fixed);
-			opts->Set(syb_opt_attributes,syb_opt_attributes,global_syb_attr_fixed);
-			opts->Set(syb_opt_security,syb_opt_security,global_syb_attr_fixed);
-			t->Set(String::NewSymbol("options"),opts,global_syb_attr_fixed);
+			opts->Set(syb_opt_subDirs,syb_opt_subDirs,global_syb_attr_const);
+			opts->Set(syb_opt_fileSize,syb_opt_fileSize,global_syb_attr_const);
+			opts->Set(syb_opt_lastWrite,syb_opt_lastWrite,global_syb_attr_const);
+			opts->Set(syb_opt_lastAccess,syb_opt_lastAccess,global_syb_attr_const);
+			opts->Set(syb_opt_creation,syb_opt_creation,global_syb_attr_const);
+			opts->Set(syb_opt_attributes,syb_opt_attributes,global_syb_attr_const);
+			opts->Set(syb_opt_security,syb_opt_security,global_syb_attr_const);
+			t->Set(String::NewSymbol("options"),opts,global_syb_attr_const);
 
 			return scope.Close(t->GetFunction());
 		}
@@ -870,11 +999,11 @@ namespace fsWin{
 			HandleScope scope;
 			Handle<Value> result;
 			dirWatcher *self=ObjectWrap::Unwrap<dirWatcher>(args.This());
-			if(self->pathhnd){//this method returns false if dirWatcher is failed to create or already closed
+			if(self->pathhnd==INVALID_HANDLE_VALUE){
+				result=False();//this method returns false if dirWatcher is failed to create or already closed
+			}else{
 				stopWatching(self);
 				result=True();
-			}else{
-				result=False();
 			}
 			return scope.Close(result);
 		}
@@ -889,18 +1018,18 @@ namespace fsWin{
 				self->parentreq->type=UV_WORK;
 				String::Value parent(splitPath::js(Handle<String>::Cast(self->definitions->Get(syb_path)))->Get(splitPath::syb_return_parent));
 				self->parenthnd=CreateFileW((wchar_t*)*parent,FILE_LIST_DIRECTORY,FILE_SHARE_READ|FILE_SHARE_DELETE|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OVERLAPPED,NULL);
-				if(self->parenthnd){
+				if(self->parenthnd==INVALID_HANDLE_VALUE){
+					result=false;
+				}else{
 					if(CreateIoCompletionPort(self->parenthnd,self->parentreq->loop->iocp,(ULONG_PTR)self->parenthnd,0)){
 						result=beginWatchingParent(self);
 					}else{
 						CloseHandle(self->parenthnd);
 						result=false;
 					}
-				}else{
-					result=false;
 				}
 			}else{
-				self->parenthnd=NULL;
+				self->parenthnd=INVALID_HANDLE_VALUE;
 				result=false;
 			}
 			return result;
@@ -941,9 +1070,9 @@ namespace fsWin{
 		static void finishWatchingParent(uv_work_t *req){
 			HandleScope scope;
 			dirWatcher *self=(dirWatcher*)req->data;
-			if(req!=self->parentreq||self->parenthnd==NULL){//this is the request we need to realase and it is ready to be released now
+			if(req!=self->parentreq||self->parenthnd==INVALID_HANDLE_VALUE){//this is the request we need to realase and it is ready to be released now
 				free(req);
-				if(self->pathhnd==NULL){
+				if(self->pathhnd!=INVALID_HANDLE_VALUE){
 					callJs(self,syb_evt_end,Null());
 					self->Unref();
 				}
@@ -981,7 +1110,7 @@ namespace fsWin{
 				}else{
 					callJs(self,syb_evt_err,syb_err_unable_to_watch_parent);
 					CloseHandle(self->parenthnd);
-					self->parenthnd=NULL;
+					self->parenthnd=INVALID_HANDLE_VALUE;
 				}
 				free(buffer);
 			}
@@ -1036,18 +1165,18 @@ namespace fsWin{
 			free(buffer);
 		}
 		static void stopWatching(dirWatcher *self){
-			if(self->pathhnd){
+			if(self->pathhnd!=INVALID_HANDLE_VALUE){
 				CloseHandle(self->pathhnd);
-				self->pathhnd=NULL;
+				self->pathhnd=INVALID_HANDLE_VALUE;
 			}
 			if(self->pathref>0){
 				self->pathreq.type=UV_UNKNOWN_REQ;//mute this request
 				uv_unref(self->pathreq.loop);
 				self->pathref--;
 			}
-			if(self->parenthnd){
+			if(self->parenthnd!=INVALID_HANDLE_VALUE){
 				CloseHandle(self->parenthnd);
-				self->parenthnd=NULL;
+				self->parenthnd=INVALID_HANDLE_VALUE;
 			}else{
 				callJs(self,syb_evt_end,Null());
 				self->Unref();
@@ -1087,14 +1216,19 @@ namespace fsWin{
 
 	static void moduleRegister(Handle<Object> target){
 		HandleScope scope;
-		target->Set(String::NewSymbol("dirWatcher"),dirWatcher::functionRegister(),global_syb_attr_fixed);
-		target->Set(String::NewSymbol("splitPath"),splitPath::functionRegister(),global_syb_attr_fixed);
-		target->Set(String::NewSymbol("convertPath"),convertPath::functionRegister(true),global_syb_attr_fixed);
-		target->Set(String::NewSymbol("convertPathSync"),convertPath::functionRegister(false),global_syb_attr_fixed);
-		target->Set(String::NewSymbol("find"),find::functionRegister(true),global_syb_attr_fixed);
-		target->Set(String::NewSymbol("findSync"),find::functionRegister(false),global_syb_attr_fixed);
+		target->Set(String::NewSymbol("find"),find::functionRegister(true),global_syb_attr_const);
+		target->Set(String::NewSymbol("findSync"),find::functionRegister(false),global_syb_attr_const);
+		target->Set(String::NewSymbol("splitPath"),splitPath::functionRegister(),global_syb_attr_const);
+		target->Set(String::NewSymbol("convertPath"),convertPath::functionRegister(true),global_syb_attr_const);
+		target->Set(String::NewSymbol("convertPathSync"),convertPath::functionRegister(false),global_syb_attr_const);
+		target->Set(String::NewSymbol("dirWatcher"),dirWatcher::functionRegister(),global_syb_attr_const);
 
-		target->Set(String::NewSymbol("version"),String::NewSymbol(FSWIN_VERSION),global_syb_attr_fixed);
+		Handle<Object> ntfsgroup=Object::New();
+		ntfsgroup->Set(String::NewSymbol("setShortName"),setShortName::functionRegister(true),global_syb_attr_const);
+		ntfsgroup->Set(String::NewSymbol("setShortNameSync"),setShortName::functionRegister(false),global_syb_attr_const);
+		target->Set(String::NewSymbol("ntfs"),ntfsgroup,global_syb_attr_const);
+
+		target->Set(String::NewSymbol("version"),String::NewSymbol(FSWIN_VERSION),global_syb_attr_const);
 	}
 	NODE_MODULE(fsWin,moduleRegister);
 };

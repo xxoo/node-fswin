@@ -19,8 +19,7 @@ it supplies some freture the `fs.watch()` doesn't contain.
 
 a function to split a path to its parent and name that recognizes rootdirs(including local and network paths).
 if a path passed in is a rootdir the parent part will be empty, and the name is just the path itself.
-local rootdirs always contain a back slash in the end, such as `C:\`.
-network rootdir looks like `\\mycomputer\sharedfolder`.
+rootdirs always contain a trailing backslash, such as `C:\` or `\\mycomputer\sharedfolder\`.
 
 note: this function is only suitable for windows full paths.
 passing a relative path or any other kind of path will case an unexpected return value.
@@ -31,6 +30,18 @@ passing a relative path or any other kind of path will case an unexpected return
 converts paths between 8.3 name and long name.
 
 these functions require a filesystem or network I/O, so there are both a block and non-block versions.
+
+
+## setShortName and setShortNameSync
+
+set or delete the 8.3 name of a file or directory. these functions have some requirements:
+
+- NTFS file system
+- you may need to run as administrator
+- require win7 or latter to delete an existing short name
+- the registry key `HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\FileSystem\NtfsDisable8dot3NameCreation` must be 0(the default value).
+
+for details, see http://msdn.microsoft.com/en-us/library/aa365543
 
 
 ## find and findSync
@@ -107,7 +118,7 @@ var watcher=new fsWin.dirWatcher(//the 'new' operator can be ignored
 
 ```javascript
 var fsWin=require('fsWin.node');
-var paths=['C:\\PROGRA~1','C:\\program files\\Common Files','c:\\windows\\system32','c:\\','\\\\mycomputer\\sharefolder\\somedir','\\\\mycomputer\\sharedfolder'];
+var paths=['C:\\PROGRA~1','C:\\program files\\Common Files','\\\\mycomputer\\sharefolder\\somedir\\anotherdir','c:\\','\\\\mycomputer\\sharefolder\\somedir','\\\\mycomputer\\sharedfolder\\'];
 var i,splittedpath;
 for(i=0;i<paths.length;i++){
 	splittedpath=fsWin.splitPath(paths[i]);
@@ -120,7 +131,7 @@ for(i=0;i<paths.length;i++){
 
 ```javascript
 var fsWin=require('fsWin.node');
-var paths=['C:\\PROGRA~1','C:\\program files\\Common Files','c:\\windows\\system32','c:\\','\\\\mycomputer\\sharefolder\\somedir','\\\\mycomputer\\sharedfolder'];
+var paths=['C:\\PROGRA~1','C:\\program files\\Common Files','\\\\mycomputer\\sharefolder\\somedir\\anotherdir','c:\\','\\\\mycomputer\\sharefolder\\somedir','\\\\mycomputer\\sharedfolder\\'];
 var i;
 //test the sync version
 //note: if the path does not exist, this function will return an empty string.
@@ -142,8 +153,41 @@ for(i=0;i<paths.length;i++){
 }
 ```
 
+## setShortName and setShortNameSync
 
-## convertPath and convertPathSync
+```javascript
+var fsWin=require('fsWin.node');
+var pathtoset='d:\\downloads';
+
+//sync version
+fsWin.findSync(pathtoset,function(file){
+	console.log('short name is: "'+file.SHORT_NAME+'"');
+});
+if(fsWin.ntfs.setShortNameSync(pathtoset,'12345')){
+	fsWin.findSync(pathtoset,function(file){
+		console.log('new short name is: "'+file.SHORT_NAME+'"');
+	});
+}else{
+	console.log('failed to set short name');
+}
+
+//async version
+fsWin.findSync(pathtoset,function(file){
+	console.log('short name is: "'+file.SHORT_NAME+'"');
+});
+fsWin.ntfs.setShortName(pathtoset,'abcde',function(done){
+	if(done){
+		fsWin.findSync(pathtoset,function(file){
+			console.log('new short name is: "'+file.SHORT_NAME+'"');
+		});
+	}else{
+		console.log('failed to set short name');
+	}
+})
+```
+
+
+## find and findSync
 
 ```javascript
 var fsWin=require('fsWin.node');
