@@ -1,4 +1,4 @@
-#define FSWIN_VERSION "0.1.2012.112"
+#define FSWIN_VERSION "0.1.2012.113"
 
 #define UNICODE
 #include <node.h>
@@ -6,8 +6,8 @@
 using namespace v8;
 using namespace node;
 
-#include <iostream>//for debug only
-using namespace std;
+//#include <iostream>//for debug only
+//using namespace std;
 
 namespace fsWin{
 	//global constants are common messages that will be used in different classes to make syncing easier
@@ -836,7 +836,7 @@ namespace fsWin{
 	const Persistent<String> getCompressedFileSize::syb_err_wrong_arguments=global_syb_err_wrong_arguments;
 	const Persistent<String> getCompressedFileSize::syb_err_not_a_constructor=global_syb_err_not_a_constructor;
 	
-	class getDiskSpace{
+	class getVolumeSpace{
 	public:
 		static const Persistent<String> syb_returns_totalSpace;
 		static const Persistent<String> syb_returns_freeSpace;
@@ -956,10 +956,10 @@ namespace fsWin{
 			delete data;
 		}
 	};
-	const Persistent<String> getDiskSpace::syb_err_wrong_arguments=global_syb_err_wrong_arguments;
-	const Persistent<String> getDiskSpace::syb_err_not_a_constructor=global_syb_err_not_a_constructor;
-	const Persistent<String> getDiskSpace::syb_returns_totalSpace=NODE_PSYMBOL("TOTAL");
-	const Persistent<String> getDiskSpace::syb_returns_freeSpace=NODE_PSYMBOL("FREE");
+	const Persistent<String> getVolumeSpace::syb_err_wrong_arguments=global_syb_err_wrong_arguments;
+	const Persistent<String> getVolumeSpace::syb_err_not_a_constructor=global_syb_err_not_a_constructor;
+	const Persistent<String> getVolumeSpace::syb_returns_totalSpace=NODE_PSYMBOL("TOTAL");
+	const Persistent<String> getVolumeSpace::syb_returns_freeSpace=NODE_PSYMBOL("FREE");
 
 	class setAttributes{
 	public:
@@ -1741,8 +1741,8 @@ namespace fsWin{
 		target->Set(String::NewSymbol("splitPath"),splitPath::functionRegister(),global_syb_attr_const);
 		target->Set(String::NewSymbol("convertPath"),convertPath::functionRegister(true),global_syb_attr_const);
 		target->Set(String::NewSymbol("convertPathSync"),convertPath::functionRegister(false),global_syb_attr_const);
-		target->Set(String::NewSymbol("getDiskSpace"),getDiskSpace::functionRegister(true),global_syb_attr_const);
-		target->Set(String::NewSymbol("getDiskSpaceSync"),getDiskSpace::functionRegister(false),global_syb_attr_const);
+		target->Set(String::NewSymbol("getVolumeSpace"),getVolumeSpace::functionRegister(true),global_syb_attr_const);
+		target->Set(String::NewSymbol("getVolumeSpaceSync"),getVolumeSpace::functionRegister(false),global_syb_attr_const);
 		target->Set(String::NewSymbol("dirWatcher"),dirWatcher::functionRegister(),global_syb_attr_const);
 
 		Handle<Object> ntfsgroup=Object::New();
