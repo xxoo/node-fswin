@@ -1,4 +1,4 @@
-#define FSWIN_VERSION "0.1.2012.111"
+#define FSWIN_VERSION "0.1.2012.112"
 
 #define UNICODE
 #include <node.h>
@@ -6,17 +6,26 @@
 using namespace v8;
 using namespace node;
 
-#include <iostream>//for debug only
-using namespace std;
+//#include <iostream>//for debug only
+//using namespace std;
 
 namespace fsWin{
 	//global constants are common messages that will be used in different classes to make syncing easier
+	static const PropertyAttribute global_syb_attr_const=(PropertyAttribute)(ReadOnly|DontDelete);
 	static const Persistent<String> global_syb_err_wrong_arguments=NODE_PSYMBOL("WRONG_ARGUMENTS");
 	static const Persistent<String> global_syb_err_not_a_constructor=NODE_PSYMBOL("THIS_FUNCTION_IS_NOT_A_CONSTRUCTOR");
 	static const Persistent<String> global_syb_err_initialization_failed=NODE_PSYMBOL("INITIALIZATION_FAILED");
 	static const Persistent<String> global_syb_evt_err=NODE_PSYMBOL("ERROR");
 	static const Persistent<String> global_syb_evt_end=NODE_PSYMBOL("ENDED");
-	static const PropertyAttribute global_syb_attr_const=(PropertyAttribute)(ReadOnly|DontDelete);
+	static const Persistent<String> global_syb_evt_succeeded=NODE_PSYMBOL("SUCCEEDED");
+	static const Persistent<String> global_syb_evt_failed=NODE_PSYMBOL("FAILED");
+	static const Persistent<String> global_syb_fileAttr_isArchived=NODE_PSYMBOL("IS_ARCHIVED");
+	static const Persistent<String> global_syb_fileAttr_isHidden=NODE_PSYMBOL("IS_HIDDEN");
+	static const Persistent<String> global_syb_fileAttr_isNotContentIndexed=NODE_PSYMBOL("IS_NOT_CONTENT_INDEXED");
+	static const Persistent<String> global_syb_fileAttr_isOffline=NODE_PSYMBOL("IS_OFFLINE");
+	static const Persistent<String> global_syb_fileAttr_isReadOnly=NODE_PSYMBOL("IS_READ_ONLY");
+	static const Persistent<String> global_syb_fileAttr_isSystem=NODE_PSYMBOL("IS_SYSTEM");
+	static const Persistent<String> global_syb_fileAttr_isTemporary=NODE_PSYMBOL("IS_TEMPORARY");
 	
 //dirWatcher requires vista or latter to call GetFinalPathNameByHandleW.
 //the API is necessary since the dir we are watching could also be moved to another path.
@@ -56,6 +65,34 @@ namespace fsWin{
 		}
 		return scope.Close(r);
 	}
+
+	static bool ensurePrivilege(const wchar_t* privilegeName){
+		bool result=false;
+		HANDLE hToken;
+		if(OpenProcessToken(GetCurrentProcess(),TOKEN_ADJUST_PRIVILEGES|TOKEN_QUERY,&hToken)){
+			LUID tkid;
+			if(LookupPrivilegeValueW(NULL,privilegeName,&tkid)){
+				PRIVILEGE_SET ps;
+				ps.PrivilegeCount=1;
+				ps.Control=PRIVILEGE_SET_ALL_NECESSARY;
+				ps.Privilege[0].Luid=tkid;
+				ps.Privilege[0].Attributes=SE_PRIVILEGE_ENABLED;
+				BOOL chkresult;
+				if(PrivilegeCheck(hToken,&ps,&chkresult)){
+					if(chkresult){
+						result=true;
+					}else{
+						TOKEN_PRIVILEGES tp;
+						tp.PrivilegeCount=1;
+						tp.Privileges[0]=ps.Privilege[0];
+						result=AdjustTokenPrivileges(hToken,FALSE,&tp,sizeof(tp),NULL,NULL)?true:false;
+					}
+				}
+			}
+		}
+		CloseHandle(hToken);
+		return result;
+	}
 	
 	static ULONGLONG combineHiLow(const DWORD hi,const DWORD low){
 		ULARGE_INTEGER ul;
@@ -83,7 +120,6 @@ namespace fsWin{
 		static const Persistent<String> syb_returns_isDirectory;
 		static const Persistent<String> syb_returns_isEncrypted;
 		static const Persistent<String> syb_returns_isHidden;
-		static const Persistent<String> syb_returns_isNormal;
 		static const Persistent<String> syb_returns_isNotContentIndexed;
 		static const Persistent<String> syb_returns_isOffline;
 		static const Persistent<String> syb_returns_isReadOnly;
@@ -215,7 +251,6 @@ namespace fsWin{
 			o->Set(syb_returns_isDirectory,info->dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY?True():False());
 			o->Set(syb_returns_isEncrypted,info->dwFileAttributes&FILE_ATTRIBUTE_ENCRYPTED?True():False());
 			o->Set(syb_returns_isHidden,info->dwFileAttributes&FILE_ATTRIBUTE_HIDDEN?True():False());
-			o->Set(syb_returns_isNormal,info->dwFileAttributes&FILE_ATTRIBUTE_NORMAL?True():False());
 			o->Set(syb_returns_isNotContentIndexed,info->dwFileAttributes&FILE_ATTRIBUTE_NOT_CONTENT_INDEXED?True():False());
 			o->Set(syb_returns_isOffline,info->dwFileAttributes&FILE_ATTRIBUTE_OFFLINE?True():False());
 			o->Set(syb_returns_isReadOnly,info->dwFileAttributes&FILE_ATTRIBUTE_READONLY?True():False());
@@ -268,7 +303,6 @@ namespace fsWin{
 			returns->Set(syb_returns_isDirectory,syb_returns_isDirectory,global_syb_attr_const);
 			returns->Set(syb_returns_isEncrypted,syb_returns_isEncrypted,global_syb_attr_const);
 			returns->Set(syb_returns_isHidden,syb_returns_isHidden,global_syb_attr_const);
-			returns->Set(syb_returns_isNormal,syb_returns_isNormal,global_syb_attr_const);
 			returns->Set(syb_returns_isNotContentIndexed,syb_returns_isNotContentIndexed,global_syb_attr_const);
 			returns->Set(syb_returns_isOffline,syb_returns_isOffline,global_syb_attr_const);
 			returns->Set(syb_returns_isReadOnly,syb_returns_isReadOnly,global_syb_attr_const);
@@ -334,6 +368,8 @@ namespace fsWin{
 						result=True();
 					}else{
 						free(data->data);
+						data->self.Dispose();
+						data->func.Dispose();
 						delete data;
 						result=False();
 					}
@@ -447,17 +483,16 @@ namespace fsWin{
 	const Persistent<String> find::syb_returns_size=NODE_PSYMBOL("SIZE");
 	const Persistent<String> find::syb_returns_reparsePointTag=NODE_PSYMBOL("REPARSE_POINT_TAG");
 	const Persistent<String> find::syb_returns_isDirectory=NODE_PSYMBOL("IS_DIRECTORY");
-	const Persistent<String> find::syb_returns_isArchived=NODE_PSYMBOL("IS_ARCHIVED");
 	const Persistent<String> find::syb_returns_isCompressed=NODE_PSYMBOL("IS_COMPRESSED");
 	const Persistent<String> find::syb_returns_isEncrypted=NODE_PSYMBOL("IS_ENCRYPTED");
-	const Persistent<String> find::syb_returns_isHidden=NODE_PSYMBOL("IS_HIDDEN");
-	const Persistent<String> find::syb_returns_isNormal=NODE_PSYMBOL("IS_NORMAL");
-	const Persistent<String> find::syb_returns_isNotContentIndexed=NODE_PSYMBOL("IS_NOT_CONTENT_INDEXED");
-	const Persistent<String> find::syb_returns_isOffline=NODE_PSYMBOL("IS_OFFLINE");
-	const Persistent<String> find::syb_returns_isReadOnly=NODE_PSYMBOL("IS_READ_ONLY");
 	const Persistent<String> find::syb_returns_isSparseFile=NODE_PSYMBOL("IS_SPARSE_FILE");
-	const Persistent<String> find::syb_returns_isSystem=NODE_PSYMBOL("IS_SYSTEM");
-	const Persistent<String> find::syb_returns_isTemporary=NODE_PSYMBOL("IS_TEMPORARY");
+	const Persistent<String> find::syb_returns_isArchived=global_syb_fileAttr_isArchived;
+	const Persistent<String> find::syb_returns_isHidden=global_syb_fileAttr_isHidden;
+	const Persistent<String> find::syb_returns_isNotContentIndexed=global_syb_fileAttr_isNotContentIndexed;
+	const Persistent<String> find::syb_returns_isOffline=global_syb_fileAttr_isOffline;
+	const Persistent<String> find::syb_returns_isReadOnly=global_syb_fileAttr_isReadOnly;
+	const Persistent<String> find::syb_returns_isSystem=global_syb_fileAttr_isSystem;
+	const Persistent<String> find::syb_returns_isTemporary=global_syb_fileAttr_isTemporary;
 	const Persistent<String> find::syb_reparsePoint_unknown=NODE_PSYMBOL("UNKNOWN");
 	const Persistent<String> find::syb_reparsePoint_dfs=NODE_PSYMBOL("DFS");
 	const Persistent<String> find::syb_reparsePoint_dfsr=NODE_PSYMBOL("DFSR");
@@ -586,36 +621,17 @@ namespace fsWin{
 		};
 	public:
 		static bool basic(const wchar_t* path,const wchar_t* newname){
-			//make sure the process has SE_RESTORE_NAME privilege
-			HANDLE hToken;
-			PTOKEN_PRIVILEGES psToken;
-			DWORD cbToken;
-			DWORD i;
-			wchar_t abPrivilege[sizeof(SE_RESTORE_NAME)/sizeof(wchar_t)];
-			OpenProcessToken(GetCurrentProcess(),TOKEN_ADJUST_PRIVILEGES|TOKEN_QUERY,&hToken);
-			GetTokenInformation(hToken,TokenPrivileges,NULL,0,&cbToken);
-			psToken=(PTOKEN_PRIVILEGES)malloc(cbToken);
-			GetTokenInformation(hToken, TokenPrivileges, psToken, cbToken,&cbToken);
-			for(i=0;i<psToken->PrivilegeCount;i++){
-				DWORD cbPrivilege=sizeof(SE_RESTORE_NAME)/sizeof(wchar_t);
-				if(LookupPrivilegeNameW(NULL,&psToken->Privileges[i].Luid,abPrivilege,&cbPrivilege)&&wcscmp(abPrivilege,SE_RESTORE_NAME)==0){
-					if(!(psToken->Privileges[i].Attributes&SE_PRIVILEGE_ENABLED)){
-						psToken->Privileges[i].Attributes|=SE_PRIVILEGE_ENABLED;
-						AdjustTokenPrivileges(hToken,0,psToken,cbToken,NULL,NULL);
-					}
-					break;
+			bool result=false;
+			if(ensurePrivilege(SE_RESTORE_NAME)){//make sure the process has SE_RESTORE_NAME privilege
+				HANDLE hnd=CreateFileW(path,GENERIC_WRITE|DELETE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS,NULL);
+				if(hnd==INVALID_HANDLE_VALUE){
+					result=false;
+				}else{
+					result=SetFileShortNameW(hnd,newname?newname:L"")?true:false;
+					CloseHandle(hnd);
 				}
-			}
-			CloseHandle(hToken);
-			free(psToken);
-
-			bool result;
-			HANDLE hnd=CreateFileW(path,GENERIC_WRITE|DELETE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS,NULL);
-			if(hnd==INVALID_HANDLE_VALUE){
-				result=false;
 			}else{
-				result=SetFileShortNameW(hnd,newname)?true:false;
-				CloseHandle(hnd);
+				result=false;
 			}
 			return result;
 		}
@@ -645,8 +661,14 @@ namespace fsWin{
 			if(args.IsConstructCall()){
 				result=ThrowException(Exception::Error(syb_err_not_a_constructor));
 			}else{
-				if(args.Length()>1&&(args[0]->IsString()||args[0]->IsStringObject())&&(args[1]->IsString()||args[1]->IsStringObject())){
-					result=js(Handle<String>::Cast(args[0]),Handle<String>::Cast(args[1]));
+				if(args.Length()>0&&(args[0]->IsString()||args[0]->IsStringObject())){
+					Handle<String> newname;
+					if(args[1]->IsString()||args[1]->IsStringObject()){
+						newname=Handle<String>::Cast(args[1]);
+					}else{
+						newname=String::NewSymbol("");
+					}
+					result=js(Handle<String>::Cast(args[0]),newname);
 				}else{
 					result=ThrowException(Exception::Error(syb_err_wrong_arguments));
 				}
@@ -659,18 +681,37 @@ namespace fsWin{
 			if(args.IsConstructCall()){
 				result=ThrowException(Exception::Error(syb_err_not_a_constructor));
 			}else{
-				if(args.Length()>2&&(args[0]->IsString()||args[0]->IsStringObject())&&(args[1]->IsString()||args[1]->IsStringObject())&&args[2]->IsFunction()){
+				if(args.Length()>0&&(args[0]->IsString()||args[0]->IsStringObject())){
 					workdata *data=new workdata;
 					data->req.data=data;
 					data->self=Persistent<Object>::New(args.This());
-					data->path=_wcsdup((wchar_t*)*String::Value(Local<String>::Cast(args[0])));
-					data->newname=_wcsdup((wchar_t*)*String::Value(Local<String>::Cast(args[1])));
-					data->func=Persistent<Function>::New(Handle<Function>::Cast(args[2]));
+					if(args.Length()>1){
+						if(args[1]->IsString()||args[1]->IsStringObject()){
+							String::Value n(Local<String>::Cast(args[1]));
+							data->newname=_wcsdup((wchar_t*)*n);
+							if(args.Length()>2&&args[2]->IsFunction()){
+								data->func=Persistent<Function>::New(Handle<Function>::Cast(args[2]));
+							}
+						}else if(args[1]->IsFunction()){
+							data->newname=NULL;
+							data->func=Persistent<Function>::New(Handle<Function>::Cast(args[1]));
+						}else{
+							data->newname=NULL;
+						}
+					}
+					String::Value p(Local<String>::Cast(args[0]));
+					data->path=_wcsdup((wchar_t*)*p);
 					if(uv_queue_work(uv_default_loop(),&data->req,beginWork,afterWork)==0){
 						result=True();
 					}else{
 						free(data->path);
-						free(data->newname);
+						if(data->newname){
+							free(data->newname);
+						}
+						if(!data->func.IsEmpty()){
+							data->func.Dispose();
+						}
+						data->self.Dispose();
 						delete data;
 						result=False();
 					}
@@ -682,21 +723,517 @@ namespace fsWin{
 			workdata *data=(workdata*)req->data;
 			data->result=basic(data->path,data->newname);
 			free(data->path);
-			free(data->newname);
+			if(data->newname){
+				free(data->newname);
+			}
 		}
 		static void afterWork(uv_work_t *req){
 			HandleScope scope;
 			workdata *data=(workdata*)req->data;
 			Handle<Value> p=data->result?True():False();
-			data->func->Call(data->self,1,&p);
-			data->func.Dispose();
+			if(!data->func.IsEmpty()){
+				data->func->Call(data->self,1,&p);
+				data->func.Dispose();
+			}
 			data->self.Dispose();
 			delete data;
 		}
 	};
 	const Persistent<String> setShortName::syb_err_wrong_arguments=global_syb_err_wrong_arguments;
 	const Persistent<String> setShortName::syb_err_not_a_constructor=global_syb_err_not_a_constructor;
+	
+	class getCompressedFileSize{
+	private:
+		static const Persistent<String> syb_err_wrong_arguments;
+		static const Persistent<String> syb_err_not_a_constructor;
+		static const struct workdata{
+			uv_work_t req;
+			Persistent<Object> self;
+			Persistent<Function> func;
+			wchar_t *path;
+			ULONGLONG result;
+		};
+	public:
+		static ULONGLONG basic(const wchar_t *path){
+			ULARGE_INTEGER u;
+			u.LowPart=GetCompressedFileSizeW(path,&u.HighPart);
+			if(u.LowPart==INVALID_FILE_SIZE&&GetLastError()!=NO_ERROR){
+				u.QuadPart=0;
+			}
+			return u.QuadPart;
+		}
+		static Handle<Function> functionRegister(bool isAsyncVersion){
+			HandleScope scope;
+			Handle<FunctionTemplate> t=FunctionTemplate::New(isAsyncVersion?jsAsync:jsSync);
 
+			//set errmessages
+			Handle<Object> errors=Object::New();
+			errors->Set(syb_err_wrong_arguments,syb_err_wrong_arguments,global_syb_attr_const);
+			errors->Set(syb_err_not_a_constructor,syb_err_not_a_constructor,global_syb_attr_const);
+			t->Set(String::NewSymbol("errors"),errors,global_syb_attr_const);
+
+			return scope.Close(t->GetFunction());
+		}
+	private:
+		static Handle<Value> jsSync(const Arguments& args){
+			HandleScope scope;
+			Handle<Value> result;
+			if(args.IsConstructCall()){
+				result=ThrowException(Exception::Error(syb_err_not_a_constructor));
+			}else{
+				if(args.Length()>0&&(args[0]->IsString()||args[0]->IsStringObject())){
+					String::Value spath(args[0]);
+					result=Number::New((double)basic((wchar_t*)*spath));
+				}else{
+					result=ThrowException(Exception::Error(syb_err_wrong_arguments));
+				}
+			}
+			return scope.Close(result);
+		}
+		static Handle<Value> jsAsync(const Arguments& args){
+			HandleScope scope;
+			Handle<Value> result;
+			if(args.IsConstructCall()){
+				result=ThrowException(Exception::Error(syb_err_not_a_constructor));
+			}else{
+				if(args.Length()>1&&(args[0]->IsString()||args[0]->IsStringObject())&&args[1]->IsFunction()){
+					workdata *data=new workdata;
+					data->req.data=data;
+					data->self=Persistent<Object>::New(args.This());
+					data->func=Persistent<Function>::New(Handle<Function>::Cast(args[1]));
+					String::Value p(Local<String>::Cast(args[0]));
+					data->path=_wcsdup((wchar_t*)*p);
+					if(uv_queue_work(uv_default_loop(),&data->req,beginWork,afterWork)==0){
+						result=True();
+					}else{
+						free(data->path);
+						data->self.Dispose();
+						data->func.Dispose();
+						delete data;
+						result=False();
+					}
+				}else{
+					result=ThrowException(Exception::Error(syb_err_wrong_arguments));
+				}
+			}
+			return scope.Close(result);
+		}
+		static void beginWork(uv_work_t *req){
+			workdata *data=(workdata*)req->data;
+			data->result=basic(data->path);
+			free(data->path);
+		}
+		static void afterWork(uv_work_t *req){
+			HandleScope scope;
+			workdata *data=(workdata*)req->data;
+			Handle<Value> p=Number::New((double)data->result);
+			data->func->Call(data->self,1,&p);
+			data->func.Dispose();
+			data->self.Dispose();
+			delete data;
+		}
+	};
+	const Persistent<String> getCompressedFileSize::syb_err_wrong_arguments=global_syb_err_wrong_arguments;
+	const Persistent<String> getCompressedFileSize::syb_err_not_a_constructor=global_syb_err_not_a_constructor;
+	
+	class getSpace{
+	public:
+		static const Persistent<String> syb_returns_totalUserSpace;
+		static const Persistent<String> syb_returns_totalDiskSpace;
+		static const Persistent<String> syb_returns_freeUserSpace;
+		static const Persistent<String> syb_returns_freeDiskSpace;
+		static const struct spaces{
+			ULONGLONG totalUserSpace;
+			ULONGLONG totalDiskSpace;
+			ULONGLONG freeUserSpace;
+			ULONGLONG freeDiskSpace;
+		};
+	private:
+		static const Persistent<String> syb_err_wrong_arguments;
+		static const Persistent<String> syb_err_not_a_constructor;
+		static const struct workdata{
+			uv_work_t req;
+			Persistent<Object> self;
+			Persistent<Function> func;
+			void *path;
+		};
+	public:
+		static spaces* basic(const wchar_t *path){//you need to delete the result yourself if it is not NULL
+			ULARGE_INTEGER u1;
+			ULARGE_INTEGER u2;
+			ULARGE_INTEGER u3;
+			spaces* result=NULL;
+			if(GetDiskFreeSpaceExW(path,&u1,&u2,&u3)){
+				result=new spaces;
+				result->freeUserSpace=u1.QuadPart;
+				result->totalUserSpace=u2.QuadPart;
+				result->freeDiskSpace=u3.QuadPart;
+				HANDLE hnd=CreateFileW(path,FILE_LIST_DIRECTORY,FILE_SHARE_DELETE|FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS,NULL);
+				if(hnd!=INVALID_HANDLE_VALUE){
+					GET_LENGTH_INFORMATION u4;
+					DWORD sz;
+					if(DeviceIoControl(hnd,IOCTL_DISK_GET_LENGTH_INFO,NULL,0,&u4,sizeof(GET_LENGTH_INFORMATION),&sz,NULL)){
+						result->totalDiskSpace=u4.Length.QuadPart;
+					}else{
+						result->totalDiskSpace=0;
+					}
+				}else{
+					result->totalDiskSpace=0;
+				}
+			}
+			return result;
+		}
+		static Handle<Object> spacesToJs(const spaces* spc){//this function will delete the param if it is not NULL
+			HandleScope scope;
+			Handle<Object> result;
+			if(spc){
+				result=Object::New();
+				result->Set(syb_returns_totalUserSpace,Number::New((double)spc->totalUserSpace));
+				result->Set(syb_returns_totalDiskSpace,Number::New((double)spc->totalDiskSpace));
+				result->Set(syb_returns_freeUserSpace,Number::New((double)spc->freeUserSpace));
+				result->Set(syb_returns_freeDiskSpace,Number::New((double)spc->freeDiskSpace));
+				delete spc;
+			}
+			return scope.Close(result);
+		}
+		static Handle<Function> functionRegister(bool isAsyncVersion){
+			HandleScope scope;
+			Handle<FunctionTemplate> t=FunctionTemplate::New(isAsyncVersion?jsAsync:jsSync);
+
+			//set error messages
+			Handle<Object> errors=Object::New();
+			errors->Set(syb_err_wrong_arguments,syb_err_wrong_arguments,global_syb_attr_const);
+			errors->Set(syb_err_not_a_constructor,syb_err_not_a_constructor,global_syb_attr_const);
+			t->Set(String::NewSymbol("errors"),errors,global_syb_attr_const);
+			
+			//set return values
+			Handle<Object> returns=Object::New();
+			returns->Set(syb_returns_totalUserSpace,syb_returns_totalUserSpace,global_syb_attr_const);
+			returns->Set(syb_returns_totalDiskSpace,syb_returns_totalDiskSpace,global_syb_attr_const);
+			returns->Set(syb_returns_freeUserSpace,syb_returns_freeUserSpace,global_syb_attr_const);
+			returns->Set(syb_returns_freeDiskSpace,syb_returns_freeDiskSpace,global_syb_attr_const);
+			t->Set(String::NewSymbol("returns"),errors,global_syb_attr_const);
+
+			return scope.Close(t->GetFunction());
+		}
+	private:
+		static Handle<Value> jsSync(const Arguments& args){
+			HandleScope scope;
+			Handle<Value> result;
+			if(args.IsConstructCall()){
+				result=ThrowException(Exception::Error(syb_err_not_a_constructor));
+			}else{
+				if(args.Length()>0&&(args[0]->IsString()||args[0]->IsStringObject())){
+					String::Value spath(args[0]);
+					result=spacesToJs(basic((wchar_t*)*spath));
+				}else{
+					result=ThrowException(Exception::Error(syb_err_wrong_arguments));
+				}
+			}
+			return scope.Close(result);
+		}
+		static Handle<Value> jsAsync(const Arguments& args){
+			HandleScope scope;
+			Handle<Value> result;
+			if(args.IsConstructCall()){
+				result=ThrowException(Exception::Error(syb_err_not_a_constructor));
+			}else{
+				if(args.Length()>1&&(args[0]->IsString()||args[0]->IsStringObject())&&args[1]->IsFunction()){
+					workdata *data=new workdata;
+					data->req.data=data;
+					data->self=Persistent<Object>::New(args.This());
+					data->func=Persistent<Function>::New(Handle<Function>::Cast(args[1]));
+					String::Value p(Local<String>::Cast(args[0]));
+					data->path=_wcsdup((wchar_t*)*p);
+					if(uv_queue_work(uv_default_loop(),&data->req,beginWork,afterWork)==0){
+						result=True();
+					}else{
+						free(data->path);
+						data->self.Dispose();
+						data->func.Dispose();
+						delete data;
+						result=False();
+					}
+				}else{
+					result=ThrowException(Exception::Error(syb_err_wrong_arguments));
+				}
+			}
+			return scope.Close(result);
+		}
+		static void beginWork(uv_work_t *req){
+			workdata *data=(workdata*)req->data;
+			spaces* p=basic((wchar_t*)data->path);
+			free(data->path);
+			data->path=p;
+		}
+		static void afterWork(uv_work_t *req){
+			HandleScope scope;
+			workdata *data=(workdata*)req->data;
+			Handle<Value> p=spacesToJs((spaces*)data->path);
+			data->func->Call(data->self,1,&p);
+			data->func.Dispose();
+			data->self.Dispose();
+			delete data;
+		}
+	};
+	const Persistent<String> getSpace::syb_err_wrong_arguments=global_syb_err_wrong_arguments;
+	const Persistent<String> getSpace::syb_err_not_a_constructor=global_syb_err_not_a_constructor;
+	const Persistent<String> getSpace::syb_returns_totalUserSpace=NODE_PSYMBOL("TOTAL_USER_SPACE");
+	const Persistent<String> getSpace::syb_returns_totalDiskSpace=NODE_PSYMBOL("TOTAL_DISK_SPACE");
+	const Persistent<String> getSpace::syb_returns_freeUserSpace=NODE_PSYMBOL("FREE_USER_SPACE");
+	const Persistent<String> getSpace::syb_returns_freeDiskSpace=NODE_PSYMBOL("FREE_DISK_SPACE");
+
+	class setAttributes{
+	public:
+		static const struct attrVal{//0=keep,1=yes,-1=no
+			char archive;
+			char hidden;
+			char notContentIndexed;
+			char offline;
+			char readonly;
+			char system;
+			char temporary;
+		};
+	private:
+		static const Persistent<String> syb_param_attr_archive;
+		static const Persistent<String> syb_param_attr_hidden;
+		static const Persistent<String> syb_param_attr_notContentIndexed;
+		static const Persistent<String> syb_param_attr_offline;
+		static const Persistent<String> syb_param_attr_readonly;
+		static const Persistent<String> syb_param_attr_system;
+		static const Persistent<String> syb_param_attr_temporary;
+		static const Persistent<String> syb_err_wrong_arguments;
+		static const Persistent<String> syb_err_not_a_constructor;
+		static const struct workdata{
+			uv_work_t req;
+			Persistent<Object> self;
+			Persistent<Function> func;
+			wchar_t *path;
+			attrVal *attr;
+			bool result;
+		};
+	public:
+		static bool basic(const wchar_t* file,const attrVal* attr){
+			bool result;
+			DWORD oldattr=GetFileAttributesW(file);
+			if(oldattr==INVALID_FILE_ATTRIBUTES){
+				result=false;
+			}else{
+				DWORD newattr=oldattr;
+				if(attr->archive<0){
+					if(oldattr&FILE_ATTRIBUTE_ARCHIVE){
+						newattr^=FILE_ATTRIBUTE_ARCHIVE;
+					}
+				}else if(attr->archive>0){
+					if(!(oldattr&FILE_ATTRIBUTE_ARCHIVE)){
+						newattr|=FILE_ATTRIBUTE_ARCHIVE;
+					}
+				}
+				if(attr->hidden<0){
+					if(oldattr&FILE_ATTRIBUTE_HIDDEN){
+						newattr^=FILE_ATTRIBUTE_HIDDEN;
+					}
+				}else if(attr->hidden>0){
+					if(!(oldattr&FILE_ATTRIBUTE_HIDDEN)){
+						newattr|=FILE_ATTRIBUTE_HIDDEN;
+					}
+				}
+				if(attr->notContentIndexed<0){
+					if(oldattr&FILE_ATTRIBUTE_NOT_CONTENT_INDEXED){
+						newattr^=FILE_ATTRIBUTE_NOT_CONTENT_INDEXED;
+					}
+				}else if(attr->notContentIndexed>0){
+					if(!(oldattr&FILE_ATTRIBUTE_NOT_CONTENT_INDEXED)){
+						newattr|=FILE_ATTRIBUTE_NOT_CONTENT_INDEXED;
+					}
+				}
+				if(attr->readonly<0){
+					if(oldattr&FILE_ATTRIBUTE_OFFLINE){
+						newattr^=FILE_ATTRIBUTE_OFFLINE;
+					}
+				}else if(attr->readonly>0){
+					if(!(oldattr&FILE_ATTRIBUTE_OFFLINE)){
+						newattr|=FILE_ATTRIBUTE_OFFLINE;
+					}
+				}
+				if(attr->archive<0){
+					if(oldattr&FILE_ATTRIBUTE_READONLY){
+						newattr^=FILE_ATTRIBUTE_READONLY;
+					}
+				}else if(attr->archive>0){
+					if(!(oldattr&FILE_ATTRIBUTE_READONLY)){
+						newattr|=FILE_ATTRIBUTE_READONLY;
+					}
+				}
+				if(attr->system<0){
+					if(oldattr&FILE_ATTRIBUTE_SYSTEM){
+						newattr^=FILE_ATTRIBUTE_SYSTEM;
+					}
+				}else if(attr->system>0){
+					if(!(oldattr&FILE_ATTRIBUTE_SYSTEM)){
+						newattr|=FILE_ATTRIBUTE_SYSTEM;
+					}
+				}
+				if(attr->temporary<0){
+					if(oldattr&FILE_ATTRIBUTE_TEMPORARY){
+						newattr^=FILE_ATTRIBUTE_TEMPORARY;
+					}
+				}else if(attr->temporary>0){
+					if(!(oldattr&FILE_ATTRIBUTE_TEMPORARY)){
+						newattr|=FILE_ATTRIBUTE_TEMPORARY;
+					}
+				}
+				if(newattr==oldattr){
+					result=true;
+				}else{
+					result=SetFileAttributesW(file,newattr)?true:false;
+				}
+			}
+			return result;
+		}
+		static attrVal* jsToAttrval(Handle<Object> attr){//delete the result if it is not NULL
+			HandleScope scope;
+			attrVal* a=new attrVal;
+			if(attr->HasOwnProperty(syb_param_attr_archive)){
+				a->archive=attr->Get(syb_param_attr_archive)->ToBoolean()->IsTrue()?1:-1;
+			}else{
+				a->archive=0;
+			}
+			if(attr->HasOwnProperty(syb_param_attr_hidden)){
+				a->hidden=attr->Get(syb_param_attr_hidden)->ToBoolean()->IsTrue()?1:-1;
+			}else{
+				a->hidden=0;
+			}
+			if(attr->HasOwnProperty(syb_param_attr_notContentIndexed)){
+				a->notContentIndexed=attr->Get(syb_param_attr_notContentIndexed)->ToBoolean()->IsTrue()?1:-1;
+			}else{
+				a->notContentIndexed=0;
+			}
+			if(attr->HasOwnProperty(syb_param_attr_offline)){
+				a->offline=attr->Get(syb_param_attr_offline)->ToBoolean()->IsTrue()?1:-1;
+			}else{
+				a->offline=0;
+			}
+			if(attr->HasOwnProperty(syb_param_attr_readonly)){
+				a->readonly=attr->Get(syb_param_attr_readonly)->ToBoolean()->IsTrue()?1:-1;
+			}else{
+				a->readonly=0;
+			}
+			if(attr->HasOwnProperty(syb_param_attr_system)){
+				a->system=attr->Get(syb_param_attr_system)->ToBoolean()->IsTrue()?1:-1;
+			}else{
+				a->system=0;
+			}
+			if(attr->HasOwnProperty(syb_param_attr_temporary)){
+				a->temporary=attr->Get(syb_param_attr_temporary)->ToBoolean()->IsTrue()?1:-1;
+			}else{
+				a->temporary=0;
+			}
+			return a;
+		}
+		static Handle<Function> functionRegister(bool isAsyncVersion){
+			HandleScope scope;
+			Handle<FunctionTemplate> t=FunctionTemplate::New(isAsyncVersion?jsAsync:jsSync);
+
+			//set errmessages
+			Handle<Object> errors=Object::New();
+			errors->Set(syb_err_wrong_arguments,syb_err_wrong_arguments,global_syb_attr_const);
+			errors->Set(syb_err_not_a_constructor,syb_err_not_a_constructor,global_syb_attr_const);
+			t->Set(String::NewSymbol("errors"),errors,global_syb_attr_const);
+			
+			//set params
+			Handle<Object> params=Object::New();
+			params->Set(syb_param_attr_archive,syb_param_attr_archive,global_syb_attr_const);
+			params->Set(syb_param_attr_hidden,syb_param_attr_hidden,global_syb_attr_const);
+			params->Set(syb_param_attr_notContentIndexed,syb_param_attr_notContentIndexed,global_syb_attr_const);
+			params->Set(syb_param_attr_offline,syb_param_attr_offline,global_syb_attr_const);
+			params->Set(syb_param_attr_readonly,syb_param_attr_readonly,global_syb_attr_const);
+			params->Set(syb_param_attr_system,syb_param_attr_system,global_syb_attr_const);
+			params->Set(syb_param_attr_temporary,syb_param_attr_temporary,global_syb_attr_const);
+			t->Set(String::NewSymbol("params"),params,global_syb_attr_const);
+
+			return scope.Close(t->GetFunction());
+		}
+	private:
+		static Handle<Value> jsSync(const Arguments& args){
+			HandleScope scope;
+			Handle<Value> result;
+			if(args.IsConstructCall()){
+				result=ThrowException(Exception::Error(syb_err_not_a_constructor));
+			}else{
+				if(args.Length()>1&&(args[0]->IsString()||args[0]->IsStringObject())&&args[1]->IsObject()){
+					attrVal* a=jsToAttrval(Handle<Object>::Cast(args[1]));
+					String::Value p(args[0]);
+					result=basic((wchar_t*)*p,a)?True():False();
+					delete a;
+				}else{
+					result=ThrowException(Exception::Error(syb_err_wrong_arguments));
+				}
+			}
+			return scope.Close(result);
+		}
+		static Handle<Value> jsAsync(const Arguments& args){
+			HandleScope scope;
+			Handle<Value> result;
+			if(args.IsConstructCall()){
+				result=ThrowException(Exception::Error(syb_err_not_a_constructor));
+			}else{
+				if(args.Length()>1&&(args[0]->IsString()||args[0]->IsStringObject())&&args[1]->IsObject()){
+					workdata *data=new workdata;
+					data->req.data=data;
+					data->self=Persistent<Object>::New(args.This());
+					if(args.Length()>2&&args[2]->IsFunction()){
+						data->func=Persistent<Function>::New(Handle<Function>::Cast(args[2]));
+					}
+					String::Value p(Local<String>::Cast(args[0]));
+					data->path=_wcsdup((wchar_t*)*p);
+					data->attr=jsToAttrval(Handle<Object>::Cast(args[1]));
+					if(uv_queue_work(uv_default_loop(),&data->req,beginWork,afterWork)==0){
+						result=True();
+					}else{
+						free(data->path);
+						data->self.Dispose();
+						if(!data->func.IsEmpty()){
+							data->func.Dispose();
+						}
+						delete data->attr;
+						delete data;
+						result=False();
+					}
+				}else{
+					result=ThrowException(Exception::Error(syb_err_wrong_arguments));
+				}
+			}
+			return scope.Close(result);
+		}
+		static void beginWork(uv_work_t *req){
+			workdata *data=(workdata*)req->data;
+			data->result=basic(data->path,data->attr);
+			free(data->path);
+			delete data->attr;
+		}
+		static void afterWork(uv_work_t *req){
+			HandleScope scope;
+			workdata *data=(workdata*)req->data;
+			Handle<Value> p=data->result?True():False();
+			if(!data->func.IsEmpty()){
+				data->func->Call(data->self,1,&p);
+				data->func.Dispose();
+			}
+			data->self.Dispose();
+			delete data;
+		}
+	};
+	const Persistent<String> setAttributes::syb_err_wrong_arguments=global_syb_err_wrong_arguments;
+	const Persistent<String> setAttributes::syb_err_not_a_constructor=global_syb_err_not_a_constructor;
+	const Persistent<String> setAttributes::syb_param_attr_archive=global_syb_fileAttr_isArchived;
+	const Persistent<String> setAttributes::syb_param_attr_hidden=global_syb_fileAttr_isHidden;
+	const Persistent<String> setAttributes::syb_param_attr_notContentIndexed=global_syb_fileAttr_isNotContentIndexed;
+	const Persistent<String> setAttributes::syb_param_attr_offline=global_syb_fileAttr_isOffline;
+	const Persistent<String> setAttributes::syb_param_attr_readonly=global_syb_fileAttr_isReadOnly;
+	const Persistent<String> setAttributes::syb_param_attr_system=global_syb_fileAttr_isSystem;
+	const Persistent<String> setAttributes::syb_param_attr_temporary=global_syb_fileAttr_isTemporary;
+	
 	class convertPath{
 	private:
 		static const Persistent<String> syb_err_wrong_arguments;
@@ -772,11 +1309,14 @@ namespace fsWin{
 					data->self=Persistent<Object>::New(args.This());
 					data->func=Persistent<Function>::New(Handle<Function>::Cast(args[1]));
 					data->islong=args[2]->ToBoolean()->IsTrue();
-					data->path=_wcsdup((wchar_t*)*String::Value(Local<String>::Cast(args[0])));
+					String::Value p(Local<String>::Cast(args[0]));
+					data->path=_wcsdup((wchar_t*)*p);
 					if(uv_queue_work(uv_default_loop(),&data->req,beginWork,afterWork)==0){
 						result=True();
 					}else{
 						free(data->path);
+						data->self.Dispose();
+						data->func.Dispose();
 						delete data;
 						result=False();
 					}
@@ -1218,14 +1758,20 @@ namespace fsWin{
 		HandleScope scope;
 		target->Set(String::NewSymbol("find"),find::functionRegister(true),global_syb_attr_const);
 		target->Set(String::NewSymbol("findSync"),find::functionRegister(false),global_syb_attr_const);
+		target->Set(String::NewSymbol("setAttributes"),setAttributes::functionRegister(true),global_syb_attr_const);
+		target->Set(String::NewSymbol("setAttributesSync"),setAttributes::functionRegister(false),global_syb_attr_const);
 		target->Set(String::NewSymbol("splitPath"),splitPath::functionRegister(),global_syb_attr_const);
 		target->Set(String::NewSymbol("convertPath"),convertPath::functionRegister(true),global_syb_attr_const);
 		target->Set(String::NewSymbol("convertPathSync"),convertPath::functionRegister(false),global_syb_attr_const);
+		target->Set(String::NewSymbol("getSpace"),getSpace::functionRegister(true),global_syb_attr_const);
+		target->Set(String::NewSymbol("getSpaceSync"),getSpace::functionRegister(false),global_syb_attr_const);
 		target->Set(String::NewSymbol("dirWatcher"),dirWatcher::functionRegister(),global_syb_attr_const);
 
 		Handle<Object> ntfsgroup=Object::New();
 		ntfsgroup->Set(String::NewSymbol("setShortName"),setShortName::functionRegister(true),global_syb_attr_const);
 		ntfsgroup->Set(String::NewSymbol("setShortNameSync"),setShortName::functionRegister(false),global_syb_attr_const);
+		ntfsgroup->Set(String::NewSymbol("getCompressedFileSize"),getCompressedFileSize::functionRegister(true),global_syb_attr_const);
+		ntfsgroup->Set(String::NewSymbol("getCompressedFileSizeSync"),getCompressedFileSize::functionRegister(false),global_syb_attr_const);
 		target->Set(String::NewSymbol("ntfs"),ntfsgroup,global_syb_attr_const);
 
 		target->Set(String::NewSymbol("version"),String::NewSymbol(FSWIN_VERSION),global_syb_attr_const);
