@@ -6,8 +6,8 @@
 using namespace v8;
 using namespace node;
 
-//#include <iostream>//for debug only
-//using namespace std;
+#include <iostream>//for debug only
+using namespace std;
 
 namespace fsWin{
 	//global constants are common messages that will be used in different classes to make syncing easier
@@ -838,15 +838,11 @@ namespace fsWin{
 	
 	class getSpace{
 	public:
-		static const Persistent<String> syb_returns_totalUserSpace;
-		static const Persistent<String> syb_returns_totalDiskSpace;
-		static const Persistent<String> syb_returns_freeUserSpace;
-		static const Persistent<String> syb_returns_freeDiskSpace;
+		static const Persistent<String> syb_returns_totalSpace;
+		static const Persistent<String> syb_returns_freeSpace;
 		static const struct spaces{
-			ULONGLONG totalUserSpace;
-			ULONGLONG totalDiskSpace;
-			ULONGLONG freeUserSpace;
-			ULONGLONG freeDiskSpace;
+			ULONGLONG totalSpace;
+			ULONGLONG freeSpace;
 		};
 	private:
 		static const Persistent<String> syb_err_wrong_arguments;
@@ -861,25 +857,13 @@ namespace fsWin{
 		static spaces* basic(const wchar_t *path){//you need to delete the result yourself if it is not NULL
 			ULARGE_INTEGER u1;
 			ULARGE_INTEGER u2;
-			ULARGE_INTEGER u3;
-			spaces* result=NULL;
-			if(GetDiskFreeSpaceExW(path,&u1,&u2,&u3)){
+			spaces* result;
+			if(GetDiskFreeSpaceExW(path,&u1,&u2,NULL)){
 				result=new spaces;
-				result->freeUserSpace=u1.QuadPart;
-				result->totalUserSpace=u2.QuadPart;
-				result->freeDiskSpace=u3.QuadPart;
-				HANDLE hnd=CreateFileW(path,FILE_LIST_DIRECTORY,FILE_SHARE_DELETE|FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS,NULL);
-				if(hnd!=INVALID_HANDLE_VALUE){
-					GET_LENGTH_INFORMATION u4;
-					DWORD sz;
-					if(DeviceIoControl(hnd,IOCTL_DISK_GET_LENGTH_INFO,NULL,0,&u4,sizeof(GET_LENGTH_INFORMATION),&sz,NULL)){
-						result->totalDiskSpace=u4.Length.QuadPart;
-					}else{
-						result->totalDiskSpace=0;
-					}
-				}else{
-					result->totalDiskSpace=0;
-				}
+				result->freeSpace=u1.QuadPart;
+				result->totalSpace=u2.QuadPart;
+			}else{
+				result=NULL;
 			}
 			return result;
 		}
@@ -888,10 +872,8 @@ namespace fsWin{
 			Handle<Object> result;
 			if(spc){
 				result=Object::New();
-				result->Set(syb_returns_totalUserSpace,Number::New((double)spc->totalUserSpace));
-				result->Set(syb_returns_totalDiskSpace,Number::New((double)spc->totalDiskSpace));
-				result->Set(syb_returns_freeUserSpace,Number::New((double)spc->freeUserSpace));
-				result->Set(syb_returns_freeDiskSpace,Number::New((double)spc->freeDiskSpace));
+				result->Set(syb_returns_totalSpace,Number::New((double)spc->totalSpace));
+				result->Set(syb_returns_freeSpace,Number::New((double)spc->freeSpace));
 				delete spc;
 			}
 			return scope.Close(result);
@@ -908,10 +890,8 @@ namespace fsWin{
 			
 			//set return values
 			Handle<Object> returns=Object::New();
-			returns->Set(syb_returns_totalUserSpace,syb_returns_totalUserSpace,global_syb_attr_const);
-			returns->Set(syb_returns_totalDiskSpace,syb_returns_totalDiskSpace,global_syb_attr_const);
-			returns->Set(syb_returns_freeUserSpace,syb_returns_freeUserSpace,global_syb_attr_const);
-			returns->Set(syb_returns_freeDiskSpace,syb_returns_freeDiskSpace,global_syb_attr_const);
+			returns->Set(syb_returns_totalSpace,syb_returns_totalSpace,global_syb_attr_const);
+			returns->Set(syb_returns_freeSpace,syb_returns_freeSpace,global_syb_attr_const);
 			t->Set(String::NewSymbol("returns"),errors,global_syb_attr_const);
 
 			return scope.Close(t->GetFunction());
@@ -978,10 +958,8 @@ namespace fsWin{
 	};
 	const Persistent<String> getSpace::syb_err_wrong_arguments=global_syb_err_wrong_arguments;
 	const Persistent<String> getSpace::syb_err_not_a_constructor=global_syb_err_not_a_constructor;
-	const Persistent<String> getSpace::syb_returns_totalUserSpace=NODE_PSYMBOL("TOTAL_USER_SPACE");
-	const Persistent<String> getSpace::syb_returns_totalDiskSpace=NODE_PSYMBOL("TOTAL_DISK_SPACE");
-	const Persistent<String> getSpace::syb_returns_freeUserSpace=NODE_PSYMBOL("FREE_USER_SPACE");
-	const Persistent<String> getSpace::syb_returns_freeDiskSpace=NODE_PSYMBOL("FREE_DISK_SPACE");
+	const Persistent<String> getSpace::syb_returns_totalSpace=NODE_PSYMBOL("TOTAL_SPACE");
+	const Persistent<String> getSpace::syb_returns_freeSpace=NODE_PSYMBOL("FREE_SPACE");
 
 	class setAttributes{
 	public:
