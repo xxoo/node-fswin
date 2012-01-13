@@ -836,7 +836,7 @@ namespace fsWin{
 	const Persistent<String> getCompressedFileSize::syb_err_wrong_arguments=global_syb_err_wrong_arguments;
 	const Persistent<String> getCompressedFileSize::syb_err_not_a_constructor=global_syb_err_not_a_constructor;
 	
-	class getSpace{
+	class getDiskSpace{
 	public:
 		static const Persistent<String> syb_returns_totalSpace;
 		static const Persistent<String> syb_returns_freeSpace;
@@ -956,10 +956,10 @@ namespace fsWin{
 			delete data;
 		}
 	};
-	const Persistent<String> getSpace::syb_err_wrong_arguments=global_syb_err_wrong_arguments;
-	const Persistent<String> getSpace::syb_err_not_a_constructor=global_syb_err_not_a_constructor;
-	const Persistent<String> getSpace::syb_returns_totalSpace=NODE_PSYMBOL("TOTAL_SPACE");
-	const Persistent<String> getSpace::syb_returns_freeSpace=NODE_PSYMBOL("FREE_SPACE");
+	const Persistent<String> getDiskSpace::syb_err_wrong_arguments=global_syb_err_wrong_arguments;
+	const Persistent<String> getDiskSpace::syb_err_not_a_constructor=global_syb_err_not_a_constructor;
+	const Persistent<String> getDiskSpace::syb_returns_totalSpace=NODE_PSYMBOL("TOTAL");
+	const Persistent<String> getDiskSpace::syb_returns_freeSpace=NODE_PSYMBOL("FREE");
 
 	class setAttributes{
 	public:
@@ -1741,8 +1741,8 @@ namespace fsWin{
 		target->Set(String::NewSymbol("splitPath"),splitPath::functionRegister(),global_syb_attr_const);
 		target->Set(String::NewSymbol("convertPath"),convertPath::functionRegister(true),global_syb_attr_const);
 		target->Set(String::NewSymbol("convertPathSync"),convertPath::functionRegister(false),global_syb_attr_const);
-		target->Set(String::NewSymbol("getSpace"),getSpace::functionRegister(true),global_syb_attr_const);
-		target->Set(String::NewSymbol("getSpaceSync"),getSpace::functionRegister(false),global_syb_attr_const);
+		target->Set(String::NewSymbol("getDiskSpace"),getDiskSpace::functionRegister(true),global_syb_attr_const);
+		target->Set(String::NewSymbol("getDiskSpaceSync"),getDiskSpace::functionRegister(false),global_syb_attr_const);
 		target->Set(String::NewSymbol("dirWatcher"),dirWatcher::functionRegister(),global_syb_attr_const);
 
 		Handle<Object> ntfsgroup=Object::New();
