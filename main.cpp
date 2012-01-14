@@ -66,7 +66,7 @@ namespace fsWin{
 		return scope.Close(r);
 	}
 
-	static bool ensurePrivilege(const wchar_t* privilegeName){
+	static bool ensurePrivilege(const wchar_t *privilegeName){
 		bool result=false;
 		HANDLE hToken;
 		if(OpenProcessToken(GetCurrentProcess(),TOKEN_ADJUST_PRIVILEGES|TOKEN_QUERY,&hToken)){
@@ -620,7 +620,7 @@ namespace fsWin{
 			bool result;
 		};
 	public:
-		static bool basic(const wchar_t* path,const wchar_t* newname){
+		static bool basic(const wchar_t *path,const wchar_t *newname){
 			bool result=false;
 			if(ensurePrivilege(SE_RESTORE_NAME)){//make sure the process has SE_RESTORE_NAME privilege
 				HANDLE hnd=CreateFileW(path,GENERIC_WRITE|DELETE,FILE_SHARE_READ|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS,NULL);
@@ -741,7 +741,164 @@ namespace fsWin{
 	};
 	const Persistent<String> setShortName::syb_err_wrong_arguments=global_syb_err_wrong_arguments;
 	const Persistent<String> setShortName::syb_err_not_a_constructor=global_syb_err_not_a_constructor;
-	
+
+	class setCompression{
+	public:
+		typedef void (*callbackFunc)(const bool result,void *data);
+	private:
+		static const Persistent<String> syb_err_wrong_arguments;
+		static const Persistent<String> syb_err_not_a_constructor;
+		static const struct workdata{
+			Persistent<Object> self;
+			Persistent<Function> func;
+		};
+		static const struct workdata2{
+			callbackFunc callback;
+			void *data;
+			HANDLE hnd;
+		};
+	public:
+		static bool basic(const wchar_t *path,const bool compress){
+			bool result=false;
+			HANDLE hnd=CreateFileW(path,FILE_GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS,NULL);
+			if(hnd!=INVALID_HANDLE_VALUE){
+				USHORT c=compress?COMPRESSION_FORMAT_DEFAULT:COMPRESSION_FORMAT_NONE;
+				DWORD d;
+				if(DeviceIoControl(hnd,FSCTL_SET_COMPRESSION,&c,sizeof(USHORT),NULL,0,&d,NULL)){
+					result=true;
+				}
+				CloseHandle(hnd);
+			}
+			return result;
+		}
+		static bool basicWithCallback(const wchar_t *path,const bool compress,callbackFunc callback,void *data){
+			bool result=false;
+			workdata2 *work=new workdata2;
+			work->callback=callback;
+			work->data=data;
+			work->hnd=CreateFileW(path,FILE_GENERIC_READ|GENERIC_WRITE,FILE_SHARE_READ,NULL,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OVERLAPPED,NULL);
+			if(work->hnd==INVALID_HANDLE_VALUE){
+				delete work;
+			}else{
+				uv_work_t *req=new uv_work_t;
+				memset(req,0,sizeof(uv_work_t));
+				req->loop=uv_default_loop();
+				req->type=UV_WORK;
+				req->after_work_cb=afterWork;
+				req->data=work;
+				if(CreateIoCompletionPort(work->hnd,req->loop->iocp,(ULONG_PTR)req,0)){
+					//req->overlapped.hEvent=CreateEventW(NULL,FALSE,FALSE,NULL);
+					//if(req->overlapped.hEvent){
+						USHORT c=compress?COMPRESSION_FORMAT_DEFAULT:COMPRESSION_FORMAT_NONE;
+						DeviceIoControl(work->hnd,FSCTL_SET_COMPRESSION,&c,sizeof(USHORT),NULL,0,NULL,&req->overlapped);
+						if(GetLastError()==ERROR_IO_PENDING){
+							uv_ref(req->loop);
+							result=true;
+						}else{
+							CloseHandle(work->hnd);
+							//CloseHandle(req->overlapped.hEvent);
+							delete req;
+							delete work;
+						}
+					//}else{
+					//	CloseHandle(work->hnd);
+					//	delete req;
+					//	delete work;
+					//}
+				}
+			}
+			return result;
+		}
+		static Handle<Function> functionRegister(bool isAsyncVersion){
+			HandleScope scope;
+			Handle<FunctionTemplate> t=FunctionTemplate::New(isAsyncVersion?jsAsync:jsSync);
+
+			//set errmessages
+			Handle<Object> errors=Object::New();
+			errors->Set(syb_err_wrong_arguments,syb_err_wrong_arguments,global_syb_attr_const);
+			errors->Set(syb_err_not_a_constructor,syb_err_not_a_constructor,global_syb_attr_const);
+			t->Set(String::NewSymbol("errors"),errors,global_syb_attr_const);
+
+			return scope.Close(t->GetFunction());
+		}
+	private:
+		static void afterWork(uv_work_t *req){
+			//CloseHandle(req->overlapped.hEvent);
+			workdata2 *work=(workdata2*)req->data;
+			CloseHandle(work->hnd);
+			delete req;
+			work->callback(req->overlapped.Internal==ERROR_SUCCESS,work->data);
+			delete work;
+		}
+		static Handle<Value> jsSync(const Arguments& args){
+			HandleScope scope;
+			Handle<Value> result;
+			if(args.IsConstructCall()){
+				result=ThrowException(Exception::Error(syb_err_not_a_constructor));
+			}else{
+				if(args.Length()>0&&(args[0]->IsString()||args[0]->IsStringObject())){
+					String::Value spath(args[0]);
+					result=basic((wchar_t*)*spath,args[1]->ToBoolean()->IsTrue())?True():False();
+				}else{
+					result=ThrowException(Exception::Error(syb_err_wrong_arguments));
+				}
+			}
+			return scope.Close(result);
+		}
+		static Handle<Value> jsAsync(const Arguments& args){
+			HandleScope scope;
+			Handle<Value> result;
+			if(args.IsConstructCall()){
+				result=ThrowException(Exception::Error(syb_err_not_a_constructor));
+			}else{
+				if(args.Length()>0&&(args[0]->IsString()||args[0]->IsStringObject())){
+					workdata *data=NULL;
+					bool b=false;
+					if(args.Length()>1){
+						Handle<Function> f;
+						if(args[1]->IsFunction()){
+							f=Handle<Function>::Cast(args[1]);
+							b=args[2]->ToBoolean()->IsTrue();
+						}else{
+							b=args[1]->ToBoolean()->IsTrue();
+						}
+						if(!f.IsEmpty()){
+							data=new workdata;
+							data->self=Persistent<Object>::New(args.This());
+							data->func=Persistent<Function>::New(f);
+						}
+					}
+					String::Value p(args[0]);
+					if(basicWithCallback((wchar_t*)*p,b,asyncCallback,data)){
+						result=True();
+					}else{
+						if(data){
+							data->self.Dispose();
+							data->func.Dispose();
+							delete data;
+						}
+						result=False();
+					}
+				}else{
+					result=ThrowException(Exception::Error(syb_err_wrong_arguments));
+				}
+			}
+			return scope.Close(result);
+		}
+		static void asyncCallback(const bool succeeded,void *data){
+			if(data){
+				workdata *work=(workdata*)data;
+				Handle<Value> r=succeeded?True():False();
+				work->func->Call(work->self,1,&r);
+				work->func.Dispose();
+				work->self.Dispose();
+				delete work;
+			}
+		}
+	};
+	const Persistent<String> setCompression::syb_err_wrong_arguments=global_syb_err_wrong_arguments;
+	const Persistent<String> setCompression::syb_err_not_a_constructor=global_syb_err_not_a_constructor;
+
 	class getCompressedFileSize{
 	private:
 		static const Persistent<String> syb_err_wrong_arguments;
@@ -801,7 +958,7 @@ namespace fsWin{
 					data->req.data=data;
 					data->self=Persistent<Object>::New(args.This());
 					data->func=Persistent<Function>::New(Handle<Function>::Cast(args[1]));
-					String::Value p(Local<String>::Cast(args[0]));
+					String::Value p(args[0]);
 					data->path=_wcsdup((wchar_t*)*p);
 					if(uv_queue_work(uv_default_loop(),&data->req,beginWork,afterWork)==0){
 						result=True();
@@ -854,10 +1011,10 @@ namespace fsWin{
 			void *path;
 		};
 	public:
-		static spaces* basic(const wchar_t *path){//you need to delete the result yourself if it is not NULL
+		static spaces *basic(const wchar_t *path){//you need to delete the result yourself if it is not NULL
 			ULARGE_INTEGER u1;
 			ULARGE_INTEGER u2;
-			spaces* result;
+			spaces *result;
 			if(GetDiskFreeSpaceExW(path,&u1,&u2,NULL)){
 				result=new spaces;
 				result->freeSpace=u1.QuadPart;
@@ -867,7 +1024,7 @@ namespace fsWin{
 			}
 			return result;
 		}
-		static Handle<Object> spacesToJs(const spaces* spc){//this function will delete the param if it is not NULL
+		static Handle<Object> spacesToJs(const spaces *spc){//this function will delete the param if it is not NULL
 			HandleScope scope;
 			Handle<Object> result;
 			if(spc){
@@ -923,7 +1080,7 @@ namespace fsWin{
 					data->req.data=data;
 					data->self=Persistent<Object>::New(args.This());
 					data->func=Persistent<Function>::New(Handle<Function>::Cast(args[1]));
-					String::Value p(Local<String>::Cast(args[0]));
+					String::Value p(args[0]);
 					data->path=_wcsdup((wchar_t*)*p);
 					if(uv_queue_work(uv_default_loop(),&data->req,beginWork,afterWork)==0){
 						result=True();
@@ -942,7 +1099,7 @@ namespace fsWin{
 		}
 		static void beginWork(uv_work_t *req){
 			workdata *data=(workdata*)req->data;
-			spaces* p=basic((wchar_t*)data->path);
+			spaces *p=basic((wchar_t*)data->path);
 			free(data->path);
 			data->path=p;
 		}
@@ -991,7 +1148,7 @@ namespace fsWin{
 			bool result;
 		};
 	public:
-		static bool basic(const wchar_t* file,const attrVal* attr){
+		static bool basic(const wchar_t *file,const attrVal *attr){
 			bool result;
 			DWORD oldattr=GetFileAttributesW(file);
 			if(oldattr==INVALID_FILE_ATTRIBUTES){
@@ -1069,9 +1226,9 @@ namespace fsWin{
 			}
 			return result;
 		}
-		static attrVal* jsToAttrval(Handle<Object> attr){//delete the result if it is not NULL
+		static attrVal *jsToAttrval(Handle<Object> attr){//delete the result if it is not NULL
 			HandleScope scope;
-			attrVal* a=new attrVal;
+			attrVal *a=new attrVal;
 			if(attr->HasOwnProperty(syb_param_attr_archive)){
 				a->archive=attr->Get(syb_param_attr_archive)->ToBoolean()->IsTrue()?1:-1;
 			}else{
@@ -1140,7 +1297,7 @@ namespace fsWin{
 				result=ThrowException(Exception::Error(syb_err_not_a_constructor));
 			}else{
 				if(args.Length()>1&&(args[0]->IsString()||args[0]->IsStringObject())&&args[1]->IsObject()){
-					attrVal* a=jsToAttrval(Handle<Object>::Cast(args[1]));
+					attrVal *a=jsToAttrval(Handle<Object>::Cast(args[1]));
 					String::Value p(args[0]);
 					result=basic((wchar_t*)*p,a)?True():False();
 					delete a;
@@ -1163,7 +1320,7 @@ namespace fsWin{
 					if(args.Length()>2&&args[2]->IsFunction()){
 						data->func=Persistent<Function>::New(Handle<Function>::Cast(args[2]));
 					}
-					String::Value p(Local<String>::Cast(args[0]));
+					String::Value p(args[0]);
 					data->path=_wcsdup((wchar_t*)*p);
 					data->attr=jsToAttrval(Handle<Object>::Cast(args[1]));
 					if(uv_queue_work(uv_default_loop(),&data->req,beginWork,afterWork)==0){
@@ -1287,7 +1444,7 @@ namespace fsWin{
 					data->self=Persistent<Object>::New(args.This());
 					data->func=Persistent<Function>::New(Handle<Function>::Cast(args[1]));
 					data->islong=args[2]->ToBoolean()->IsTrue();
-					String::Value p(Local<String>::Cast(args[0]));
+					String::Value p(args[0]);
 					data->path=_wcsdup((wchar_t*)*p);
 					if(uv_queue_work(uv_default_loop(),&data->req,beginWork,afterWork)==0){
 						result=True();
@@ -1376,11 +1533,11 @@ namespace fsWin{
 				definitions=Persistent<Object>::New(Object::New());
 				definitions->Set(syb_callback,args[1]);
 				String::Value spath(args[0]);
-				pathhnd=CreateFileW((wchar_t*)*spath,FILE_LIST_DIRECTORY,FILE_SHARE_READ|FILE_SHARE_DELETE|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OVERLAPPED,NULL);
+				pathhnd=CreateFileW((wchar_t*)*spath,FILE_LIST_DIRECTORY,FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,NULL,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OVERLAPPED,NULL);
 				if(pathhnd==INVALID_HANDLE_VALUE){
 					e=true;
 				}else{
-					ZeroMemory(&pathreq,sizeof(pathreq));
+					memset(&pathreq,0,sizeof(uv_work_t));
 					pathreq.loop=uv_default_loop();
 					if(CreateIoCompletionPort(pathhnd,pathreq.loop->iocp,(ULONG_PTR)pathhnd,0)){
 						pathref=0;
@@ -1529,13 +1686,13 @@ namespace fsWin{
 			bool result;
 			self->parentreq=(uv_work_t*)malloc(sizeof(uv_work_t));
 			if(self->parentreq){
-				ZeroMemory(self->parentreq,sizeof(uv_work_t));
+				memset(self->parentreq,0,sizeof(uv_work_t));
 				self->parentreq->loop=self->pathreq.loop;
 				self->parentreq->data=self;
 				self->parentreq->after_work_cb=finishWatchingParent;
 				self->parentreq->type=UV_WORK;
 				String::Value parent(splitPath::js(Handle<String>::Cast(self->definitions->Get(syb_path)))->Get(splitPath::syb_return_parent));
-				self->parenthnd=CreateFileW((wchar_t*)*parent,FILE_LIST_DIRECTORY,FILE_SHARE_READ|FILE_SHARE_DELETE|FILE_SHARE_WRITE,NULL,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OVERLAPPED,NULL);
+				self->parenthnd=CreateFileW((wchar_t*)*parent,FILE_LIST_DIRECTORY,FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,NULL,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS|FILE_FLAG_OVERLAPPED,NULL);
 				if(self->parenthnd==INVALID_HANDLE_VALUE){
 					result=false;
 				}else{
@@ -1750,6 +1907,8 @@ namespace fsWin{
 		ntfsgroup->Set(String::NewSymbol("setShortNameSync"),setShortName::functionRegister(false),global_syb_attr_const);
 		ntfsgroup->Set(String::NewSymbol("getCompressedFileSize"),getCompressedFileSize::functionRegister(true),global_syb_attr_const);
 		ntfsgroup->Set(String::NewSymbol("getCompressedFileSizeSync"),getCompressedFileSize::functionRegister(false),global_syb_attr_const);
+		ntfsgroup->Set(String::NewSymbol("setCompression"),setCompression::functionRegister(true),global_syb_attr_const);
+		ntfsgroup->Set(String::NewSymbol("getCompressionSync"),setCompression::functionRegister(false),global_syb_attr_const);
 		target->Set(String::NewSymbol("ntfs"),ntfsgroup,global_syb_attr_const);
 
 		target->Set(String::NewSymbol("version"),String::NewSymbol(FSWIN_VERSION),global_syb_attr_const);
