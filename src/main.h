@@ -1,8 +1,8 @@
 #pragma once
-
 #define UNICODE
 #include <node.h>
 #pragma comment(lib,"node.lib")
+
 using namespace v8;
 using namespace node;
 
@@ -24,7 +24,7 @@ static const Persistent<String> global_syb_fileAttr_isTemporary=NODE_PSYMBOL("IS
 
 #ifndef GetFinalPathNameByHandle
 typedef DWORD (WINAPI *GetFinalPathNameByHandle)(__in HANDLE hFile,__out_ecount(cchFilePath) LPWSTR lpszFilePath,__in DWORD cchFilePath,__in DWORD dwFlags);
-static const GetFinalPathNameByHandle GetFinalPathNameByHandleW=(GetFinalPathNameByHandle)GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "GetFinalPathNameByHandleW");
+static const GetFinalPathNameByHandle GetFinalPathNameByHandleW=(GetFinalPathNameByHandle)GetProcAddress(GetModuleHandleW(L"kernel32.dll"),"GetFinalPathNameByHandleW");
 #endif
 static Handle<String> getCurrentPathByHandle(HANDLE hnd){
 	HandleScope scope;
