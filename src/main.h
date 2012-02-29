@@ -92,6 +92,5 @@ static ULONGLONG combineHiLow(const DWORD hi,const DWORD low){
 }
 
 static double fileTimeToJsDateVal(const FILETIME *ft){//Date::New(fileTimeToJsDateVal(&filetime)) converts FILETIME to javascript date
-	double ns=(double)combineHiLow(ft->dwHighDateTime,ft->dwLowDateTime);
-	return ns/10000-11644473600000;
+	return (double)(combineHiLow(ft->dwHighDateTime,ft->dwLowDateTime)/10000-11644473600000);
 }

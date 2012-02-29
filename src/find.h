@@ -1,6 +1,13 @@
 #pragma once
 #include "main.h"
 
+#ifndef IO_REPARSE_TAG_DEDUP
+#	define IO_REPARSE_TAG_DEDUP (0x80000013)
+#endif
+#ifndef IO_REPARSE_TAG_NFS
+#	define IO_REPARSE_TAG_NFS (0x80000014)
+#endif
+
 class find{
 public:
 	static const Persistent<String> syb_returns_longName;
@@ -22,13 +29,17 @@ public:
 	static const Persistent<String> syb_returns_isSystem;
 	static const Persistent<String> syb_returns_isTemporary;
 	static const Persistent<String> syb_reparsePoint_unknown;
+	static const Persistent<String> syb_reparsePoint_csv;
+	static const Persistent<String> syb_reparsePoint_dedup;
 	static const Persistent<String> syb_reparsePoint_dfs;
 	static const Persistent<String> syb_reparsePoint_dfsr;
 	static const Persistent<String> syb_reparsePoint_hsm;
 	static const Persistent<String> syb_reparsePoint_hsm2;
 	static const Persistent<String> syb_reparsePoint_mountPoint;
+	static const Persistent<String> syb_reparsePoint_nfs;
 	static const Persistent<String> syb_reparsePoint_sis;
 	static const Persistent<String> syb_reparsePoint_symlink;
+	static const Persistent<String> syb_reparsePoint_wim;
 	static const struct resultData{//this is a linked table
 		WIN32_FIND_DATAW data;
 		resultData *next;
@@ -122,7 +133,11 @@ public:
 		o->Set(syb_returns_lastWriteTime,Date::New(fileTimeToJsDateVal(&info->ftLastWriteTime)));
 		o->Set(syb_returns_size,Number::New((double)combineHiLow(info->nFileSizeHigh,info->nFileSizeLow)));
 		if(info->dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT){
-			if(info->dwReserved0==IO_REPARSE_TAG_DFS){
+			if(info->dwReserved0==IO_REPARSE_TAG_CSV){
+				o->Set(syb_returns_isTemporary,syb_reparsePoint_csv);
+			}else if(info->dwReserved0==IO_REPARSE_TAG_DEDUP){
+				o->Set(syb_returns_isTemporary,syb_reparsePoint_dedup);
+			}else if(info->dwReserved0==IO_REPARSE_TAG_DFS){
 				o->Set(syb_returns_isTemporary,syb_reparsePoint_dfs);
 			}else if(info->dwReserved0==IO_REPARSE_TAG_DFSR){
 				o->Set(syb_returns_isTemporary,syb_reparsePoint_dfsr);
@@ -132,10 +147,14 @@ public:
 				o->Set(syb_returns_isTemporary,syb_reparsePoint_hsm2);
 			}else if(info->dwReserved0==IO_REPARSE_TAG_MOUNT_POINT){
 				o->Set(syb_returns_isTemporary,syb_reparsePoint_mountPoint);
+			}else if(info->dwReserved0==IO_REPARSE_TAG_NFS){
+				o->Set(syb_returns_isTemporary,syb_reparsePoint_nfs);
 			}else if(info->dwReserved0==IO_REPARSE_TAG_SIS){
 				o->Set(syb_returns_isTemporary,syb_reparsePoint_sis);
 			}else if(info->dwReserved0==IO_REPARSE_TAG_SYMLINK){
 				o->Set(syb_returns_isTemporary,syb_reparsePoint_symlink);
+			}else if(info->dwReserved0==IO_REPARSE_TAG_WIM){
+				o->Set(syb_returns_isTemporary,syb_reparsePoint_wim);
 			}else{
 				o->Set(syb_returns_isTemporary,syb_reparsePoint_unknown);
 			}
@@ -390,10 +409,14 @@ const Persistent<String> find::syb_returns_isReadOnly=global_syb_fileAttr_isRead
 const Persistent<String> find::syb_returns_isSystem=global_syb_fileAttr_isSystem;
 const Persistent<String> find::syb_returns_isTemporary=global_syb_fileAttr_isTemporary;
 const Persistent<String> find::syb_reparsePoint_unknown=NODE_PSYMBOL("UNKNOWN");
+const Persistent<String> find::syb_reparsePoint_csv=NODE_PSYMBOL("CSV");
+const Persistent<String> find::syb_reparsePoint_dedup=NODE_PSYMBOL("DEDUP");
 const Persistent<String> find::syb_reparsePoint_dfs=NODE_PSYMBOL("DFS");
 const Persistent<String> find::syb_reparsePoint_dfsr=NODE_PSYMBOL("DFSR");
 const Persistent<String> find::syb_reparsePoint_hsm=NODE_PSYMBOL("HSM");
 const Persistent<String> find::syb_reparsePoint_hsm2=NODE_PSYMBOL("HSM2");
 const Persistent<String> find::syb_reparsePoint_mountPoint=NODE_PSYMBOL("MOUNT_POINT");
+const Persistent<String> find::syb_reparsePoint_nfs=NODE_PSYMBOL("NFS");
 const Persistent<String> find::syb_reparsePoint_sis=NODE_PSYMBOL("SIS");
 const Persistent<String> find::syb_reparsePoint_symlink=NODE_PSYMBOL("SYMLINK");
+const Persistent<String> find::syb_reparsePoint_wim=NODE_PSYMBOL("WIM");
