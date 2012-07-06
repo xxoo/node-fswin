@@ -237,7 +237,7 @@ private:
 		self->parentbuffer=malloc(bufferSize);
 		if(self->parentbuffer){
 			if(ReadDirectoryChangesW(self->parenthnd,self->parentbuffer,bufferSize,FALSE,FILE_NOTIFY_CHANGE_DIR_NAME,NULL,&self->parentreq->overlapped,NULL)){
-				uv_ref(self->parentreq->loop);
+				ngx_queue_insert_tail(&self->parentreq->loop->active_reqs,&self->parentreq->active_queue);
 				result=true;
 			}else{
 				free(self->parentbuffer);
@@ -253,8 +253,8 @@ private:
 		self->pathbuffer=malloc(bufferSize);
 		if(self->pathbuffer){
 			if(ReadDirectoryChangesW(self->pathhnd,self->pathbuffer,bufferSize,self->subDirs,self->options,NULL,&self->pathreq.overlapped,NULL)){
-				uv_ref(self->pathreq.loop);
-				self->pathref++;//since we've called uv_ref one time
+				ngx_queue_insert_tail(&self->pathreq.loop->active_reqs,&self->pathreq.active_queue);
+				self->pathref++;//since we've called ngx_queue_insert_tail once
 				result=true;
 			}else{
 				free(self->pathbuffer);
@@ -317,7 +317,7 @@ private:
 		HandleScope scope;
 		dirWatcher *self=(dirWatcher*)req->data;
 		void *buffer=self->pathbuffer;
-		self->pathref--;//uv_unref will be called when this function ends if there's no crash
+		self->pathref--;//ngx_queue_remove will be called when this function ends if there's no crash
 		if(req->overlapped.Internal==ERROR_SUCCESS){
 			FILE_NOTIFY_INFORMATION *pInfo;
 			DWORD d=0;
@@ -369,7 +369,7 @@ private:
 		}
 		if(self->pathref>0){
 			self->pathreq.type=UV_UNKNOWN_REQ;//mute this request
-			uv_unref(self->pathreq.loop);
+			ngx_queue_remove(&self->pathreq.active_queue);
 			self->pathref--;
 		}
 		if(self->parenthnd!=INVALID_HANDLE_VALUE){

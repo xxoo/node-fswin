@@ -49,7 +49,7 @@ public:
 				USHORT c=compress?COMPRESSION_FORMAT_DEFAULT:COMPRESSION_FORMAT_NONE;
 				DeviceIoControl(work->hnd,FSCTL_SET_COMPRESSION,&c,sizeof(USHORT),NULL,0,NULL,&req->overlapped);
 				if(GetLastError()==ERROR_IO_PENDING){
-					uv_ref(req->loop);
+					ngx_queue_insert_tail(&req->loop->active_reqs,&req->active_queue);
 					result=true;
 				}else{
 					CloseHandle(work->hnd);

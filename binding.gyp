@@ -1,0 +1,24 @@
+{
+	'targets':[
+		{
+			'target_name':'fsWin',
+			'conditions':[
+				['OS=="win"',{
+					'sources':[
+						'src/main.h',
+						'src/convertPath.h',
+						'src/dirWatcher.h',
+						'src/find.h',
+						'src/getCompressedSize.h',
+						'src/getVolumeSize.h',
+						'src/setAttributes.h',
+						'src/setCompression.h',
+						'src/setShortName.h',
+						'src/splitPath.h',
+						'src/fsWin.cpp'
+					]
+				}]
+			]
+		}
+	]
+}
