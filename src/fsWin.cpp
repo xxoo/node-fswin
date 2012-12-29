@@ -1,5 +1,5 @@
-#define FSWIN_VERSION "0.2.12.706"
-#include "comvertPath.h"
+#define FSWIN_VERSION "2.12.1230"
+#include "convertPath.h"
 #include "dirWatcher.h"
 #include "find.h"
 #include "getCompressedSize.h"
@@ -33,4 +33,4 @@ static void moduleRegister(Handle<Object> target){
 	ntfsgroup->Set(String::NewSymbol("setShortNameSync"),setShortName::functionRegister(false),global_syb_attr_const);
 	target->Set(String::NewSymbol("ntfs"),ntfsgroup,global_syb_attr_const);
 }
-NODE_MODULE(fsWin,moduleRegister);
+NODE_MODULE(fswin,moduleRegister);

@@ -1,10 +1,10 @@
 Introduction
 ============
 
-[`fsWin`](https://github.com/xxoo/node-fsWin) is a native [`node.js`](https://github.com/joyent/node) add-on that works on windows.
+[`fswin`](http://xxoo.github.com/node-fswin) is a native [`node.js`](http://nodejs.org) add-on that works on windows.
 It has ported some platform specified filesystem APIs. And made them easy to use in javascript.
 
-For details and examples see [wiki](https://github.com/xxoo/node-fsWin/wiki)
+For details and examples see [wiki](https://github.com/xxoo/node-fswin/wiki)
 
 License
 =======
