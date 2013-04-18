@@ -1,8 +1,11 @@
 {
   "name": "fswin",
-  "version": "2.12.1230",
+  "version": "2.13.418",
   "description": "nodejs fs extensions for windows",
   "main": "fswin.node",
+  "engines": {
+    "node" : ">= 0.10"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "install": "node-gyp rebuild && move build\\Release\\fswin.node . && node-gyp clean"

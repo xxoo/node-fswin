@@ -73,7 +73,7 @@ public:
 		return scope.Close(t->GetFunction());
 	}
 private:
-	static void afterWork(uv_work_t *req){
+	static void afterWork(uv_work_t *req,int status){
 		workdata2 *work=(workdata2*)req->data;
 		CloseHandle(work->hnd);
 		delete req;

@@ -82,7 +82,7 @@ private:
 		data->result=basic(data->path);
 		free(data->path);
 	}
-	static void afterWork(uv_work_t *req){
+	static void afterWork(uv_work_t *req,int status){
 		HandleScope scope;
 		workdata *data=(workdata*)req->data;
 		Handle<Value> p=Number::New((double)data->result);

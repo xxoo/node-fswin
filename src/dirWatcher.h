@@ -265,7 +265,7 @@ private:
 		}
 		return result;
 	}
-	static void finishWatchingParent(uv_work_t *req){
+	static void finishWatchingParent(uv_work_t *req,int status){
 		HandleScope scope;
 		dirWatcher *self=(dirWatcher*)req->data;
 		if(req!=self->parentreq||self->parenthnd==INVALID_HANDLE_VALUE){//this is the request we need to realase and it is ready to be released now
@@ -313,7 +313,7 @@ private:
 			free(buffer);
 		}
 	}
-	static void finishWatchingPath(uv_work_t *req){
+	static void finishWatchingPath(uv_work_t *req,int status){
 		HandleScope scope;
 		dirWatcher *self=(dirWatcher*)req->data;
 		void *buffer=self->pathbuffer;

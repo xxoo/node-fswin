@@ -79,8 +79,8 @@ static bool ensurePrivilege(const wchar_t *privilegeName){
 				}
 			}
 		}
+		CloseHandle(hToken);
 	}
-	CloseHandle(hToken);
 	return result;
 }
 	

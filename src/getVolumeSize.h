@@ -111,7 +111,7 @@ private:
 		free(data->path);
 		data->path=p;
 	}
-	static void afterWork(uv_work_t *req){
+	static void afterWork(uv_work_t *req,int status){
 		HandleScope scope;
 		workdata *data=(workdata*)req->data;
 		Handle<Value> p=spacesToJs((spaces*)data->path);

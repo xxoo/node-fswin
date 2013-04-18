@@ -340,7 +340,7 @@ private:
 			data->data=rdata;
 		}
 	}
-	static void afterWork(uv_work_t *req){
+	static void afterWork(uv_work_t *req,int status){
 		HandleScope scope;
 		workdata *data=(workdata*)req->data;
 		int del;
