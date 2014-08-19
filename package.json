@@ -15,6 +15,7 @@
     "url": "https://github.com/xxoo/node-fswin.git"
   },
   "keywords": [
+	"native",
     "filesystem",
     "watch",
     "windows",
