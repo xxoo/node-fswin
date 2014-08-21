@@ -7,6 +7,9 @@
 #ifndef IO_REPARSE_TAG_NFS
 #	define IO_REPARSE_TAG_NFS (0x80000014)
 #endif
+#ifndef IO_REPARSE_TAG_FILE_PLACEHOLDER
+#	define IO_REPARSE_TAG_FILE_PLACEHOLDER (0x80000015L)
+#endif
 
 class find {
 public:
@@ -37,6 +40,7 @@ public:
 	static const Persistent<String> syb_reparsePoint_hsm2;
 	static const Persistent<String> syb_reparsePoint_mountPoint;
 	static const Persistent<String> syb_reparsePoint_nfs;
+	static const Persistent<String> syb_reparsePoint_placeHolder;
 	static const Persistent<String> syb_reparsePoint_sis;
 	static const Persistent<String> syb_reparsePoint_symlink;
 	static const Persistent<String> syb_reparsePoint_wim;
@@ -44,7 +48,7 @@ public:
 		WIN32_FIND_DATAW data;
 		resultData *next;
 	};
-	//progressive callback type, if this callback returns true, the search will stop immediately. the contents of info will be rewrited or released after the callback returns, so make a copy before starting a new thread if you still need to use it
+	//progressive callback type, if this callback returns true, the search will stop immediately. the contents of info will be rewritten or released after the callback returns, so make a copy before starting a new thread if you still need to use it
 	typedef bool(*findResultCall)(const WIN32_FIND_DATAW *info, void *data);
 private:
 	static const Persistent<String> syb_err_wrong_arguments;
@@ -134,32 +138,34 @@ public:
 		o->Set(syb_returns_size, Number::New((double)combineHiLow(info->nFileSizeHigh, info->nFileSizeLow)));
 		if (info->dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT) {
 			if (info->dwReserved0 == IO_REPARSE_TAG_CSV) {
-				o->Set(syb_returns_isTemporary, syb_reparsePoint_csv);
+				o->Set(syb_returns_reparsePointTag, syb_reparsePoint_csv);
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_DEDUP) {
-				o->Set(syb_returns_isTemporary, syb_reparsePoint_dedup);
+				o->Set(syb_returns_reparsePointTag, syb_reparsePoint_dedup);
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_DFS) {
-				o->Set(syb_returns_isTemporary, syb_reparsePoint_dfs);
+				o->Set(syb_returns_reparsePointTag, syb_reparsePoint_dfs);
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_DFSR) {
-				o->Set(syb_returns_isTemporary, syb_reparsePoint_dfsr);
+				o->Set(syb_returns_reparsePointTag, syb_reparsePoint_dfsr);
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_HSM) {
-				o->Set(syb_returns_isTemporary, syb_reparsePoint_hsm);
+				o->Set(syb_returns_reparsePointTag, syb_reparsePoint_hsm);
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_HSM2) {
-				o->Set(syb_returns_isTemporary, syb_reparsePoint_hsm2);
+				o->Set(syb_returns_reparsePointTag, syb_reparsePoint_hsm2);
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_MOUNT_POINT) {
-				o->Set(syb_returns_isTemporary, syb_reparsePoint_mountPoint);
+				o->Set(syb_returns_reparsePointTag, syb_reparsePoint_mountPoint);
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_NFS) {
-				o->Set(syb_returns_isTemporary, syb_reparsePoint_nfs);
+				o->Set(syb_returns_reparsePointTag, syb_reparsePoint_nfs);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_FILE_PLACEHOLDER) {
+				o->Set(syb_returns_reparsePointTag, syb_reparsePoint_placeHolder);
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_SIS) {
-				o->Set(syb_returns_isTemporary, syb_reparsePoint_sis);
+				o->Set(syb_returns_reparsePointTag, syb_reparsePoint_sis);
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_SYMLINK) {
-				o->Set(syb_returns_isTemporary, syb_reparsePoint_symlink);
+				o->Set(syb_returns_reparsePointTag, syb_reparsePoint_symlink);
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_WIM) {
-				o->Set(syb_returns_isTemporary, syb_reparsePoint_wim);
+				o->Set(syb_returns_reparsePointTag, syb_reparsePoint_wim);
 			} else {
-				o->Set(syb_returns_isTemporary, syb_reparsePoint_unknown);
+				o->Set(syb_returns_reparsePointTag, syb_reparsePoint_unknown);
 			}
 		} else {
-			o->Set(syb_returns_isTemporary, String::NewSymbol(""));
+			o->Set(syb_returns_reparsePointTag, String::NewSymbol(""));
 		}
 		o->Set(syb_returns_isArchived, info->dwFileAttributes&FILE_ATTRIBUTE_ARCHIVE ? True() : False());
 		o->Set(syb_returns_isCompressed, info->dwFileAttributes&FILE_ATTRIBUTE_COMPRESSED ? True() : False());
@@ -417,6 +423,7 @@ const Persistent<String> find::syb_reparsePoint_hsm = NODE_PSYMBOL("HSM");
 const Persistent<String> find::syb_reparsePoint_hsm2 = NODE_PSYMBOL("HSM2");
 const Persistent<String> find::syb_reparsePoint_mountPoint = NODE_PSYMBOL("MOUNT_POINT");
 const Persistent<String> find::syb_reparsePoint_nfs = NODE_PSYMBOL("NFS");
+const Persistent<String> find::syb_reparsePoint_placeHolder = NODE_PSYMBOL("PLACE_HOLDER");
 const Persistent<String> find::syb_reparsePoint_sis = NODE_PSYMBOL("SIS");
 const Persistent<String> find::syb_reparsePoint_symlink = NODE_PSYMBOL("SYMLINK");
 const Persistent<String> find::syb_reparsePoint_wim = NODE_PSYMBOL("WIM");
