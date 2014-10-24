@@ -14,6 +14,7 @@ static const Persistent<String> global_syb_evt_err = NODE_PSYMBOL("ERROR");
 static const Persistent<String> global_syb_evt_end = NODE_PSYMBOL("ENDED");
 static const Persistent<String> global_syb_evt_succeeded = NODE_PSYMBOL("SUCCEEDED");
 static const Persistent<String> global_syb_evt_failed = NODE_PSYMBOL("FAILED");
+
 static const Persistent<String> global_syb_fileAttr_isArchived = NODE_PSYMBOL("IS_ARCHIVED");
 static const Persistent<String> global_syb_fileAttr_isHidden = NODE_PSYMBOL("IS_HIDDEN");
 static const Persistent<String> global_syb_fileAttr_isNotContentIndexed = NODE_PSYMBOL("IS_NOT_CONTENT_INDEXED");
@@ -21,6 +22,25 @@ static const Persistent<String> global_syb_fileAttr_isOffline = NODE_PSYMBOL("IS
 static const Persistent<String> global_syb_fileAttr_isReadOnly = NODE_PSYMBOL("IS_READ_ONLY");
 static const Persistent<String> global_syb_fileAttr_isSystem = NODE_PSYMBOL("IS_SYSTEM");
 static const Persistent<String> global_syb_fileAttr_isTemporary = NODE_PSYMBOL("IS_TEMPORARY");
+static const Persistent<String> global_syb_fileAttr_creationTime = NODE_PSYMBOL("CREATION_TIME");
+static const Persistent<String> global_syb_fileAttr_lastAccessTime = NODE_PSYMBOL("LAST_ACCESS_TIME");
+static const Persistent<String> global_syb_fileAttr_lastWriteTime = NODE_PSYMBOL("LAST_WRITE_TIME");
+static const Persistent<String> global_syb_fileAttr_size = NODE_PSYMBOL("SIZE");
+static const Persistent<String> global_syb_fileAttr_isDirectory = NODE_PSYMBOL("IS_DIRECTORY");
+static const Persistent<String> global_syb_fileAttr_isCompressed = NODE_PSYMBOL("IS_COMPRESSED");
+static const Persistent<String> global_syb_fileAttr_isEncrypted = NODE_PSYMBOL("IS_ENCRYPTED");
+static const Persistent<String> global_syb_fileAttr_isSparseFile = NODE_PSYMBOL("IS_SPARSE_FILE");
+static const Persistent<String> global_syb_fileAttr_isDevice = NODE_PSYMBOL("IS_DEVICE");
+static const Persistent<String> global_syb_fileAttr_isIntegerityStream = NODE_PSYMBOL("IS_INTEGRITY_STREAM");
+static const Persistent<String> global_syb_fileAttr_isNoScrubData = NODE_PSYMBOL("IS_NO_SCRUB_DATA");
+
+#ifndef FILE_ATTRIBUTE_INTEGRITY_STREAM
+#	define FILE_ATTRIBUTE_INTEGRITY_STREAM 0x8000
+#endif
+
+#ifndef FILE_ATTRIBUTE_NO_SCRUB_DATA
+#	define FILE_ATTRIBUTE_NO_SCRUB_DATA 0x20000
+#endif
 
 #ifndef GetFinalPathNameByHandle
 typedef DWORD(WINAPI *GetFinalPathNameByHandle)(__in HANDLE hFile, __out_ecount(cchFilePath) LPWSTR lpszFilePath, __in DWORD cchFilePath, __in DWORD dwFlags);

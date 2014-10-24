@@ -1,10 +1,11 @@
-#define FSWIN_VERSION "2.14.822"
+#define FSWIN_VERSION "2.14.1024"
 #include "convertPath.h"
 #include "dirWatcher.h"
 #include "find.h"
 #include "getCompressedSize.h"
 #include "getVolumeSize.h"
 #include "setAttributes.h"
+#include "getAttributes.h"
 #include "setCompression.h"
 #include "setShortName.h"
 #include "splitPath.h"
@@ -22,6 +23,8 @@ static void moduleRegister(Handle<Object> target) {
 	target->Set(String::NewSymbol("getVolumeSpaceSync"), getVolumeSpace::functionRegister(false), global_syb_attr_const);
 	target->Set(String::NewSymbol("setAttributes"), setAttributes::functionRegister(true), global_syb_attr_const);
 	target->Set(String::NewSymbol("setAttributesSync"), setAttributes::functionRegister(false), global_syb_attr_const);
+	target->Set(String::NewSymbol("getAttributes"), getAttributes::functionRegister(true), global_syb_attr_const);
+	target->Set(String::NewSymbol("getAttributesSync"), getAttributes::functionRegister(false), global_syb_attr_const);
 	target->Set(String::NewSymbol("splitPath"), splitPath::functionRegister(), global_syb_attr_const);
 
 	Handle<Object> ntfsgroup = Object::New();

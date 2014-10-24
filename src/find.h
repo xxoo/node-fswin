@@ -19,9 +19,9 @@ public:
 	static const Persistent<String> syb_returns_lastAccessTime;
 	static const Persistent<String> syb_returns_lastWriteTime;
 	static const Persistent<String> syb_returns_size;
-	static const Persistent<String> syb_returns_reparsePointTag;
 	static const Persistent<String> syb_returns_isArchived;
 	static const Persistent<String> syb_returns_isCompressed;
+	static const Persistent<String> syb_returns_isDevice;
 	static const Persistent<String> syb_returns_isDirectory;
 	static const Persistent<String> syb_returns_isEncrypted;
 	static const Persistent<String> syb_returns_isHidden;
@@ -31,6 +31,9 @@ public:
 	static const Persistent<String> syb_returns_isSparseFile;
 	static const Persistent<String> syb_returns_isSystem;
 	static const Persistent<String> syb_returns_isTemporary;
+	static const Persistent<String> syb_returns_isIntegerityStream;
+	static const Persistent<String> syb_returns_isNoScrubData;
+	static const Persistent<String> syb_returns_reparsePointTag;
 	static const Persistent<String> syb_reparsePoint_unknown;
 	static const Persistent<String> syb_reparsePoint_csv;
 	static const Persistent<String> syb_reparsePoint_dedup;
@@ -169,6 +172,7 @@ public:
 		}
 		o->Set(syb_returns_isArchived, info->dwFileAttributes&FILE_ATTRIBUTE_ARCHIVE ? True() : False());
 		o->Set(syb_returns_isCompressed, info->dwFileAttributes&FILE_ATTRIBUTE_COMPRESSED ? True() : False());
+		o->Set(syb_returns_isDevice, info->dwFileAttributes&FILE_ATTRIBUTE_DEVICE ? True() : False());
 		o->Set(syb_returns_isDirectory, info->dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY ? True() : False());
 		o->Set(syb_returns_isEncrypted, info->dwFileAttributes&FILE_ATTRIBUTE_ENCRYPTED ? True() : False());
 		o->Set(syb_returns_isHidden, info->dwFileAttributes&FILE_ATTRIBUTE_HIDDEN ? True() : False());
@@ -178,6 +182,8 @@ public:
 		o->Set(syb_returns_isSparseFile, info->dwFileAttributes&FILE_ATTRIBUTE_SPARSE_FILE ? True() : False());
 		o->Set(syb_returns_isSystem, info->dwFileAttributes&FILE_ATTRIBUTE_SYSTEM ? True() : False());
 		o->Set(syb_returns_isTemporary, info->dwFileAttributes&FILE_ATTRIBUTE_TEMPORARY ? True() : False());
+		o->Set(syb_returns_isIntegerityStream, info->dwFileAttributes&FILE_ATTRIBUTE_INTEGRITY_STREAM ? True() : False());
+		o->Set(syb_returns_isNoScrubData, info->dwFileAttributes&FILE_ATTRIBUTE_NO_SCRUB_DATA ? True() : False());
 		return scope.Close(o);
 	}
 	static Handle<Array> basicToJs(resultData *data) {
@@ -221,6 +227,7 @@ public:
 		returns->Set(syb_returns_size, syb_returns_size, global_syb_attr_const);
 		returns->Set(syb_returns_isArchived, syb_returns_isArchived, global_syb_attr_const);
 		returns->Set(syb_returns_isCompressed, syb_returns_isCompressed, global_syb_attr_const);
+		returns->Set(syb_returns_isDevice, syb_returns_isDevice, global_syb_attr_const);
 		returns->Set(syb_returns_isDirectory, syb_returns_isDirectory, global_syb_attr_const);
 		returns->Set(syb_returns_isEncrypted, syb_returns_isEncrypted, global_syb_attr_const);
 		returns->Set(syb_returns_isHidden, syb_returns_isHidden, global_syb_attr_const);
@@ -230,6 +237,8 @@ public:
 		returns->Set(syb_returns_isSparseFile, syb_returns_isSparseFile, global_syb_attr_const);
 		returns->Set(syb_returns_isSystem, syb_returns_isSystem, global_syb_attr_const);
 		returns->Set(syb_returns_isTemporary, syb_returns_isTemporary, global_syb_attr_const);
+		returns->Set(syb_returns_isIntegerityStream, syb_returns_isIntegerityStream, global_syb_attr_const);
+		returns->Set(syb_returns_isNoScrubData, syb_returns_isNoScrubData, global_syb_attr_const);
 		returns->Set(syb_returns_reparsePointTag, syb_returns_reparsePointTag, global_syb_attr_const);
 		t->Set(String::NewSymbol("returns"), returns, global_syb_attr_const);
 
@@ -398,15 +407,12 @@ const Persistent<String> find::syb_evt_failed = NODE_PSYMBOL("FAILED");
 const Persistent<String> find::syb_evt_interrupted = NODE_PSYMBOL("INTERRUPTED");
 const Persistent<String> find::syb_returns_longName = NODE_PSYMBOL("LONG_NAME");
 const Persistent<String> find::syb_returns_shortName = NODE_PSYMBOL("SHORT_NAME");
-const Persistent<String> find::syb_returns_creationTime = NODE_PSYMBOL("CREATION_TIME");
-const Persistent<String> find::syb_returns_lastAccessTime = NODE_PSYMBOL("LAST_ACCESS_TIME");
-const Persistent<String> find::syb_returns_lastWriteTime = NODE_PSYMBOL("LAST_WRITE_TIME");
-const Persistent<String> find::syb_returns_size = NODE_PSYMBOL("SIZE");
 const Persistent<String> find::syb_returns_reparsePointTag = NODE_PSYMBOL("REPARSE_POINT_TAG");
-const Persistent<String> find::syb_returns_isDirectory = NODE_PSYMBOL("IS_DIRECTORY");
-const Persistent<String> find::syb_returns_isCompressed = NODE_PSYMBOL("IS_COMPRESSED");
-const Persistent<String> find::syb_returns_isEncrypted = NODE_PSYMBOL("IS_ENCRYPTED");
-const Persistent<String> find::syb_returns_isSparseFile = NODE_PSYMBOL("IS_SPARSE_FILE");
+const Persistent<String> find::syb_returns_isDevice = global_syb_fileAttr_isDevice;
+const Persistent<String> find::syb_returns_isDirectory = global_syb_fileAttr_isDirectory;
+const Persistent<String> find::syb_returns_isCompressed = global_syb_fileAttr_isCompressed;
+const Persistent<String> find::syb_returns_isEncrypted = global_syb_fileAttr_isEncrypted;
+const Persistent<String> find::syb_returns_isSparseFile = global_syb_fileAttr_isSparseFile;
 const Persistent<String> find::syb_returns_isArchived = global_syb_fileAttr_isArchived;
 const Persistent<String> find::syb_returns_isHidden = global_syb_fileAttr_isHidden;
 const Persistent<String> find::syb_returns_isNotContentIndexed = global_syb_fileAttr_isNotContentIndexed;
@@ -414,6 +420,12 @@ const Persistent<String> find::syb_returns_isOffline = global_syb_fileAttr_isOff
 const Persistent<String> find::syb_returns_isReadOnly = global_syb_fileAttr_isReadOnly;
 const Persistent<String> find::syb_returns_isSystem = global_syb_fileAttr_isSystem;
 const Persistent<String> find::syb_returns_isTemporary = global_syb_fileAttr_isTemporary;
+const Persistent<String> find::syb_returns_isIntegerityStream = global_syb_fileAttr_isIntegerityStream;
+const Persistent<String> find::syb_returns_isNoScrubData = global_syb_fileAttr_isNoScrubData;
+const Persistent<String> find::syb_returns_creationTime = global_syb_fileAttr_creationTime;
+const Persistent<String> find::syb_returns_lastAccessTime = global_syb_fileAttr_lastAccessTime;
+const Persistent<String> find::syb_returns_lastWriteTime = global_syb_fileAttr_lastWriteTime;
+const Persistent<String> find::syb_returns_size = global_syb_fileAttr_size;
 const Persistent<String> find::syb_reparsePoint_unknown = NODE_PSYMBOL("UNKNOWN");
 const Persistent<String> find::syb_reparsePoint_csv = NODE_PSYMBOL("CSV");
 const Persistent<String> find::syb_reparsePoint_dedup = NODE_PSYMBOL("DEDUP");
