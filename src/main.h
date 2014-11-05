@@ -1,38 +1,47 @@
 #pragma once
 #define UNICODE
 #include <node.h>
+#include <node_object_wrap.h>
+#include <uv.h>
+//#include <iostream>
 #pragma comment(lib, "node.lib")
 
 using namespace v8;
 using namespace node;
 
-static const PropertyAttribute global_syb_attr_const = (PropertyAttribute)(ReadOnly | DontDelete);
-static const Persistent<String> global_syb_err_wrong_arguments = NODE_PSYMBOL("WRONG_ARGUMENTS");
-static const Persistent<String> global_syb_err_not_a_constructor = NODE_PSYMBOL("THIS_FUNCTION_IS_NOT_A_CONSTRUCTOR");
-static const Persistent<String> global_syb_err_initialization_failed = NODE_PSYMBOL("INITIALIZATION_FAILED");
-static const Persistent<String> global_syb_evt_err = NODE_PSYMBOL("ERROR");
-static const Persistent<String> global_syb_evt_end = NODE_PSYMBOL("ENDED");
-static const Persistent<String> global_syb_evt_succeeded = NODE_PSYMBOL("SUCCEEDED");
-static const Persistent<String> global_syb_evt_failed = NODE_PSYMBOL("FAILED");
+#define SYB_ERR_WRONG_ARGUMENTS (uint8_t*)"WRONG_ARGUMENTS"
+#define SYB_ERR_NOT_A_CONSTRUCTOR (uint8_t*)"THIS_FUNCTION_IS_NOT_A_CONSTRUCTOR"
+#define SYB_ERR_INITIALIZATION_FAILED (uint8_t*)"INITIALIZATION_FAILED"
+#define SYB_EVT_ERR (uint8_t*)"ERROR"
+#define SYB_EVT_END (uint8_t*)"ENDED"
+#define SYB_EVT_SUCCEEDED (uint8_t*)"SUCCEEDED"
+#define SYB_EVT_FAILED (uint8_t*)"FAILED"
+#define SYB_FILEATTR_ISARCHIVED (uint8_t*)"IS_ARCHIVED"
+#define SYB_FILEATTR_ISHIDDEN (uint8_t*)"IS_HIDDEN"
+#define SYB_FILEATTR_ISNOTCONTENTINDEXED (uint8_t*)"IS_NOT_CONTENT_INDEXED"
+#define SYB_FILEATTR_ISOFFLINE (uint8_t*)"IS_OFFLINE"
+#define SYB_FILEATTR_ISREADONLY (uint8_t*)"IS_READ_ONLY"
+#define SYB_FILEATTR_ISSYSTEM (uint8_t*)"IS_SYSTEM"
+#define SYB_FILEATTR_ISTEMPORARY (uint8_t*)"IS_TEMPORARY"
+#define SYB_FILEATTR_CREATIONTIME (uint8_t*)"CREATION_TIME"
+#define SYB_FILEATTR_LASTACCESSTIME (uint8_t*)"LAST_ACCESS_TIME"
+#define SYB_FILEATTR_LASTWRITETIME (uint8_t*)"LAST_WRITE_TIME"
+#define SYB_FILEATTR_SIZE (uint8_t*)"SIZE"
+#define SYB_FILEATTR_ISDIRECTORY (uint8_t*)"IS_DIRECTORY"
+#define SYB_FILEATTR_ISCOMPRESSED (uint8_t*)"IS_COMPRESSED"
+#define SYB_FILEATTR_ISENCRYPTED (uint8_t*)"IS_ENCRYPTED"
+#define SYB_FILEATTR_ISSPARSEFILE (uint8_t*)"IS_SPARSE_FILE"
+#define SYB_FILEATTR_ISDEVICE (uint8_t*)"IS_DEVICE"
+#define SYB_FILEATTR_ISINTEGERITYSTREAM (uint8_t*)"IS_INTEGRITY_STREAM"
+#define SYB_FILEATTR_ISNOSCRUBDATA (uint8_t*)"IS_NO_SCRUB_DATA"
 
-static const Persistent<String> global_syb_fileAttr_isArchived = NODE_PSYMBOL("IS_ARCHIVED");
-static const Persistent<String> global_syb_fileAttr_isHidden = NODE_PSYMBOL("IS_HIDDEN");
-static const Persistent<String> global_syb_fileAttr_isNotContentIndexed = NODE_PSYMBOL("IS_NOT_CONTENT_INDEXED");
-static const Persistent<String> global_syb_fileAttr_isOffline = NODE_PSYMBOL("IS_OFFLINE");
-static const Persistent<String> global_syb_fileAttr_isReadOnly = NODE_PSYMBOL("IS_READ_ONLY");
-static const Persistent<String> global_syb_fileAttr_isSystem = NODE_PSYMBOL("IS_SYSTEM");
-static const Persistent<String> global_syb_fileAttr_isTemporary = NODE_PSYMBOL("IS_TEMPORARY");
-static const Persistent<String> global_syb_fileAttr_creationTime = NODE_PSYMBOL("CREATION_TIME");
-static const Persistent<String> global_syb_fileAttr_lastAccessTime = NODE_PSYMBOL("LAST_ACCESS_TIME");
-static const Persistent<String> global_syb_fileAttr_lastWriteTime = NODE_PSYMBOL("LAST_WRITE_TIME");
-static const Persistent<String> global_syb_fileAttr_size = NODE_PSYMBOL("SIZE");
-static const Persistent<String> global_syb_fileAttr_isDirectory = NODE_PSYMBOL("IS_DIRECTORY");
-static const Persistent<String> global_syb_fileAttr_isCompressed = NODE_PSYMBOL("IS_COMPRESSED");
-static const Persistent<String> global_syb_fileAttr_isEncrypted = NODE_PSYMBOL("IS_ENCRYPTED");
-static const Persistent<String> global_syb_fileAttr_isSparseFile = NODE_PSYMBOL("IS_SPARSE_FILE");
-static const Persistent<String> global_syb_fileAttr_isDevice = NODE_PSYMBOL("IS_DEVICE");
-static const Persistent<String> global_syb_fileAttr_isIntegerityStream = NODE_PSYMBOL("IS_INTEGRITY_STREAM");
-static const Persistent<String> global_syb_fileAttr_isNoScrubData = NODE_PSYMBOL("IS_NO_SCRUB_DATA");
+#define SYB_ERRORS (uint8_t*)"errors"
+#define SYB_RETURNS (uint8_t*)"returns"
+#define SYB_EVENTS (uint8_t*)"events"
+#define SYB_OPTIONS (uint8_t*)"options"
+#define SYB_PARAMS (uint8_t*)"params"
+
+#define SYB_ATTR_CONST (PropertyAttribute)(ReadOnly | DontDelete)
 
 #ifndef FILE_ATTRIBUTE_INTEGRITY_STREAM
 #	define FILE_ATTRIBUTE_INTEGRITY_STREAM 0x8000
@@ -46,9 +55,11 @@ static const Persistent<String> global_syb_fileAttr_isNoScrubData = NODE_PSYMBOL
 typedef DWORD(WINAPI *GetFinalPathNameByHandle)(__in HANDLE hFile, __out_ecount(cchFilePath) LPWSTR lpszFilePath, __in DWORD cchFilePath, __in DWORD dwFlags);
 static const GetFinalPathNameByHandle GetFinalPathNameByHandleW = (GetFinalPathNameByHandle)GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "GetFinalPathNameByHandleW");
 #endif
-static Handle<String> getCurrentPathByHandle(HANDLE hnd) {
-	HandleScope scope;
-	Handle<String> r;
+
+#define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
+
+static wchar_t *getCurrentPathByHandle(HANDLE hnd) {
+	wchar_t *r = NULL;
 	if ((void*)GetFinalPathNameByHandleW) {//check whether GetFinalPathNameByHandleW is supported
 		DWORD sz = GetFinalPathNameByHandleW(hnd, NULL, 0, FILE_NAME_NORMALIZED);
 		if (sz > 0) {
@@ -66,14 +77,15 @@ static Handle<String> getCurrentPathByHandle(HANDLE hnd) {
 			} else {
 				sz = 0;
 			}
-			r = String::New((uint16_t*)(sz > 0 ? &s[sz] : s));
-			free(s);
+			if (sz > 0) {
+				r = _wcsdup(&s[sz]);
+				free(s);
+			} else {
+				r = s;
+			}
 		}
 	}
-	if (r.IsEmpty()) {
-		r = String::NewSymbol("");
-	}
-	return scope.Close(r);
+	return r;
 }
 
 static bool ensurePrivilege(const wchar_t *privilegeName) {
@@ -114,3 +126,80 @@ static ULONGLONG combineHiLow(const DWORD hi, const DWORD low) {
 static double fileTimeToJsDateVal(const FILETIME *ft) {//Date::New(fileTimeToJsDateVal(&filetime)) converts FILETIME to javascript date
 	return (double)(combineHiLow(ft->dwHighDateTime, ft->dwLowDateTime) / 10000 - 11644473600000);
 }
+/*
+struct pathCom {
+	wchar_t *shortName;
+	wchar_t *longName;
+	pathCom *next;
+};
+static pathCom *getPathComs(const wchar_t *path, const wchar_t *shortPath) {
+	pathCom *result = NULL;
+	pathCom *lst = NULL;
+	USHORT i = 0;
+	USHORT j = 0;
+	for (i = 0; i <= wcslen(path); i++) {
+		if (i == wcslen(path) || path[i] == L'\\') {
+			pathCom *com = new pathCom;
+			com->next = NULL;
+			com->shortName = NULL;
+			//com->longName = _wcsdup(path);
+			size_t sz = i - j + 1;
+			com->longName = new wchar_t[sz];
+			wcsncpy_s(com->longName, sz, &path[j], sz - 1);
+			//std::wcout << com->longName << std::endl;
+			if (!lst) {
+				result = com;
+			} else {
+				lst->next = com;
+			}
+			lst = com;
+			j = i + 1;
+		}
+	}
+	j = 0;
+	lst = result;
+	for (i = 0; i <= wcslen(shortPath); i++) {
+		if (i == wcslen(shortPath) || shortPath[i] == L'\\') {
+			if (wcsncmp(lst->longName, &shortPath[j], wcslen(lst->longName)) != 0) {
+				size_t sz = i - j + 1;
+				lst->shortName = new wchar_t[sz];
+				wcsncpy_s(lst->shortName, sz, &shortPath[j], sz - 1);
+			}
+			lst = lst->next;
+			j = i + 1;
+		}
+	}
+	return result;
+}
+static void freePathCom(const pathCom *p) {
+	if (p->next) {
+		freePathCom(p->next);
+	}
+	if (p->shortName) {
+		delete p->shortName;
+	}
+	if (p->longName) {
+		delete p->longName;
+	}
+	delete p;
+}
+static bool pathComComp(const pathCom *p, const wchar_t *path, size_t len=0) {
+	USHORT i = 0;
+	USHORT j = 0;
+	const pathCom *c = p;
+	if (!len) {
+		len = wcslen(path);
+	}
+	for (i = 0; i <= len; i++) {
+		if (i == len || path[i] == L'\\') {
+			if (!c || (wcsncmp(c->longName, &path[j], MAX(i - j, wcslen(c->longName)))) != 0 && (!c->shortName || wcsncmp(c->shortName, &path[j], MAX(i - j, wcslen(c->shortName))) != 0)) {
+				//std::wcout << L'wrong' << std::endl;
+				return false;
+			}
+			c = c->next;
+			j = i + 1;
+		}
+	}
+	return true;
+}
+*/

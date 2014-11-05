@@ -1,17 +1,15 @@
 #pragma once
 #include "main.h"
 
+#define SYB_RETURNS_TOTALSPACE (uint8_t*)"TOTAL"
+#define SYB_RETURNS_FREESPACE (uint8_t*)"FREE"
 class getVolumeSpace {
 public:
-	static const Persistent<String> syb_returns_totalSpace;
-	static const Persistent<String> syb_returns_freeSpace;
 	static const struct spaces {
 		ULONGLONG totalSpace;
 		ULONGLONG freeSpace;
 	};
 private:
-	static const Persistent<String> syb_err_wrong_arguments;
-	static const Persistent<String> syb_err_not_a_constructor;
 	static const struct workdata {
 		uv_work_t req;
 		Persistent<Object> self;
@@ -33,77 +31,86 @@ public:
 		return result;
 	}
 	static Handle<Object> spacesToJs(const spaces *spc) {//this function will delete the param if it is not NULL
-		HandleScope scope;
-		Handle<Object> result;
+		Isolate *isolate = Isolate::GetCurrent();
+		EscapableHandleScope scope(isolate);
+		Local<Object> result;
 		if (spc) {
-			result = Object::New();
-			result->Set(syb_returns_totalSpace, Number::New((double)spc->totalSpace));
-			result->Set(syb_returns_freeSpace, Number::New((double)spc->freeSpace));
+			result = Object::New(isolate);
+			result->Set(String::NewFromOneByte(isolate, SYB_RETURNS_TOTALSPACE), Number::New(isolate, (double)spc->totalSpace));
+			result->Set(String::NewFromOneByte(isolate, SYB_RETURNS_FREESPACE), Number::New(isolate, (double)spc->freeSpace));
 			delete spc;
 		}
-		return scope.Close(result);
+		return scope.Escape(result);
 	}
 	static Handle<Function> functionRegister(bool isAsyncVersion) {
-		HandleScope scope;
-		Handle<FunctionTemplate> t = FunctionTemplate::New(isAsyncVersion ? jsAsync : jsSync);
+		Isolate *isolate = Isolate::GetCurrent();
+		EscapableHandleScope scope(isolate);
+		Local<String> tmp;
+		Local<FunctionTemplate> t = FunctionTemplate::New(isolate, isAsyncVersion ? jsAsync : jsSync);
 
 		//set error messages
-		Handle<Object> errors = Object::New();
-		errors->Set(syb_err_wrong_arguments, syb_err_wrong_arguments, global_syb_attr_const);
-		errors->Set(syb_err_not_a_constructor, syb_err_not_a_constructor, global_syb_attr_const);
-		t->Set(String::NewSymbol("errors"), errors, global_syb_attr_const);
+		Local<Object> errors = Object::New(isolate);
+		tmp = String::NewFromOneByte(isolate, SYB_ERR_WRONG_ARGUMENTS);
+		errors->Set(tmp, tmp, SYB_ATTR_CONST);
+		tmp = String::NewFromOneByte(isolate, SYB_ERR_NOT_A_CONSTRUCTOR);
+		errors->Set(tmp, tmp, SYB_ATTR_CONST);
+		t->Set(String::NewFromOneByte(isolate, SYB_ERRORS), errors, SYB_ATTR_CONST);
 
 		//set return values
-		Handle<Object> returns = Object::New();
-		returns->Set(syb_returns_totalSpace, syb_returns_totalSpace, global_syb_attr_const);
-		returns->Set(syb_returns_freeSpace, syb_returns_freeSpace, global_syb_attr_const);
-		t->Set(String::NewSymbol("returns"), errors, global_syb_attr_const);
+		Local<Object> returns = Object::New(isolate);
+		tmp = String::NewFromOneByte(isolate, SYB_RETURNS_TOTALSPACE);
+		returns->Set(tmp, tmp, SYB_ATTR_CONST);
+		tmp = String::NewFromOneByte(isolate, SYB_RETURNS_FREESPACE);
+		returns->Set(tmp, tmp, SYB_ATTR_CONST);
+		t->Set(String::NewFromOneByte(isolate, SYB_RETURNS), errors, SYB_ATTR_CONST);
 
-		return scope.Close(t->GetFunction());
+		return scope.Escape(t->GetFunction());
 	}
 private:
-	static Handle<Value> jsSync(const Arguments& args) {
-		HandleScope scope;
-		Handle<Value> result;
+	static void jsSync(const FunctionCallbackInfo<Value>& args) {
+		Isolate *isolate = Isolate::GetCurrent();
+		HandleScope scope(isolate);
+		Local<Value> result;
 		if (args.IsConstructCall()) {
-			result = ThrowException(Exception::Error(syb_err_not_a_constructor));
+			result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_NOT_A_CONSTRUCTOR)));
 		} else {
 			if (args.Length() > 0 && (args[0]->IsString() || args[0]->IsStringObject())) {
 				String::Value spath(args[0]);
 				result = spacesToJs(basic((wchar_t*)*spath));
 			} else {
-				result = ThrowException(Exception::Error(syb_err_wrong_arguments));
+				result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_WRONG_ARGUMENTS)));
 			}
 		}
-		return scope.Close(result);
+		args.GetReturnValue().Set(result);
 	}
-	static Handle<Value> jsAsync(const Arguments& args) {
-		HandleScope scope;
-		Handle<Value> result;
+	static void jsAsync(const FunctionCallbackInfo<Value>& args) {
+		Isolate *isolate = Isolate::GetCurrent();
+		HandleScope scope(isolate);
+		Local<Value> result;
 		if (args.IsConstructCall()) {
-			result = ThrowException(Exception::Error(syb_err_not_a_constructor));
+			result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_NOT_A_CONSTRUCTOR)));
 		} else {
 			if (args.Length() > 1 && (args[0]->IsString() || args[0]->IsStringObject()) && args[1]->IsFunction()) {
 				workdata *data = new workdata;
 				data->req.data = data;
-				data->self = Persistent<Object>::New(args.This());
-				data->func = Persistent<Function>::New(Handle<Function>::Cast(args[1]));
+				data->self.Reset(isolate, args.This());
+				data->func.Reset(isolate, Local<Function>::Cast(args[1]));
 				String::Value p(args[0]);
 				data->path = _wcsdup((wchar_t*)*p);
 				if (uv_queue_work(uv_default_loop(), &data->req, beginWork, afterWork) == 0) {
-					result = True();
+					result = True(isolate);
 				} else {
 					free(data->path);
-					data->self.Dispose();
-					data->func.Dispose();
+					data->self.Reset();
+					data->func.Reset();
 					delete data;
-					result = False();
+					result = False(isolate);
 				}
 			} else {
-				result = ThrowException(Exception::Error(syb_err_wrong_arguments));
+				result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_WRONG_ARGUMENTS)));
 			}
 		}
-		return scope.Close(result);
+		args.GetReturnValue().Set(result);
 	}
 	static void beginWork(uv_work_t *req) {
 		workdata *data = (workdata*)req->data;
@@ -112,16 +119,13 @@ private:
 		data->path = p;
 	}
 	static void afterWork(uv_work_t *req, int status) {
-		HandleScope scope;
+		Isolate *isolate = Isolate::GetCurrent();
+		HandleScope scope(isolate);
 		workdata *data = (workdata*)req->data;
-		Handle<Value> p = spacesToJs((spaces*)data->path);
-		data->func->Call(data->self, 1, &p);
-		data->func.Dispose();
-		data->self.Dispose();
+		Local<Value> p = spacesToJs((spaces*)data->path);
+		Local<Function>::New(isolate, data->func)->Call(Local<Object>::New(isolate, data->self), 1, &p);
+		data->func.Reset();
+		data->self.Reset();
 		delete data;
 	}
 };
-const Persistent<String> getVolumeSpace::syb_err_wrong_arguments = global_syb_err_wrong_arguments;
-const Persistent<String> getVolumeSpace::syb_err_not_a_constructor = global_syb_err_not_a_constructor;
-const Persistent<String> getVolumeSpace::syb_returns_totalSpace = NODE_PSYMBOL("TOTAL");
-const Persistent<String> getVolumeSpace::syb_returns_freeSpace = NODE_PSYMBOL("FREE");

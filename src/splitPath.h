@@ -1,13 +1,14 @@
 #pragma once
 #include "main.h"
 
+#define SYB_RETURN_PARENT (uint8_t*)"PARENT"
+#define SYB_RETURN_NAME (uint8_t*)"NAME"
+
 class splitPath {
 public:
-	static const Persistent<String> syb_return_parent;
-	static const Persistent<String> syb_return_name;
 	static const struct splitedPath {
 		DWORD parentLen;//the length of the parent
-		const wchar_t *name;//this could be also considered as the start position of the name
+		const wchar_t *name;//this could also be considered as the start position of the name
 	};
 private:
 	static const Persistent<String> syb_err_wrong_arguments;
@@ -17,7 +18,7 @@ public:
 		wchar_t *s = L"\\\\", s1 = L'\\';
 		DWORD i, j = 0, k = 0, l = (DWORD)wcslen(path), m = (DWORD)wcslen(s);
 		if (wcsncmp(s, path, m) == 0) {//is network path
-			for (i = m + 1; i<l - 1; i++) {
+			for (i = m + 1; i < l - 1; i++) {
 				if (path[i] == s1) {
 					if (++k == 2) {
 						j = i + 1;
@@ -27,7 +28,7 @@ public:
 			}
 			if (k == 2) {
 				k = 0;
-				for (i = l - 2; i>j + 1; i--) {
+				for (i = l - 2; i > j + 1; i--) {
 					if (path[i] == s1) {
 						j = i;
 						k = 1;
@@ -58,50 +59,54 @@ public:
 	//this function returns an Object with two properties: PARENT and NAME
 	//the parent property could be empty if path is a rootdir
 	static Handle<Object> js(Handle<String> path) {
-		HandleScope scope;
+		Isolate *isolate = Isolate::GetCurrent();
+		EscapableHandleScope scope(isolate);
 		String::Value p1(path);
 		splitedPath *s = basic((wchar_t*)*p1);
-		Handle<Object> r = Object::New();
-		r->Set(syb_return_parent, String::New(*p1, s->parentLen));
-		r->Set(syb_return_name, String::New((uint16_t*)s->name));
+		Local<Object> r = Object::New(isolate);
+		r->Set(String::NewFromOneByte(isolate, SYB_RETURN_PARENT), String::NewFromTwoByte(isolate, *p1, String::kNormalString, s->parentLen));
+		r->Set(String::NewFromOneByte(isolate, SYB_RETURN_NAME), String::NewFromTwoByte(isolate, (uint16_t*)s->name));
 		delete s;
-		return scope.Close(r);
+		return scope.Escape(r);
 	}
 	static Handle<Function> functionRegister() {
-		HandleScope scope;
-		Handle<FunctionTemplate> t = FunctionTemplate::New(jsSync);
+		Isolate *isolate = Isolate::GetCurrent();
+		EscapableHandleScope scope(isolate);
+		Local<String> tmp;
+		Local<FunctionTemplate> t = FunctionTemplate::New(isolate, jsSync);
 
 		//set errmessages
-		Handle<Object> errors = Object::New();
-		errors->Set(syb_err_wrong_arguments, syb_err_wrong_arguments, global_syb_attr_const);
-		errors->Set(syb_err_not_a_constructor, syb_err_not_a_constructor, global_syb_attr_const);
-		t->Set(String::NewSymbol("errors"), errors, global_syb_attr_const);
+		Local<Object> errors = Object::New(isolate);
+		tmp = String::NewFromOneByte(isolate, SYB_ERR_WRONG_ARGUMENTS);
+		errors->Set(tmp, tmp, SYB_ATTR_CONST);
+		tmp = String::NewFromOneByte(isolate, SYB_ERR_NOT_A_CONSTRUCTOR);
+		errors->Set(tmp, tmp, SYB_ATTR_CONST);
+		t->Set(String::NewFromOneByte(isolate, SYB_ERRORS), errors, SYB_ATTR_CONST);
 
 		//set properties of the return value
-		Handle<Object> returns = Object::New();
-		returns->Set(syb_return_parent, syb_return_parent, global_syb_attr_const);
-		returns->Set(syb_return_name, syb_return_name, global_syb_attr_const);
-		t->Set(String::NewSymbol("returns"), returns, global_syb_attr_const);
+		Local<Object> returns = Object::New(isolate);
+		tmp = String::NewFromOneByte(isolate, SYB_RETURN_PARENT);
+		returns->Set(tmp, tmp, SYB_ATTR_CONST);
+		tmp = String::NewFromOneByte(isolate, SYB_RETURN_NAME);
+		returns->Set(tmp, tmp, SYB_ATTR_CONST);
+		t->Set(String::NewFromOneByte(isolate, SYB_RETURNS), returns, SYB_ATTR_CONST);
 
-		return scope.Close(t->GetFunction());
+		return scope.Escape(t->GetFunction());
 	}
 private:
-	static Handle<Value> jsSync(const Arguments& args) {
-		HandleScope scope;
-		Handle<Value> result;
+	static void jsSync(const FunctionCallbackInfo<Value>& args) {
+		Isolate *isolate = Isolate::GetCurrent();
+		HandleScope scope(isolate);
+		Local<Value> result;
 		if (args.IsConstructCall()) {
-			result = ThrowException(Exception::Error(syb_err_not_a_constructor));
+			result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_NOT_A_CONSTRUCTOR)));
 		} else {
 			if (args.Length() > 0 && (args[0]->IsString() || args[0]->IsStringObject())) {
-				result = js(Handle<String>::Cast(args[0]));
+				result = js(Local<String>::Cast(args[0]));
 			} else {
-				result = ThrowException(Exception::Error(syb_err_wrong_arguments));
+				result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_WRONG_ARGUMENTS)));
 			}
 		}
-		return scope.Close(result);
+		args.GetReturnValue().Set(result);
 	}
 };
-const Persistent<String> splitPath::syb_return_parent = NODE_PSYMBOL("PARENT");
-const Persistent<String> splitPath::syb_return_name = NODE_PSYMBOL("NAME");
-const Persistent<String> splitPath::syb_err_wrong_arguments = global_syb_err_wrong_arguments;
-const Persistent<String> splitPath::syb_err_not_a_constructor = global_syb_err_not_a_constructor;

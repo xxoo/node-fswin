@@ -13,15 +13,6 @@ public:
 		char temporary;
 	};
 private:
-	static const Persistent<String> syb_param_attr_archive;
-	static const Persistent<String> syb_param_attr_hidden;
-	static const Persistent<String> syb_param_attr_notContentIndexed;
-	static const Persistent<String> syb_param_attr_offline;
-	static const Persistent<String> syb_param_attr_readonly;
-	static const Persistent<String> syb_param_attr_system;
-	static const Persistent<String> syb_param_attr_temporary;
-	static const Persistent<String> syb_err_wrong_arguments;
-	static const Persistent<String> syb_err_not_a_constructor;
 	static const struct workdata {
 		uv_work_t req;
 		Persistent<Object> self;
@@ -82,119 +73,141 @@ public:
 		return result;
 	}
 	static attrVal *jsToAttrval(Handle<Object> attr) {//delete the result if it is not NULL
-		HandleScope scope;
+		Isolate *isolate = Isolate::GetCurrent();
+		HandleScope scope(isolate);
+		Local<String> tmp;
 		attrVal *a = new attrVal;
-		if (attr->HasOwnProperty(syb_param_attr_archive)) {
-			a->archive = attr->Get(syb_param_attr_archive)->ToBoolean()->IsTrue() ? 1 : -1;
+		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_ISARCHIVED);
+		if (attr->HasOwnProperty(tmp)) {
+			a->archive = attr->Get(tmp)->ToBoolean()->IsTrue() ? 1 : -1;
 		} else {
 			a->archive = 0;
 		}
-		if (attr->HasOwnProperty(syb_param_attr_hidden)) {
-			a->hidden = attr->Get(syb_param_attr_hidden)->ToBoolean()->IsTrue() ? 1 : -1;
+		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_ISHIDDEN);
+		if (attr->HasOwnProperty(tmp)) {
+			a->hidden = attr->Get(tmp)->ToBoolean()->IsTrue() ? 1 : -1;
 		} else {
 			a->hidden = 0;
 		}
-		if (attr->HasOwnProperty(syb_param_attr_notContentIndexed)) {
-			a->notContentIndexed = attr->Get(syb_param_attr_notContentIndexed)->ToBoolean()->IsTrue() ? 1 : -1;
+		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_ISNOTCONTENTINDEXED);
+		if (attr->HasOwnProperty(tmp)) {
+			a->notContentIndexed = attr->Get(tmp)->ToBoolean()->IsTrue() ? 1 : -1;
 		} else {
 			a->notContentIndexed = 0;
 		}
-		if (attr->HasOwnProperty(syb_param_attr_offline)) {
-			a->offline = attr->Get(syb_param_attr_offline)->ToBoolean()->IsTrue() ? 1 : -1;
+		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_ISOFFLINE);
+		if (attr->HasOwnProperty(tmp)) {
+			a->offline = attr->Get(tmp)->ToBoolean()->IsTrue() ? 1 : -1;
 		} else {
 			a->offline = 0;
 		}
-		if (attr->HasOwnProperty(syb_param_attr_readonly)) {
-			a->readonly = (attr->Get(syb_param_attr_readonly)->ToBoolean()->IsTrue() ? 1 : -1);
+		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_ISREADONLY);
+		if (attr->HasOwnProperty(tmp)) {
+			a->readonly = (attr->Get(tmp)->ToBoolean()->IsTrue() ? 1 : -1);
 		} else {
 			a->readonly = 0;
 		}
-		if (attr->HasOwnProperty(syb_param_attr_system)) {
-			a->system = attr->Get(syb_param_attr_system)->ToBoolean()->IsTrue() ? 1 : -1;
+		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_ISSYSTEM);
+		if (attr->HasOwnProperty(tmp)) {
+			a->system = attr->Get(tmp)->ToBoolean()->IsTrue() ? 1 : -1;
 		} else {
 			a->system = 0;
 		}
-		if (attr->HasOwnProperty(syb_param_attr_temporary)) {
-			a->temporary = attr->Get(syb_param_attr_temporary)->ToBoolean()->IsTrue() ? 1 : -1;
+		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_ISTEMPORARY);
+		if (attr->HasOwnProperty(tmp)) {
+			a->temporary = attr->Get(tmp)->ToBoolean()->IsTrue() ? 1 : -1;
 		} else {
 			a->temporary = 0;
 		}
 		return a;
 	}
 	static Handle<Function> functionRegister(bool isAsyncVersion) {
-		HandleScope scope;
-		Handle<FunctionTemplate> t = FunctionTemplate::New(isAsyncVersion ? jsAsync : jsSync);
+		Isolate *isolate = Isolate::GetCurrent();
+		EscapableHandleScope scope(isolate);
+		Local<String> tmp;
+		Local<FunctionTemplate> t = FunctionTemplate::New(isolate, isAsyncVersion ? jsAsync : jsSync);
 
 		//set errmessages
-		Handle<Object> errors = Object::New();
-		errors->Set(syb_err_wrong_arguments, syb_err_wrong_arguments, global_syb_attr_const);
-		errors->Set(syb_err_not_a_constructor, syb_err_not_a_constructor, global_syb_attr_const);
-		t->Set(String::NewSymbol("errors"), errors, global_syb_attr_const);
+		Local<Object> errors = Object::New(isolate);
+		tmp = String::NewFromOneByte(isolate, SYB_ERR_WRONG_ARGUMENTS);
+		errors->Set(tmp, tmp, SYB_ATTR_CONST);
+		tmp = String::NewFromOneByte(isolate, SYB_ERR_NOT_A_CONSTRUCTOR);
+		errors->Set(tmp, tmp, SYB_ATTR_CONST);
+		t->Set(String::NewFromOneByte(isolate, SYB_ERRORS), errors, SYB_ATTR_CONST);
 
 		//set params
-		Handle<Object> params = Object::New();
-		params->Set(syb_param_attr_archive, syb_param_attr_archive, global_syb_attr_const);
-		params->Set(syb_param_attr_hidden, syb_param_attr_hidden, global_syb_attr_const);
-		params->Set(syb_param_attr_notContentIndexed, syb_param_attr_notContentIndexed, global_syb_attr_const);
-		params->Set(syb_param_attr_offline, syb_param_attr_offline, global_syb_attr_const);
-		params->Set(syb_param_attr_readonly, syb_param_attr_readonly, global_syb_attr_const);
-		params->Set(syb_param_attr_system, syb_param_attr_system, global_syb_attr_const);
-		params->Set(syb_param_attr_temporary, syb_param_attr_temporary, global_syb_attr_const);
-		t->Set(String::NewSymbol("params"), params, global_syb_attr_const);
+		Local<Object> params = Object::New(isolate);
+		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_ISARCHIVED);
+		params->Set(tmp, tmp, SYB_ATTR_CONST);
+		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_ISHIDDEN);
+		params->Set(tmp, tmp, SYB_ATTR_CONST);
+		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_ISNOTCONTENTINDEXED);
+		params->Set(tmp, tmp, SYB_ATTR_CONST);
+		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_ISOFFLINE);
+		params->Set(tmp, tmp, SYB_ATTR_CONST);
+		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_ISREADONLY);
+		params->Set(tmp, tmp, SYB_ATTR_CONST);
+		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_ISSYSTEM);
+		params->Set(tmp, tmp, SYB_ATTR_CONST);
+		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_ISTEMPORARY);
+		params->Set(tmp, tmp, SYB_ATTR_CONST);
+		t->Set(String::NewFromOneByte(isolate, SYB_PARAMS), params, SYB_ATTR_CONST);
 
-		return scope.Close(t->GetFunction());
+		return scope.Escape(t->GetFunction());
 	}
 private:
-	static Handle<Value> jsSync(const Arguments& args) {
-		HandleScope scope;
-		Handle<Value> result;
+	static void jsSync(const FunctionCallbackInfo<Value>& args) {
+		Isolate *isolate = args.GetIsolate();
+		HandleScope scope(isolate);
+		Local<Value> result;
 		if (args.IsConstructCall()) {
-			result = ThrowException(Exception::Error(syb_err_not_a_constructor));
+			result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_NOT_A_CONSTRUCTOR)));
 		} else {
 			if (args.Length() > 1 && (args[0]->IsString() || args[0]->IsStringObject()) && args[1]->IsObject()) {
-				attrVal *a = jsToAttrval(Handle<Object>::Cast(args[1]));
+				attrVal *a = jsToAttrval(Local<Object>::Cast(args[1]));
 				String::Value p(args[0]);
-				result = basic((wchar_t*)*p, a) ? True() : False();
+				result = basic((wchar_t*)*p, a) ? True(isolate) : False(isolate);
 				delete a;
 			} else {
-				result = ThrowException(Exception::Error(syb_err_wrong_arguments));
+				result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_WRONG_ARGUMENTS)));
 			}
 		}
-		return scope.Close(result);
+		args.GetReturnValue().Set(result);
 	}
-	static Handle<Value> jsAsync(const Arguments& args) {
-		HandleScope scope;
-		Handle<Value> result;
+	static void jsAsync(const FunctionCallbackInfo<Value>& args) {
+		Isolate *isolate = args.GetIsolate();
+		HandleScope scope(isolate);
+		Local<Value> result;
 		if (args.IsConstructCall()) {
-			result = ThrowException(Exception::Error(syb_err_not_a_constructor));
+			result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_NOT_A_CONSTRUCTOR)));
 		} else {
 			if (args.Length() > 1 && (args[0]->IsString() || args[0]->IsStringObject()) && args[1]->IsObject()) {
 				workdata *data = new workdata;
 				data->req.data = data;
-				data->self = Persistent<Object>::New(args.This());
+				data->self.Reset(isolate, args.This());
 				if (args.Length() > 2 && args[2]->IsFunction()) {
-					data->func = Persistent<Function>::New(Handle<Function>::Cast(args[2]));
+					data->func.Reset(isolate, Local<Function>::Cast(args[2]));
 				}
 				String::Value p(args[0]);
 				data->path = _wcsdup((wchar_t*)*p);
-				data->attr = jsToAttrval(Handle<Object>::Cast(args[1]));
+				data->attr = jsToAttrval(Local<Object>::Cast(args[1]));
 				if (uv_queue_work(uv_default_loop(), &data->req, beginWork, afterWork) == 0) {
-					result = True();
+					result = True(isolate);
 				} else {
 					free(data->path);
-					data->self.Dispose();
+					data->self.Reset();
 					if (!data->func.IsEmpty()) {
-						data->func.Dispose();
+						data->func.Reset();
 					}
 					delete data->attr;
 					delete data;
-					result = False();
+					result = False(isolate);
 				}
 			} else {
-				result = ThrowException(Exception::Error(syb_err_wrong_arguments));
+				result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_WRONG_ARGUMENTS)));
 			}
 		}
-		return scope.Close(result);
+		args.GetReturnValue().Set(result);
 	}
 	static void beginWork(uv_work_t *req) {
 		workdata *data = (workdata*)req->data;
@@ -203,23 +216,15 @@ private:
 		delete data->attr;
 	}
 	static void afterWork(uv_work_t *req, int status) {
-		HandleScope scope;
+		Isolate *isolate = Isolate::GetCurrent();
+		HandleScope scope(isolate);
 		workdata *data = (workdata*)req->data;
-		Handle<Value> p = data->result ? True() : False();
+		Local<Value> p = data->result ? True(isolate) : False(isolate);
 		if (!data->func.IsEmpty()) {
-			data->func->Call(data->self, 1, &p);
-			data->func.Dispose();
+			Local<Function>::New(isolate, data->func)->Call(Local<Object>::New(isolate, data->self), 1, &p);
+			data->func.Reset();
 		}
-		data->self.Dispose();
+		data->self.Reset();
 		delete data;
 	}
 };
-const Persistent<String> setAttributes::syb_err_wrong_arguments = global_syb_err_wrong_arguments;
-const Persistent<String> setAttributes::syb_err_not_a_constructor = global_syb_err_not_a_constructor;
-const Persistent<String> setAttributes::syb_param_attr_archive = global_syb_fileAttr_isArchived;
-const Persistent<String> setAttributes::syb_param_attr_hidden = global_syb_fileAttr_isHidden;
-const Persistent<String> setAttributes::syb_param_attr_notContentIndexed = global_syb_fileAttr_isNotContentIndexed;
-const Persistent<String> setAttributes::syb_param_attr_offline = global_syb_fileAttr_isOffline;
-const Persistent<String> setAttributes::syb_param_attr_readonly = global_syb_fileAttr_isReadOnly;
-const Persistent<String> setAttributes::syb_param_attr_system = global_syb_fileAttr_isSystem;
-const Persistent<String> setAttributes::syb_param_attr_temporary = global_syb_fileAttr_isTemporary;

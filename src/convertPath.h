@@ -3,8 +3,6 @@
 
 class convertPath {
 private:
-	static const Persistent<String> syb_err_wrong_arguments;
-	static const Persistent<String> syb_err_not_a_constructor;
 	static const struct workdata {
 		uv_work_t req;
 		Persistent<Object> self;
@@ -25,73 +23,79 @@ public:
 		return tpath;
 	}
 	static Handle<String> js(Handle<String> path, bool islong) {
-		HandleScope scope;
-		Handle<String> r;
+		Isolate *isolate = Isolate::GetCurrent();
+		EscapableHandleScope scope(isolate);
+		Local<String> r;
 		String::Value spath(path);
 		wchar_t *tpath = basic((wchar_t*)*spath, islong);
 		if (tpath) {
-			r = String::New((uint16_t*)tpath);
+			r = String::NewFromTwoByte(isolate, (uint16_t*)tpath);
 			free(tpath);
 		} else {
-			r = String::NewSymbol("");
+			r = String::Empty(isolate);
 		}
-		return scope.Close(r);
+		return scope.Escape(r);
 	}
 	static Handle<Function> functionRegister(bool isAsyncVersion) {
-		HandleScope scope;
-		Handle<FunctionTemplate> t = FunctionTemplate::New(isAsyncVersion ? jsAsync : jsSync);
-
+		Isolate *isolate = Isolate::GetCurrent();
+		EscapableHandleScope scope(isolate);
+		Local<FunctionTemplate> t = FunctionTemplate::New(isolate, isAsyncVersion ? jsAsync : jsSync);
+		Local<String> tmp;
 		//set errmessages
-		Handle<Object> errors = Object::New();
-		errors->Set(syb_err_wrong_arguments, syb_err_wrong_arguments, global_syb_attr_const);
-		errors->Set(syb_err_not_a_constructor, syb_err_not_a_constructor, global_syb_attr_const);
-		t->Set(String::NewSymbol("errors"), errors, global_syb_attr_const);
+		Local<Object> errors = Object::New(isolate);
+		tmp = String::NewFromOneByte(isolate, SYB_ERR_WRONG_ARGUMENTS);
+		errors->Set(tmp, tmp, SYB_ATTR_CONST);
+		tmp = String::NewFromOneByte(isolate, SYB_ERR_NOT_A_CONSTRUCTOR);
+		errors->Set(tmp, tmp, SYB_ATTR_CONST);
+		t->Set(String::NewFromOneByte(isolate, SYB_ERRORS), errors, SYB_ATTR_CONST);
 
-		return scope.Close(t->GetFunction());
+		return scope.Escape(t->GetFunction());
 	}
 private:
-	static Handle<Value> jsSync(const Arguments& args) {
-		HandleScope scope;
-		Handle<Value> result;
+	static void jsSync(const FunctionCallbackInfo<Value>& args) {
+		Isolate *isolate = args.GetIsolate();
+		HandleScope scope(isolate);
+		Local<Value> result;
 		if (args.IsConstructCall()) {
-			result = ThrowException(Exception::Error(syb_err_not_a_constructor));
+			result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_NOT_A_CONSTRUCTOR)));
 		} else {
 			if (args.Length() > 0 && (args[0]->IsString() || args[0]->IsStringObject())) {
-				result = js(Handle<String>::Cast(args[0]), args[1]->ToBoolean()->IsTrue());
+				result = js(Local<String>::Cast(args[0]), args[1]->ToBoolean()->IsTrue());
 			} else {
-				result = ThrowException(Exception::Error(syb_err_wrong_arguments));
+				result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_WRONG_ARGUMENTS)));
 			}
 		}
-		return scope.Close(result);
+		args.GetReturnValue().Set(result);
 	}
-	static Handle<Value> jsAsync(const Arguments& args) {
-		HandleScope scope;
-		Handle<Value> result;
+	static void jsAsync(const FunctionCallbackInfo<Value>& args) {
+		Isolate *isolate = args.GetIsolate();
+		HandleScope scope(isolate);
+		Local<Value> result;
 		if (args.IsConstructCall()) {
-			result = ThrowException(Exception::Error(syb_err_not_a_constructor));
+			result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_NOT_A_CONSTRUCTOR)));
 		} else {
 			if (args.Length() > 1 && (args[0]->IsString() || args[0]->IsStringObject()) && args[1]->IsFunction()) {
 				workdata *data = new workdata;
 				data->req.data = data;
-				data->self = Persistent<Object>::New(args.This());
-				data->func = Persistent<Function>::New(Handle<Function>::Cast(args[1]));
+				data->self.Reset(isolate, args.This());
+				data->func.Reset(isolate, Local<Function>::Cast(args[1]));
 				data->islong = args[2]->ToBoolean()->IsTrue();
 				String::Value p(args[0]);
 				data->path = _wcsdup((wchar_t*)*p);
 				if (uv_queue_work(uv_default_loop(), &data->req, beginWork, afterWork) == 0) {
-					result = True();
+					result = True(isolate);
 				} else {
 					free(data->path);
-					data->self.Dispose();
-					data->func.Dispose();
+					data->self.Reset();
+					data->func.Reset();
 					delete data;
-					result = False();
+					result = False(isolate);
 				}
 			} else {
-				result = ThrowException(Exception::Error(syb_err_wrong_arguments));
+				result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_WRONG_ARGUMENTS)));
 			}
 		}
-		return scope.Close(result);
+		args.GetReturnValue().Set(result);
 	}
 	static void beginWork(uv_work_t *req) {
 		workdata *data = (workdata*)req->data;
@@ -100,20 +104,19 @@ private:
 		data->path = p;
 	}
 	static void afterWork(uv_work_t *req, int status) {
-		HandleScope scope;
+		Isolate *isolate = Isolate::GetCurrent();
+		HandleScope scope(isolate);
 		workdata *data = (workdata*)req->data;
-		Handle<Value> p;
+		Local<Value> p;
 		if (data->path) {
-			p = String::New((uint16_t*)data->path);
+			p = String::NewFromTwoByte(isolate, (uint16_t*)data->path);
 			free(data->path);
 		} else {
-			p = String::NewSymbol("");
+			p = String::Empty(isolate);
 		}
-		data->func->Call(data->self, 1, &p);
-		data->func.Dispose();
-		data->self.Dispose();
+		Local<Function>::New(isolate, data->func)->Call(Local<Object>::New(isolate, data->self), 1, &p);
+		data->func.Reset();
+		data->self.Reset();
 		delete data;
 	}
 };
-const Persistent<String> convertPath::syb_err_wrong_arguments = global_syb_err_wrong_arguments;
-const Persistent<String> convertPath::syb_err_not_a_constructor = global_syb_err_not_a_constructor;

@@ -3,8 +3,6 @@
 
 class setShortName {
 private:
-	static const Persistent<String> syb_err_wrong_arguments;
-	static const Persistent<String> syb_err_not_a_constructor;
 	static const struct workdata {
 		uv_work_t req;
 		Persistent<Object> self;
@@ -30,88 +28,88 @@ public:
 		return result;
 	}
 	static Handle<Boolean> js(const Handle<String> path, const Handle<String> newname) {
-		HandleScope scope;
+		Isolate *isolate = Isolate::GetCurrent();
+		EscapableHandleScope scope(isolate);
 		String::Value p(path);
 		String::Value n(newname);
-		Handle<Boolean> result = basic((wchar_t*)*p, (wchar_t*)*n) ? True() : False();
-		return scope.Close(result);
+		Local<Boolean> result = basic((wchar_t*)*p, (wchar_t*)*n) ? True(isolate) : False(isolate);
+		return scope.Escape(result);
 	}
 	static Handle<Function> functionRegister(bool isAsyncVersion) {
-		HandleScope scope;
-		Handle<FunctionTemplate> t = FunctionTemplate::New(isAsyncVersion ? jsAsync : jsSync);
+		Isolate *isolate = Isolate::GetCurrent();
+		EscapableHandleScope scope(isolate);
+		Local<String> tmp;
+		Local<FunctionTemplate> t = FunctionTemplate::New(isolate, isAsyncVersion ? jsAsync : jsSync);
 
 		//set errmessages
-		Handle<Object> errors = Object::New();
-		errors->Set(syb_err_wrong_arguments, syb_err_wrong_arguments, global_syb_attr_const);
-		errors->Set(syb_err_not_a_constructor, syb_err_not_a_constructor, global_syb_attr_const);
-		t->Set(String::NewSymbol("errors"), errors, global_syb_attr_const);
+		Local<Object> errors = Object::New(isolate);
+		tmp = String::NewFromOneByte(isolate, SYB_ERR_WRONG_ARGUMENTS);
+		errors->Set(tmp, tmp, SYB_ATTR_CONST);
+		tmp = String::NewFromOneByte(isolate, SYB_ERR_NOT_A_CONSTRUCTOR);
+		errors->Set(tmp, tmp, SYB_ATTR_CONST);
+		t->Set(String::NewFromOneByte(isolate, SYB_ERRORS), errors, SYB_ATTR_CONST);
 
-		return scope.Close(t->GetFunction());
+		return scope.Escape(t->GetFunction());
 	}
 private:
-	static Handle<Value> jsSync(const Arguments& args) {
-		HandleScope scope;
-		Handle<Value> result;
+	static void jsSync(const FunctionCallbackInfo<Value>& args) {
+		Isolate *isolate = args.GetIsolate();
+		HandleScope scope(isolate);
+		Local<Value> result;
 		if (args.IsConstructCall()) {
-			result = ThrowException(Exception::Error(syb_err_not_a_constructor));
+			result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_NOT_A_CONSTRUCTOR)));
 		} else {
 			if (args.Length() > 0 && (args[0]->IsString() || args[0]->IsStringObject())) {
-				Handle<String> newname;
+				Local<String> newname;
 				if (args[1]->IsString() || args[1]->IsStringObject()) {
-					newname = Handle<String>::Cast(args[1]);
+					newname = Local<String>::Cast(args[1]);
 				} else {
-					newname = String::NewSymbol("");
+					newname = String::Empty(isolate);
 				}
-				result = js(Handle<String>::Cast(args[0]), newname);
+				result = js(Local<String>::Cast(args[0]), newname);
 			} else {
-				result = ThrowException(Exception::Error(syb_err_wrong_arguments));
+				result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_WRONG_ARGUMENTS)));
 			}
 		}
-		return scope.Close(result);
+		args.GetReturnValue().Set(result);
 	}
-	static Handle<Value> jsAsync(const Arguments& args) {
-		HandleScope scope;
-		Handle<Value> result;
+	static void jsAsync(const FunctionCallbackInfo<Value>& args) {
+		Isolate *isolate = args.GetIsolate();
+		HandleScope scope(isolate);
+		Local<Value> result;
 		if (args.IsConstructCall()) {
-			result = ThrowException(Exception::Error(syb_err_not_a_constructor));
+			result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_NOT_A_CONSTRUCTOR)));
 		} else {
-			if (args.Length() > 0 && (args[0]->IsString() || args[0]->IsStringObject())) {
+			if (args.Length() > 1) {
 				workdata *data = new workdata;
 				data->req.data = data;
-				data->self = Persistent<Object>::New(args.This());
-				if (args.Length() > 1) {
-					if (args[1]->IsString() || args[1]->IsStringObject()) {
-						String::Value n(Local<String>::Cast(args[1]));
-						data->newname = _wcsdup((wchar_t*)*n);
-						if (args.Length() > 2 && args[2]->IsFunction()) {
-							data->func = Persistent<Function>::New(Handle<Function>::Cast(args[2]));
-						}
-					} else if (args[1]->IsFunction()) {
-						data->newname = NULL;
-						data->func = Persistent<Function>::New(Handle<Function>::Cast(args[1]));
-					} else {
-						data->newname = NULL;
-					}
-				}
-				String::Value p(Local<String>::Cast(args[0]));
+				String::Value p(args[0]->ToString());
 				data->path = _wcsdup((wchar_t*)*p);
+				String::Value n(args[1]->ToString());
+				data->newname = _wcsdup((wchar_t*)*n);
+				if (args.Length() > 2 && args[2]->IsFunction()) {
+					data->self.Reset(isolate, args.This());
+					data->func.Reset(isolate, Local<Function>::Cast(args[2]));
+				}
 				if (uv_queue_work(uv_default_loop(), &data->req, beginWork, afterWork) == 0) {
-					result = True();
+					result = True(isolate);
 				} else {
 					free(data->path);
 					if (data->newname) {
 						free(data->newname);
 					}
 					if (!data->func.IsEmpty()) {
-						data->func.Dispose();
+						data->func.Reset();
+						data->self.Reset();
 					}
-					data->self.Dispose();
 					delete data;
-					result = False();
+					result = False(isolate);
 				}
+			} else {
+				result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_WRONG_ARGUMENTS)));
 			}
 		}
-		return scope.Close(result);
+		args.GetReturnValue().Set(result);
 	}
 	static void beginWork(uv_work_t *req) {
 		workdata *data = (workdata*)req->data;
@@ -122,16 +120,15 @@ private:
 		}
 	}
 	static void afterWork(uv_work_t *req, int status) {
-		HandleScope scope;
+		Isolate *isolate = Isolate::GetCurrent();
+		HandleScope scope(isolate);
 		workdata *data = (workdata*)req->data;
-		Handle<Value> p = data->result ? True() : False();
+		Local<Value> p = data->result ? True(isolate) : False(isolate);
 		if (!data->func.IsEmpty()) {
-			data->func->Call(data->self, 1, &p);
-			data->func.Dispose();
+			Local<Function>::New(isolate, data->func)->Call(Local<Object>::New(isolate, data->self), 1, &p);
+			data->func.Reset();
+			data->self.Reset();
 		}
-		data->self.Dispose();
 		delete data;
 	}
 };
-const Persistent<String> setShortName::syb_err_wrong_arguments = global_syb_err_wrong_arguments;
-const Persistent<String> setShortName::syb_err_not_a_constructor = global_syb_err_not_a_constructor;

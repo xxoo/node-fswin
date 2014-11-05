@@ -1,6 +1,27 @@
 #pragma once
 #include "main.h"
+#include "find.h"
 #include "splitPath.h"
+
+#define SYB_OPT_SUBDIRS (uint8_t*)"WATCH_SUB_DIRECTORIES"
+#define SYB_OPT_FILESIZE (uint8_t*)"CHANGE_FILE_SIZE"
+#define SYB_OPT_LASTWRITE (uint8_t*)"CHANGE_LAST_WRITE"
+#define SYB_OPT_LASTACCESS (uint8_t*)"CHANGE_LAST_ACCESS"
+#define SYB_OPT_CREATION (uint8_t*)"CHANGE_CREATION"
+#define SYB_OPT_ATTRIBUTES (uint8_t*)"CHANGE_ATTRIBUTES"
+#define SYB_OPT_SECURITY (uint8_t*)"CHANGE_SECUTITY"
+#define SYB_EVT_STA (uint8_t*)"STARTED"
+#define SYB_EVT_NEW (uint8_t*)"ADDED"
+#define SYB_EVT_DEL (uint8_t*)"REMOVED"
+#define SYB_EVT_CHG (uint8_t*)"MODIFIED"
+#define SYB_EVT_REN (uint8_t*)"RENAMED"
+#define SYB_EVT_MOV (uint8_t*)"MOVED"
+#define SYB_EVT_REN_OLDNAME (uint8_t*)"OLD_NAME"
+#define SYB_EVT_REN_NEWNAME (uint8_t*)"NEW_NAME"
+#define SYB_ERR_UNABLE_TO_WATCH_SELF (uint8_t*)"UNABLE_TO_WATCH_SELF"
+#define SYB_ERR_UNABLE_TO_CONTINUE_WATCHING (uint8_t*)"UNABLE_TO_CONTINUE_WATCHING"
+
+#define SYB_BUFFERSIZE 64 * 1024
 
 //dirWatcher requires vista or latter to call GetFinalPathNameByHandleW.
 //the API is necessary since the dir we are watching could also be moved to another path.
@@ -11,403 +32,417 @@ class dirWatcher:ObjectWrap {
 private:
 	HANDLE pathhnd;
 	HANDLE parenthnd;
-	uv_work_t pathreq;
-	uv_work_t *parentreq;
-	DWORD pathref;
+	uv_async_t uvpathhnd;
+	uv_async_t uvparenthnd;
+	BOOL watchingParent;
+	BOOL watchingPath;
+	bool subDirs;
 	DWORD options;
-	BOOL subDirs;
+	wchar_t *oldName;
+	wchar_t *newName;
+	wchar_t *shortName;
+	wchar_t *longName;
+	Persistent<Function> callback;
 	void *pathbuffer;
-	void *parentbuffer;
-	Persistent<Object> definitions;//to store global v8 types
-	static const size_t bufferSize = 64 * 1024;
-	static const Persistent<String> syb_path;
-	static const Persistent<String> syb_shortName;
-	static const Persistent<String> syb_callback;
-	static const Persistent<String> syb_opt_subDirs;
-	static const Persistent<String> syb_opt_fileSize;
-	static const Persistent<String> syb_opt_creation;
-	static const Persistent<String> syb_opt_lastWrite;
-	static const Persistent<String> syb_opt_lastAccess;
-	static const Persistent<String> syb_opt_attributes;
-	static const Persistent<String> syb_opt_security;
-	static const Persistent<String> syb_evt_sta;
-	static const Persistent<String> syb_evt_end;
-	static const Persistent<String> syb_evt_new;
-	static const Persistent<String> syb_evt_del;
-	static const Persistent<String> syb_evt_ren;
-	static const Persistent<String> syb_evt_chg;
-	static const Persistent<String> syb_evt_mov;
-	static const Persistent<String> syb_evt_err;
-	static const Persistent<String> syb_evt_ren_oldName;
-	static const Persistent<String> syb_evt_ren_newName;
-	static const Persistent<String> syb_err_unable_to_watch_parent;
-	static const Persistent<String> syb_err_unable_to_continue_watching;
-	static const Persistent<String> syb_err_initialization_failed;
-	static const Persistent<String> syb_err_wrong_arguments;
+	BYTE parentbuffer[SYB_BUFFERSIZE];
 public:
-	dirWatcher(Handle<Object> handle, Handle<Value> *args, uint32_t argc):ObjectWrap() {
-		HandleScope scope;
-		if (argc > 1 && (args[0]->IsString() || args[0]->IsStringObject()) && args[1]->IsFunction()) {
-			bool e = false;
-			Wrap(handle);
-			Ref();
-			definitions = Persistent<Object>::New(Object::New());
-			definitions->Set(syb_callback, args[1]);
-			String::Value spath(args[0]);
-			pathhnd = CreateFileW((wchar_t*)*spath, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, NULL);
-			if (pathhnd == INVALID_HANDLE_VALUE) {
-				e = true;
-			} else {
-				memset(&pathreq, 0, sizeof(uv_work_t));
-				pathreq.loop = uv_default_loop();
-				if (CreateIoCompletionPort(pathhnd, pathreq.loop->iocp, (ULONG_PTR)pathhnd, 0)) {
-					pathref = 0;
-					pathreq.type = UV_WORK;
-					pathreq.data = this;
-					pathreq.after_work_cb = finishWatchingPath;
-					subDirs = TRUE;
-					options = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE;
-					if (argc > 2 && args[2]->IsObject()) {
-						Handle<Object> iopt = Handle<Object>::Cast(args[2]);
-						if (iopt->HasOwnProperty(syb_opt_subDirs) && iopt->Get(syb_opt_subDirs)->ToBoolean()->IsFalse()) {
-							subDirs = FALSE;
-						}
-						if (iopt->HasOwnProperty(syb_opt_fileSize) && iopt->Get(syb_opt_fileSize)->ToBoolean()->IsFalse()) {
-							options ^= FILE_NOTIFY_CHANGE_SIZE;
-						}
-						if (iopt->HasOwnProperty(syb_opt_lastWrite) && iopt->Get(syb_opt_lastWrite)->ToBoolean()->IsFalse()) {
-							options ^= FILE_NOTIFY_CHANGE_LAST_WRITE;
-						}
-						if (iopt->Get(syb_opt_lastAccess)->ToBoolean()->IsTrue()) {
-							options |= FILE_NOTIFY_CHANGE_LAST_ACCESS;
-						}
-						if (iopt->Get(syb_opt_creation)->ToBoolean()->IsTrue()) {
-							options |= FILE_NOTIFY_CHANGE_CREATION;
-						}
-						if (iopt->Get(syb_opt_attributes)->ToBoolean()->IsTrue()) {
-							options |= FILE_NOTIFY_CHANGE_ATTRIBUTES;
-						}
-						if (iopt->Get(syb_opt_security)->ToBoolean()->IsTrue()) {
-							options |= FILE_NOTIFY_CHANGE_SECURITY;
+	dirWatcher(Handle<Object> handle, wchar_t *spath, Handle<Function> cb, bool watchSubDirs, DWORD opts):ObjectWrap() {
+		Isolate *isolate = Isolate::GetCurrent();
+		HandleScope scope(isolate);
+		Wrap(handle);
+		Ref();
+		bool mute = false;
+		watchingParent = watchingPath = FALSE;
+		uvpathhnd = uvparenthnd = {0};
+		wchar_t *realPath = oldName = newName = longName = shortName = NULL;
+		parenthnd = INVALID_HANDLE_VALUE;
+		callback.Reset(isolate, cb);
+		pathhnd = CreateFileW(spath, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, NULL);
+		if (pathhnd != INVALID_HANDLE_VALUE) {
+			uv_loop_t *loop = uv_default_loop();
+			if (CreateIoCompletionPort(pathhnd, loop->iocp, (ULONG_PTR)pathhnd, 0)) {
+				subDirs = watchSubDirs;
+				options = opts;
+				uv_async_init(loop, &uvpathhnd, finishWatchingPath);
+				//uvpathhnd.async_req.type = UV_WAKEUP;
+				//std::wcout << (uvpathhnd.async_req.data) << std::endl;
+				uvpathhnd.data = this;
+				beginWatchingPath(this);
+				if (watchingPath) {
+					uv_async_init(loop, &uvparenthnd, finishWatchingParent);
+					uvparenthnd.data = this;
+					realPath = getCurrentPathByHandle(pathhnd);
+					if (realPath) {
+						mute = watchParent(this, realPath);
+						if (parenthnd != INVALID_HANDLE_VALUE) {
+							beginWatchingParent(this);
 						}
 					}
-					if (beginWatchingPath(this)) {
-						Handle<String> path = getCurrentPathByHandle(pathhnd);//get the real path, it could be defferent from args[0]
-						if (path->Length() > 0) {
-							definitions->Set(syb_path, path);
-							if (Handle<String>::Cast(splitPath::js(path)->Get(splitPath::syb_return_parent))->Length() > 0) {//path is not a rootdir, so we need to watch its parent to know if the path we are watching has been changed
-								definitions->Set(syb_shortName, splitPath::js(convertPath::js(path, false))->Get(splitPath::syb_return_name));//we also need the shortname to makesure the event will be captured
-								if (!watchParent(this)) {
-									e = true;
-								}
-							} else {
-								parenthnd = INVALID_HANDLE_VALUE;
-							}
-						} else {
-							path = Handle<String>::Cast(args[0]);
-							e = true;//the error is always fired in winxp and earlier since we can not get the real path
-						}
-						callJs(this, syb_evt_sta, path);
-						if (e) {
-							callJs(this, syb_evt_err, syb_err_unable_to_watch_parent);
-							e = false;
-						}
-					} else {
-						e = true;
-					}
-				} else {
-					e = true;
 				}
 			}
-			if (e) {
-				callJs(this, syb_evt_err, syb_err_initialization_failed);
-				stopWatching(this);
+		}
+		if (watchingPath) {
+			if (realPath) {
+				callJs(this, SYB_EVT_STA, String::NewFromTwoByte(isolate, (uint16_t*)realPath));
+				free(realPath);
+			} else {
+				callJs(this, SYB_EVT_STA, String::NewFromTwoByte(isolate, (uint16_t*)spath));
+			}
+			if (!mute && !watchingParent) {
+				callJs(this, SYB_EVT_ERR, String::NewFromOneByte(isolate, SYB_ERR_UNABLE_TO_WATCH_SELF));
 			}
 		} else {
-			ThrowException(Exception::Error(syb_err_wrong_arguments));
-			delete this;
+			stopWatching(this, true);
+			callJs(this, SYB_EVT_ERR, String::NewFromOneByte(isolate, SYB_ERR_INITIALIZATION_FAILED));
 		}
 	}
 	virtual ~dirWatcher() {
-		if (!definitions.IsEmpty()) {
-			definitions.Dispose();
-			definitions.Clear();
-		}
+		callback.Reset();
+		Unref();
 	}
 	static Handle<Function> functionRegister() {
-		HandleScope scope;
-		Handle<FunctionTemplate> t = FunctionTemplate::New(New);
+		Isolate *isolate = Isolate::GetCurrent();
+		EscapableHandleScope scope(isolate);
+		Local<String> tmp;
+		Local<FunctionTemplate> t = FunctionTemplate::New(isolate, New);
 		t->InstanceTemplate()->SetInternalFieldCount(1);
 		//set methods
 		NODE_SET_PROTOTYPE_METHOD(t, "close", close);
 
 		//set error messages
-		Handle<Object> errmsgs = Object::New();
-		errmsgs->Set(syb_err_unable_to_watch_parent, syb_err_unable_to_watch_parent, global_syb_attr_const);
-		errmsgs->Set(syb_err_unable_to_continue_watching, syb_err_unable_to_continue_watching, global_syb_attr_const);
-		errmsgs->Set(syb_err_initialization_failed, syb_err_initialization_failed, global_syb_attr_const);
-		errmsgs->Set(syb_err_wrong_arguments, syb_err_wrong_arguments, global_syb_attr_const);
-		t->Set(String::NewSymbol("errors"), errmsgs, global_syb_attr_const);
+		Local<Object> errmsgs = Object::New(isolate);
+		tmp = String::NewFromOneByte(isolate, SYB_ERR_UNABLE_TO_WATCH_SELF);
+		errmsgs->Set(tmp, tmp, SYB_ATTR_CONST);
+		tmp = String::NewFromOneByte(isolate, SYB_ERR_UNABLE_TO_CONTINUE_WATCHING);
+		errmsgs->Set(tmp, tmp, SYB_ATTR_CONST);
+		tmp = String::NewFromOneByte(isolate, SYB_ERR_INITIALIZATION_FAILED);
+		errmsgs->Set(tmp, tmp, SYB_ATTR_CONST);
+		tmp = String::NewFromOneByte(isolate, SYB_ERR_WRONG_ARGUMENTS);
+		errmsgs->Set(tmp, tmp, SYB_ATTR_CONST);
+		t->Set(String::NewFromOneByte(isolate, SYB_ERRORS), errmsgs, SYB_ATTR_CONST);
 
 		//set events
-		Handle<Object> evts = Object::New();
-		evts->Set(syb_evt_sta, syb_evt_sta, global_syb_attr_const);
-		evts->Set(syb_evt_end, syb_evt_end, global_syb_attr_const);
-		evts->Set(syb_evt_new, syb_evt_new, global_syb_attr_const);
-		evts->Set(syb_evt_del, syb_evt_del, global_syb_attr_const);
-		evts->Set(syb_evt_ren, syb_evt_ren, global_syb_attr_const);
-		evts->Set(syb_evt_chg, syb_evt_chg, global_syb_attr_const);
-		evts->Set(syb_evt_mov, syb_evt_mov, global_syb_attr_const);
-		evts->Set(syb_evt_err, syb_evt_err, global_syb_attr_const);
-		t->Set(String::NewSymbol("events"), evts, global_syb_attr_const);
+		Local<Object> evts = Object::New(isolate);
+		tmp = String::NewFromOneByte(isolate, SYB_EVT_STA);
+		evts->Set(tmp, tmp, SYB_ATTR_CONST);
+		tmp = String::NewFromOneByte(isolate, SYB_EVT_END);
+		evts->Set(tmp, tmp, SYB_ATTR_CONST);
+		tmp = String::NewFromOneByte(isolate, SYB_EVT_NEW);
+		evts->Set(tmp, tmp, SYB_ATTR_CONST);
+		tmp = String::NewFromOneByte(isolate, SYB_EVT_DEL);
+		evts->Set(tmp, tmp, SYB_ATTR_CONST);
+		tmp = String::NewFromOneByte(isolate, SYB_EVT_REN);
+		evts->Set(tmp, tmp, SYB_ATTR_CONST);
+		tmp = String::NewFromOneByte(isolate, SYB_EVT_CHG);
+		evts->Set(tmp, tmp, SYB_ATTR_CONST);
+		tmp = String::NewFromOneByte(isolate, SYB_EVT_CHG);
+		evts->Set(tmp, tmp, SYB_ATTR_CONST);
+		tmp = String::NewFromOneByte(isolate, SYB_EVT_ERR);
+		evts->Set(tmp, tmp, SYB_ATTR_CONST);
+		t->Set(String::NewFromOneByte(isolate, SYB_EVENTS), evts, SYB_ATTR_CONST);
 
 		//set options
-		Handle<Object> opts = Object::New();
-		opts->Set(syb_opt_subDirs, syb_opt_subDirs, global_syb_attr_const);
-		opts->Set(syb_opt_fileSize, syb_opt_fileSize, global_syb_attr_const);
-		opts->Set(syb_opt_lastWrite, syb_opt_lastWrite, global_syb_attr_const);
-		opts->Set(syb_opt_lastAccess, syb_opt_lastAccess, global_syb_attr_const);
-		opts->Set(syb_opt_creation, syb_opt_creation, global_syb_attr_const);
-		opts->Set(syb_opt_attributes, syb_opt_attributes, global_syb_attr_const);
-		opts->Set(syb_opt_security, syb_opt_security, global_syb_attr_const);
-		t->Set(String::NewSymbol("options"), opts, global_syb_attr_const);
+		Local<Object> opts = Object::New(isolate);
+		tmp = String::NewFromOneByte(isolate, SYB_OPT_SUBDIRS);
+		opts->Set(tmp, tmp, SYB_ATTR_CONST);
+		tmp = String::NewFromOneByte(isolate, SYB_OPT_FILESIZE);
+		opts->Set(tmp, tmp, SYB_ATTR_CONST);
+		tmp = String::NewFromOneByte(isolate, SYB_OPT_LASTWRITE);
+		opts->Set(tmp, tmp, SYB_ATTR_CONST);
+		tmp = String::NewFromOneByte(isolate, SYB_OPT_LASTACCESS);
+		opts->Set(tmp, tmp, SYB_ATTR_CONST);
+		tmp = String::NewFromOneByte(isolate, SYB_OPT_CREATION);
+		opts->Set(tmp, tmp, SYB_ATTR_CONST);
+		tmp = String::NewFromOneByte(isolate, SYB_OPT_ATTRIBUTES);
+		opts->Set(tmp, tmp, SYB_ATTR_CONST);
+		tmp = String::NewFromOneByte(isolate, SYB_OPT_SECURITY);
+		opts->Set(tmp, tmp, SYB_ATTR_CONST);
+		t->Set(String::NewFromOneByte(isolate, SYB_OPTIONS), evts, SYB_ATTR_CONST);
 
-		return scope.Close(t->GetFunction());
+		return scope.Escape(t->GetFunction());
 	}
 private:
-	static Handle<Value> New(const Arguments& args) {
-		HandleScope scope;
-		uint32_t i, l = args.Length();
-		Handle<Value> *a = (Handle<Value>*)malloc(sizeof(Local<Value>)*l);
-		Handle<Value> r;
-		for (i = 0; i < l; i++) {
-			a[i] = args[i];
-		}
-		if (args.IsConstructCall()) {
-			Handle<Object> obj = args.This();
-			new dirWatcher(obj, a, l);
-			r = obj;
+	static void New(const FunctionCallbackInfo<Value>& args) {
+		Isolate *isolate = args.GetIsolate();
+		HandleScope scope(isolate);
+		Local<Value> r;
+		if (args.Length() > 1 && args[0]->IsString() || args[0]->IsStringObject() && args[1]->IsFunction()) {
+			if (args.IsConstructCall()) {
+				DWORD options = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE;
+				bool subDirs = true;
+				if (args.Length() > 2 && args[2]->IsObject()) {
+					Local<Object> iopt = Handle<Object>::Cast(args[2]);
+					Local<String> tmp = String::NewFromOneByte(isolate, SYB_OPT_SUBDIRS);
+					if (iopt->HasOwnProperty(tmp) && iopt->Get(tmp)->ToBoolean()->IsFalse()) {
+						subDirs = false;
+					}
+					tmp = String::NewFromOneByte(isolate, SYB_OPT_FILESIZE);
+					if (iopt->HasOwnProperty(tmp) && iopt->Get(tmp)->ToBoolean()->IsFalse()) {
+						options ^= FILE_NOTIFY_CHANGE_SIZE;
+					}
+					tmp = String::NewFromOneByte(isolate, SYB_OPT_LASTWRITE);
+					if (iopt->HasOwnProperty(tmp) && iopt->Get(tmp)->ToBoolean()->IsFalse()) {
+						options ^= FILE_NOTIFY_CHANGE_LAST_WRITE;
+					}
+					if (iopt->Get(String::NewFromOneByte(isolate, SYB_OPT_LASTACCESS))->ToBoolean()->IsTrue()) {
+						options |= FILE_NOTIFY_CHANGE_LAST_ACCESS;
+					}
+					if (iopt->Get(String::NewFromOneByte(isolate, SYB_OPT_CREATION))->ToBoolean()->IsTrue()) {
+						options |= FILE_NOTIFY_CHANGE_CREATION;
+					}
+					if (iopt->Get(String::NewFromOneByte(isolate, SYB_OPT_ATTRIBUTES))->ToBoolean()->IsTrue()) {
+						options |= FILE_NOTIFY_CHANGE_ATTRIBUTES;
+					}
+					if (iopt->Get(String::NewFromOneByte(isolate, SYB_OPT_SECURITY))->ToBoolean()->IsTrue()) {
+						options |= FILE_NOTIFY_CHANGE_SECURITY;
+					}
+				}
+				String::Value s(args[0]);
+				new dirWatcher(args.This(), (wchar_t*)*s, Local<Function>::Cast(args[1]), subDirs, options);
+				r = args.This();
+			} else {
+				if (args.Length() > 2) {
+					Local<Value> v[3] = {args[0], args[1], args[2]};
+					r = args.Callee()->CallAsConstructor(3, v);
+				} else {
+					Local<Value> v[2] = {args[0], args[1]};
+					r = args.Callee()->CallAsConstructor(2, v);
+				}
+			}
 		} else {
-			r = args.Callee()->CallAsConstructor(l, a);
+			r = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_WRONG_ARGUMENTS)));
 		}
-		free(a);
-		return scope.Close(r);
+		args.GetReturnValue().Set(r);
 	}
-	static Handle<Value> close(const Arguments& args) {
-		HandleScope scope;
-		Handle<Value> result;
+	static void close(const FunctionCallbackInfo<Value>& args) {
+		Isolate *isolate = args.GetIsolate();
+		EscapableHandleScope scope(isolate);
+		Local<Value> result;
 		dirWatcher *self = Unwrap<dirWatcher>(args.This());
 		if (self->pathhnd == INVALID_HANDLE_VALUE) {
-			result = False();//this method returns false if dirWatcher is failed to create or already closed
+			result = False(isolate);//this method returns false if dirWatcher is failed to create or already closed
 		} else {
 			stopWatching(self);
-			result = True();
+			result = True(isolate);
 		}
-		return scope.Close(result);
+		args.GetReturnValue().Set(result);
 	}
-	static bool watchParent(dirWatcher *self) {
-		bool result;
-		self->parentreq = (uv_work_t*)malloc(sizeof(uv_work_t));
-		if (self->parentreq) {
-			memset(self->parentreq, 0, sizeof(uv_work_t));
-			self->parentreq->loop = self->pathreq.loop;
-			self->parentreq->data = self;
-			self->parentreq->after_work_cb = finishWatchingParent;
-			self->parentreq->type = UV_WORK;
-			String::Value parent(splitPath::js(Handle<String>::Cast(self->definitions->Get(syb_path)))->Get(splitPath::syb_return_parent));
-			self->parenthnd = CreateFileW((wchar_t*)*parent, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, NULL);
-			if (self->parenthnd == INVALID_HANDLE_VALUE) {
-				result = false;
+	static void savePath(dirWatcher *self, wchar_t *realPath) {
+		if (self->shortName) {
+			free(self->shortName);
+			self->shortName = NULL;
+		}
+		if (self->longName) {
+			free(self->longName);
+			self->longName = NULL;
+		}
+		find::resultData *fr = find::basic(realPath);
+		if (fr) {
+			self->longName = _wcsdup(fr->data.cFileName);
+			if (wcslen(fr->data.cAlternateFileName) > 0 && wcscmp(fr->data.cFileName, fr->data.cAlternateFileName) != 0) {
+				self->shortName = _wcsdup(fr->data.cAlternateFileName);
+			}
+			delete fr;
+		}
+	}
+	static bool watchParent(dirWatcher *self, wchar_t *realPath) {//return true means no need to fire UNABLE_TO_WATCH_SELF
+		bool result = false;
+		if (self->parenthnd != INVALID_HANDLE_VALUE) {
+			CloseHandle(self->parenthnd);
+			self->parenthnd = INVALID_HANDLE_VALUE;
+		}
+		splitPath::splitedPath *sp = splitPath::basic(realPath);
+		if (sp) {
+			if (sp->parentLen == 0) {
+				result = true;
 			} else {
-				if (CreateIoCompletionPort(self->parenthnd, self->parentreq->loop->iocp, (ULONG_PTR)self->parenthnd, 0)) {
-					result = beginWatchingParent(self);
-				} else {
-					CloseHandle(self->parenthnd);
-					result = false;
+				savePath(self, realPath);
+				if (self->longName) {
+					wchar_t *parent = new wchar_t[sp->parentLen + 1];
+					wcsncpy_s(parent, sp->parentLen + 1, realPath, sp->parentLen);
+					delete sp;
+					self->parenthnd = CreateFileW(parent, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, NULL);
+					delete parent;
+					if (self->parenthnd != INVALID_HANDLE_VALUE && !CreateIoCompletionPort(self->parenthnd, uv_default_loop()->iocp, (ULONG_PTR)self->parenthnd, 0)) {
+						CloseHandle(self->parenthnd);
+						self->parenthnd = INVALID_HANDLE_VALUE;
+					}
 				}
 			}
-		} else {
-			self->parenthnd = INVALID_HANDLE_VALUE;
-			result = false;
 		}
 		return result;
 	}
-	static bool beginWatchingParent(dirWatcher *self) {
-		bool result;
-		self->parentbuffer = malloc(bufferSize);
-		if (self->parentbuffer) {
-			if (ReadDirectoryChangesW(self->parenthnd, self->parentbuffer, bufferSize, FALSE, FILE_NOTIFY_CHANGE_DIR_NAME, NULL, &self->parentreq->overlapped, NULL)) {
-				ngx_queue_insert_tail(&self->parentreq->loop->active_reqs, &self->parentreq->active_queue);
-				result = true;
-			} else {
-				free(self->parentbuffer);
-				result = false;
-			}
-		} else {
-			result = false;
-		}
-		return result;
+	static void beginWatchingParent(dirWatcher *self) {
+		self->watchingParent = ReadDirectoryChangesW(self->parenthnd, self->parentbuffer, SYB_BUFFERSIZE, FALSE, FILE_NOTIFY_CHANGE_DIR_NAME, NULL, &self->uvparenthnd.async_req.overlapped, NULL);
 	}
-	static bool beginWatchingPath(dirWatcher *self) {
-		bool result;
-		self->pathbuffer = malloc(bufferSize);
+	static void beginWatchingPath(dirWatcher *self) {
+		self->pathbuffer = malloc(SYB_BUFFERSIZE);
 		if (self->pathbuffer) {
-			if (ReadDirectoryChangesW(self->pathhnd, self->pathbuffer, bufferSize, self->subDirs, self->options, NULL, &self->pathreq.overlapped, NULL)) {
-				ngx_queue_insert_tail(&self->pathreq.loop->active_reqs, &self->pathreq.active_queue);
-				self->pathref++;//since we've called ngx_queue_insert_tail once
-				result = true;
-			} else {
+			self->watchingPath = ReadDirectoryChangesW(self->pathhnd, self->pathbuffer, SYB_BUFFERSIZE, self->subDirs, self->options, NULL, &self->uvpathhnd.async_req.overlapped, NULL);
+			if (!self->watchingPath) {
 				free(self->pathbuffer);
-				result = false;
 			}
-		} else {
-			result = false;
 		}
-		return result;
 	}
-	static void finishWatchingParent(uv_work_t *req, int status) {
-		HandleScope scope;
-		dirWatcher *self = (dirWatcher*)req->data;
-		if (req != self->parentreq || self->parenthnd == INVALID_HANDLE_VALUE) {//this is the request we need to realase and it is ready to be released now
-			free(req);
-			if (self->pathhnd != INVALID_HANDLE_VALUE) {
-				callJs(self, syb_evt_end, Null());
-				self->Unref();
-			}
+	static void finishWatchingParent(uv_async_t *hnd) {
+		dirWatcher *self = (dirWatcher*)hnd->data;
+		self->watchingParent = FALSE;
+		if (self->parenthnd == INVALID_HANDLE_VALUE) {
+			uv_close((uv_handle_t*)&hnd, NULL);
+			checkWatchingStoped(self);
 		} else {
-			void *buffer = self->parentbuffer;
-			if (req->overlapped.Internal == ERROR_SUCCESS) {
+			Isolate *isolate = Isolate::GetCurrent();
+			HandleScope scope(isolate);
+			if (hnd->async_req.overlapped.Internal == ERROR_SUCCESS) {
+				wchar_t *newpath = NULL;
 				FILE_NOTIFY_INFORMATION *pInfo;
 				DWORD d = 0;
-				bool e = false;
-				if (!beginWatchingParent(self)) {
-					e = true;
-				}
-				Handle<Value> oldname = splitPath::js(Handle<String>::Cast(self->definitions->Get(syb_path)))->Get(splitPath::syb_return_name);
 				do {
-					pInfo = (FILE_NOTIFY_INFORMATION*)((ULONG_PTR)buffer + d);
-					Handle<String> filename = String::New((uint16_t*)pInfo->FileName, pInfo->FileNameLength / sizeof(wchar_t));
-					if ((pInfo->Action == FILE_ACTION_REMOVED || pInfo->Action == FILE_ACTION_RENAMED_OLD_NAME) && (filename->StrictEquals(oldname) || filename->StrictEquals(self->definitions->Get(syb_shortName)))) {
-						Handle<String> newpath = getCurrentPathByHandle(self->pathhnd);
-						self->definitions->Set(syb_path, newpath);
-						self->definitions->Set(syb_shortName, splitPath::js(convertPath::js(newpath, false))->Get(splitPath::syb_return_name));
-						if (pInfo->Action == FILE_ACTION_REMOVED) {
-							CloseHandle(self->parenthnd);
-							if (!watchParent(self)) {
-								e = true;
+					pInfo = (FILE_NOTIFY_INFORMATION*)((ULONG_PTR)self->parentbuffer + d);
+					if ((pInfo->Action == FILE_ACTION_RENAMED_OLD_NAME || pInfo->Action == FILE_ACTION_REMOVED) && wcsncmp(self->longName, pInfo->FileName, MAX(pInfo->FileNameLength / sizeof(wchar_t), wcslen(self->longName))) == 0 || (self->shortName && wcsncmp(self->shortName, pInfo->FileName, MAX(pInfo->FileNameLength / sizeof(wchar_t), wcslen(self->shortName))) == 0)) {
+						newpath = getCurrentPathByHandle(self->pathhnd);
+						//std::wcout << 123 << std::endl;
+						if (pInfo->Action == FILE_ACTION_RENAMED_OLD_NAME) {
+							savePath(self, newpath);
+							if (!self->longName) {
+								CloseHandle(self->parenthnd);
+								self->parenthnd = INVALID_HANDLE_VALUE;
 							}
+						} else{
+							watchParent(self, newpath);
 						}
-						callJs(self, syb_evt_mov, newpath);
-						break;//we've already got the new path
+						break;
 					}
 					d += pInfo->NextEntryOffset;
 				} while (pInfo->NextEntryOffset > 0);
-				if (e) {
-					callJs(self, syb_evt_err, syb_err_unable_to_watch_parent);
+				if (self->parenthnd != INVALID_HANDLE_VALUE) {
+					beginWatchingParent(self);
 				}
-			} else {
-				callJs(self, syb_evt_err, syb_err_unable_to_watch_parent);
-				CloseHandle(self->parenthnd);
-				self->parenthnd = INVALID_HANDLE_VALUE;
+				if (newpath) {
+					callJs(self, SYB_EVT_MOV, String::NewFromTwoByte(isolate, (uint16_t*)newpath));
+					free(newpath);
+				}
 			}
-			free(buffer);
+			if (!self->watchingParent) {
+				stopWatchingParent(self);
+				callJs(self, SYB_EVT_ERR, String::NewFromOneByte(isolate, SYB_ERR_UNABLE_TO_WATCH_SELF));
+			}
 		}
 	}
-	static void finishWatchingPath(uv_work_t *req, int status) {
-		HandleScope scope;
-		dirWatcher *self = (dirWatcher*)req->data;
-		void *buffer = self->pathbuffer;
-		self->pathref--;//ngx_queue_remove will be called when this function ends if there's no crash
-		if (req->overlapped.Internal == ERROR_SUCCESS) {
-			FILE_NOTIFY_INFORMATION *pInfo;
-			DWORD d = 0;
-			if (!beginWatchingPath(self)) {
-				callJs(self, syb_evt_err, syb_err_unable_to_continue_watching);
-			}
-			do {
-				pInfo = (FILE_NOTIFY_INFORMATION*)((ULONG_PTR)buffer + d);
-				Handle<String> filename = String::New((uint16_t*)pInfo->FileName, pInfo->FileNameLength / sizeof(wchar_t));
-				if (pInfo->Action == FILE_ACTION_ADDED) {
-					callJs(self, syb_evt_new, filename);
-				} else if (pInfo->Action == FILE_ACTION_REMOVED) {
-					callJs(self, syb_evt_del, filename);
-				} else if (pInfo->Action == FILE_ACTION_MODIFIED) {
-					callJs(self, syb_evt_chg, filename);
-				} else if (pInfo->Action == FILE_ACTION_RENAMED_OLD_NAME) {
-					if (self->definitions->HasOwnProperty(syb_evt_ren_newName)) {
-						Handle<Object> arg = Object::New();
-						arg->Set(syb_evt_ren_oldName, filename);
-						arg->Set(syb_evt_ren_newName, self->definitions->Get(syb_evt_ren_newName));
-						self->definitions->Delete(syb_evt_ren_newName);
-						callJs(self, syb_evt_ren, arg);
-					} else {
-						self->definitions->Set(syb_evt_ren_oldName, filename);
-					}
-				} else if (pInfo->Action == FILE_ACTION_RENAMED_NEW_NAME) {
-					if (self->definitions->HasOwnProperty(syb_evt_ren_oldName)) {
-						Handle<Object> arg = Object::New();
-						arg->Set(syb_evt_ren_oldName, self->definitions->Get(syb_evt_ren_oldName));
-						arg->Set(syb_evt_ren_newName, filename);
-						self->definitions->Delete(syb_evt_ren_oldName);
-						callJs(self, syb_evt_ren, arg);
-					} else {
-						self->definitions->Set(syb_evt_ren_newName, filename);
-					}
-				}
-				d += pInfo->NextEntryOffset;
-			} while (pInfo->NextEntryOffset > 0);
+	static void finishWatchingPath(uv_async_t *hnd) {
+		dirWatcher *self = (dirWatcher*)hnd->data;
+		self->watchingPath = FALSE;
+		if (self->pathhnd == INVALID_HANDLE_VALUE) {
+			uv_close((uv_handle_t*)&hnd, NULL);
+			free(self->pathbuffer);
+			checkWatchingStoped(self);
 		} else {
-			callJs(self, syb_evt_err, syb_err_unable_to_continue_watching);
-			stopWatching(self);
+			Isolate *isolate = Isolate::GetCurrent();
+			HandleScope scope(isolate);
+			bool e = false;
+			if (hnd->async_req.overlapped.Internal == ERROR_SUCCESS) {
+				FILE_NOTIFY_INFORMATION *pInfo;
+				void *buffer = self->pathbuffer;
+				beginWatchingPath(self);
+				DWORD d = 0;
+				do {
+					pInfo = (FILE_NOTIFY_INFORMATION*)((ULONG_PTR)buffer + d);
+					Local<String> filename = String::NewFromTwoByte(isolate, (uint16_t*)pInfo->FileName, String::kNormalString, pInfo->FileNameLength / sizeof(wchar_t));
+					if (pInfo->Action == FILE_ACTION_ADDED) {
+						callJs(self, SYB_EVT_NEW, filename);
+					} else if (pInfo->Action == FILE_ACTION_REMOVED) {
+						callJs(self, SYB_EVT_DEL, filename);
+					} else if (pInfo->Action == FILE_ACTION_MODIFIED) {
+						callJs(self, SYB_EVT_CHG, filename);
+					} else {
+						if (pInfo->Action == FILE_ACTION_RENAMED_OLD_NAME) {
+							if (self->newName) {
+								Local<Object> arg = Object::New(isolate);
+								arg->Set(String::NewFromOneByte(isolate, SYB_EVT_REN_OLDNAME), filename);
+								arg->Set(String::NewFromOneByte(isolate, SYB_EVT_REN_NEWNAME), String::NewFromTwoByte(isolate, (uint16_t*)self->newName));
+								delete self->newName;
+								self->newName = NULL;
+								callJs(self, SYB_EVT_REN, arg);
+							} else {
+								size_t sz = pInfo->FileNameLength + 1;
+								self->oldName = new wchar_t[sz];
+								wcscpy_s(self->oldName, sz, pInfo->FileName);
+							}
+						} else if (pInfo->Action == FILE_ACTION_RENAMED_NEW_NAME) {
+							if (self->oldName) {
+								Local<Object> arg = Object::New(isolate);
+								arg->Set(String::NewFromOneByte(isolate, SYB_EVT_REN_OLDNAME), filename);
+								arg->Set(String::NewFromOneByte(isolate, SYB_EVT_REN_NEWNAME), String::NewFromTwoByte(isolate, (uint16_t*)self->oldName));
+								delete self->oldName;
+								self->oldName = NULL;
+								callJs(self, SYB_EVT_REN, arg);
+							} else {
+								size_t sz = pInfo->FileNameLength + 1;
+								self->newName = new wchar_t[sz];
+								wcscpy_s(self->newName, sz, pInfo->FileName);
+							}
+						}
+					}
+					d += pInfo->NextEntryOffset;
+				} while (pInfo->NextEntryOffset > 0);
+				free(buffer);
+			}
+			if (!self->watchingPath) {
+				stopWatching(self);
+				callJs(self, SYB_EVT_ERR, String::NewFromOneByte(isolate, SYB_ERR_UNABLE_TO_CONTINUE_WATCHING));
+			}
 		}
-		free(buffer);
 	}
-	static void stopWatching(dirWatcher *self) {
+	static void stopWatching(dirWatcher *self, bool mute=false) {
 		if (self->pathhnd != INVALID_HANDLE_VALUE) {
 			CloseHandle(self->pathhnd);
 			self->pathhnd = INVALID_HANDLE_VALUE;
 		}
-		if (self->pathref > 0) {
-			self->pathreq.type = UV_UNKNOWN_REQ;//mute this request
-			ngx_queue_remove(&self->pathreq.active_queue);
-			self->pathref--;
+		if (self->newName) {
+			delete self->newName;
+			self->newName = NULL;
 		}
+		if (self->oldName) {
+			delete self->oldName;
+			self->oldName = NULL;
+		}
+		if (!self->watchingPath && uv_is_active((uv_handle_t*)&self->uvpathhnd)) {
+			uv_close((uv_handle_t*)&self->uvpathhnd, NULL);
+		}
+		stopWatchingParent(self);
+		if (!mute) {
+			checkWatchingStoped(self);
+		}
+	}
+	static void stopWatchingParent(dirWatcher *self) {
 		if (self->parenthnd != INVALID_HANDLE_VALUE) {
 			CloseHandle(self->parenthnd);
 			self->parenthnd = INVALID_HANDLE_VALUE;
-		} else {
-			callJs(self, syb_evt_end, Null());
-			self->Unref();
+		}
+		if (self->longName) {
+			free(self->longName);
+			self->longName = NULL;
+		}
+		if (self->shortName) {
+			free(self->shortName);
+			self->longName = NULL;
+		}
+		if (!self->watchingParent && uv_is_active((uv_handle_t*)&self->uvparenthnd)) {
+			uv_close((uv_handle_t*)&self->uvparenthnd, NULL);
 		}
 	}
-	static void callJs(dirWatcher *self, Persistent<String> evt_type, Handle<Value> src) {
-		HandleScope scope;
-		Handle<Value> arg[2] = {evt_type->ToString(), src};
-		Handle<Function> callback = Handle<Function>::Cast(self->definitions->Get(syb_callback));
-		callback->Call(self->handle_, 2, arg);
+	static void checkWatchingStoped(dirWatcher *self) {
+		if (!uv_is_active((uv_handle_t*)&self->uvpathhnd) && !uv_is_active((uv_handle_t*)&self->uvparenthnd)) {
+			Isolate *isolate = Isolate::GetCurrent();
+			HandleScope scope(isolate);
+			callJs(self, SYB_EVT_END, Undefined(isolate));
+		}
+	}
+	static void callJs(dirWatcher *self, uint8_t *evt_type, Handle<Value> src) {
+		Isolate *isolate = Isolate::GetCurrent();
+		HandleScope scope(isolate);
+		Local<Value> arg[2] = {String::NewFromOneByte(isolate, evt_type), src};
+		Local<Function> callback = Local<Function>::New(isolate, self->callback);
+		callback->Call(Local<Object>::New(isolate, self->persistent()), 2, arg);
 	}
 };
-const Persistent<String> dirWatcher::syb_path = NODE_PSYMBOL("PATH");
-const Persistent<String> dirWatcher::syb_shortName = NODE_PSYMBOL("SHORT_NAME");
-const Persistent<String> dirWatcher::syb_callback = NODE_PSYMBOL("CALLBACK");
-const Persistent<String> dirWatcher::syb_opt_subDirs = NODE_PSYMBOL("WATCH_SUB_DIRECTORIES");
-const Persistent<String> dirWatcher::syb_opt_fileSize = NODE_PSYMBOL("CHANGE_FILE_SIZE");
-const Persistent<String> dirWatcher::syb_opt_lastWrite = NODE_PSYMBOL("CHANGE_LAST_WRITE");
-const Persistent<String> dirWatcher::syb_opt_lastAccess = NODE_PSYMBOL("CHANGE_LAST_ACCESS");
-const Persistent<String> dirWatcher::syb_opt_creation = NODE_PSYMBOL("CHANGE_CREATION");
-const Persistent<String> dirWatcher::syb_opt_attributes = NODE_PSYMBOL("CHANGE_ATTRIBUTES");
-const Persistent<String> dirWatcher::syb_opt_security = NODE_PSYMBOL("CHANGE_SECUTITY");
-const Persistent<String> dirWatcher::syb_evt_sta = NODE_PSYMBOL("STARTED");
-const Persistent<String> dirWatcher::syb_evt_new = NODE_PSYMBOL("ADDED");
-const Persistent<String> dirWatcher::syb_evt_del = NODE_PSYMBOL("REMOVED");
-const Persistent<String> dirWatcher::syb_evt_chg = NODE_PSYMBOL("MODIFIED");
-const Persistent<String> dirWatcher::syb_evt_ren = NODE_PSYMBOL("RENAMED");
-const Persistent<String> dirWatcher::syb_evt_mov = NODE_PSYMBOL("MOVED");
-const Persistent<String> dirWatcher::syb_evt_end = global_syb_evt_end;
-const Persistent<String> dirWatcher::syb_evt_err = global_syb_evt_err;
-const Persistent<String> dirWatcher::syb_evt_ren_oldName = NODE_PSYMBOL("OLD_NAME");
-const Persistent<String> dirWatcher::syb_evt_ren_newName = NODE_PSYMBOL("NEW_NAME");
-const Persistent<String> dirWatcher::syb_err_unable_to_watch_parent = NODE_PSYMBOL("UNABLE_TO_WATCH_PARENT");
-const Persistent<String> dirWatcher::syb_err_unable_to_continue_watching = NODE_PSYMBOL("UNABLE_TO_CONTINUE_WATCHING");
-const Persistent<String> dirWatcher::syb_err_initialization_failed = global_syb_err_initialization_failed;
-const Persistent<String> dirWatcher::syb_err_wrong_arguments = global_syb_err_wrong_arguments;

@@ -5,8 +5,6 @@ class setCompression {
 public:
 	typedef void(*callbackFunc)(const bool result, void *data);
 private:
-	static const Persistent<String> syb_err_wrong_arguments;
-	static const Persistent<String> syb_err_not_a_constructor;
 	static const struct workdata {
 		Persistent<Object> self;
 		Persistent<Function> func;
@@ -39,21 +37,18 @@ public:
 		if (work->hnd == INVALID_HANDLE_VALUE) {
 			delete work;
 		} else {
-			uv_work_t *req = new uv_work_t;
-			memset(req, 0, sizeof(uv_work_t));
-			req->loop = uv_default_loop();
-			req->type = UV_WORK;
-			req->after_work_cb = afterWork;
-			req->data = work;
-			if (CreateIoCompletionPort(work->hnd, req->loop->iocp, (ULONG_PTR)req, 0)) {
+			uv_async_t *hnd = new uv_async_t;
+			uv_async_init(uv_default_loop(), hnd, afterWork);
+			hnd->data = work;
+			if (CreateIoCompletionPort(work->hnd, hnd->loop->iocp, (ULONG_PTR)hnd, 0)) {
 				USHORT c = compress ? COMPRESSION_FORMAT_DEFAULT : COMPRESSION_FORMAT_NONE;
-				DeviceIoControl(work->hnd, FSCTL_SET_COMPRESSION, &c, sizeof(USHORT), NULL, 0, NULL, &req->overlapped);
+				DeviceIoControl(work->hnd, FSCTL_SET_COMPRESSION, &c, sizeof(USHORT), NULL, 0, NULL, &hnd->async_req.overlapped);
 				if (GetLastError() == ERROR_IO_PENDING) {
-					ngx_queue_insert_tail(&req->loop->active_reqs, &req->active_queue);
 					result = true;
 				} else {
 					CloseHandle(work->hnd);
-					delete req;
+					uv_close((uv_handle_t*)hnd, NULL);
+					delete hnd;
 					delete work;
 				}
 			}
@@ -61,92 +56,95 @@ public:
 		return result;
 	}
 	static Handle<Function> functionRegister(bool isAsyncVersion) {
-		HandleScope scope;
-		Handle<FunctionTemplate> t = FunctionTemplate::New(isAsyncVersion ? jsAsync : jsSync);
+		Isolate *isolate = Isolate::GetCurrent();
+		EscapableHandleScope scope(isolate);
+		Local<String> tmp;
+		Local<FunctionTemplate> t = FunctionTemplate::New(isolate, isAsyncVersion ? jsAsync : jsSync);
 
 		//set errmessages
-		Handle<Object> errors = Object::New();
-		errors->Set(syb_err_wrong_arguments, syb_err_wrong_arguments, global_syb_attr_const);
-		errors->Set(syb_err_not_a_constructor, syb_err_not_a_constructor, global_syb_attr_const);
-		t->Set(String::NewSymbol("errors"), errors, global_syb_attr_const);
+		Local<Object> errors = Object::New(isolate);
+		tmp = String::NewFromOneByte(isolate, SYB_ERR_WRONG_ARGUMENTS);
+		errors->Set(tmp, tmp, SYB_ATTR_CONST);
+		tmp = String::NewFromOneByte(isolate, SYB_ERR_NOT_A_CONSTRUCTOR);
+		errors->Set(tmp, tmp, SYB_ATTR_CONST);
+		t->Set(String::NewFromOneByte(isolate, SYB_ERRORS), errors, SYB_ATTR_CONST);
 
-		return scope.Close(t->GetFunction());
+		return scope.Escape(t->GetFunction());
 	}
 private:
-	static void afterWork(uv_work_t *req, int status) {
-		workdata2 *work = (workdata2*)req->data;
+	static void afterWork(uv_async_t *hnd) {
+		workdata2 *work = (workdata2*)hnd->data;
 		CloseHandle(work->hnd);
-		delete req;
-		work->callback(req->overlapped.Internal == ERROR_SUCCESS, work->data);
+		work->callback(hnd->async_req.overlapped.Internal == ERROR_SUCCESS, work->data);
+		uv_close((uv_handle_t*)hnd, NULL);
+		delete hnd;
 		delete work;
 	}
-	static Handle<Value> jsSync(const Arguments& args) {
-		HandleScope scope;
-		Handle<Value> result;
+	static void jsSync(const FunctionCallbackInfo<Value>& args) {
+		Isolate *isolate = args.GetIsolate();
+		HandleScope scope(isolate);
+		Local<Value> result;
 		if (args.IsConstructCall()) {
-			result = ThrowException(Exception::Error(syb_err_not_a_constructor));
+			result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_NOT_A_CONSTRUCTOR)));
 		} else {
 			if (args.Length() > 0 && (args[0]->IsString() || args[0]->IsStringObject())) {
 				String::Value spath(args[0]);
-				result = basic((wchar_t*)*spath, args[1]->ToBoolean()->IsTrue()) ? True() : False();
+				result = basic((wchar_t*)*spath, args[1]->ToBoolean()->IsTrue()) ? True(isolate) : False(isolate);
 			} else {
-				result = ThrowException(Exception::Error(syb_err_wrong_arguments));
+				result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_WRONG_ARGUMENTS)));
 			}
 		}
-		return scope.Close(result);
+		args.GetReturnValue().Set(result);
 	}
-	static Handle<Value> jsAsync(const Arguments& args) {
-		HandleScope scope;
-		Handle<Value> result;
+	static void jsAsync(const FunctionCallbackInfo<Value>& args) {
+		Isolate *isolate = args.GetIsolate();
+		HandleScope scope(isolate);
+		Local<Value> result;
 		if (args.IsConstructCall()) {
-			result = ThrowException(Exception::Error(syb_err_not_a_constructor));
+			result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_NOT_A_CONSTRUCTOR)));
 		} else {
 			if (args.Length() > 0 && (args[0]->IsString() || args[0]->IsStringObject())) {
 				workdata *data = NULL;
 				bool b;
 				if (args.Length() > 1) {
-					Handle<Function> f;
 					if (args[1]->IsFunction()) {
-						f = Handle<Function>::Cast(args[1]);
+						data = new workdata;
+						data->self.Reset(isolate, args.This());
+						data->func.Reset(isolate, Local<Function>::Cast(args[1]));
 						b = args[2]->ToBoolean()->IsTrue();
 					} else {
 						b = args[1]->ToBoolean()->IsTrue();
-					}
-					if (!f.IsEmpty()) {
-						data = new workdata;
-						data->self = Persistent<Object>::New(args.This());
-						data->func = Persistent<Function>::New(f);
 					}
 				} else {
 					b = false;
 				}
 				String::Value p(args[0]);
 				if (basicWithCallback((wchar_t*)*p, b, asyncCallback, data)) {
-					result = True();
+					result = True(isolate);
 				} else {
 					if (data) {
-						data->self.Dispose();
-						data->func.Dispose();
+						data->self.Reset();
+						data->func.Reset();
 						delete data;
 					}
-					result = False();
+					result = False(isolate);
 				}
 			} else {
-				result = ThrowException(Exception::Error(syb_err_wrong_arguments));
+				result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_WRONG_ARGUMENTS)));
 			}
 		}
-		return scope.Close(result);
+		args.GetReturnValue().Set(result);
 	}
 	static void asyncCallback(const bool succeeded, void *data) {
 		if (data) {
+			Isolate *isolate = Isolate::GetCurrent();
+			EscapableHandleScope scope(isolate);
 			workdata *work = (workdata*)data;
-			Handle<Value> r = succeeded ? True() : False();
-			work->func->Call(work->self, 1, &r);
-			work->func.Dispose();
-			work->self.Dispose();
+			Local<Value> r = succeeded ? True(isolate) : False(isolate);
+			Local<Function>::New(isolate, work->func)->Call(Local<Object>::New(isolate, work->self), 1, &r);
+			work->func.Reset();
+			work->self.Reset();
 			delete work;
 		}
 	}
 };
-const Persistent<String> setCompression::syb_err_wrong_arguments = global_syb_err_wrong_arguments;
-const Persistent<String> setCompression::syb_err_not_a_constructor = global_syb_err_not_a_constructor;
