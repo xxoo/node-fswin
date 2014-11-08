@@ -37,10 +37,11 @@ public:
 		if (work->hnd == INVALID_HANDLE_VALUE) {
 			delete work;
 		} else {
-			uv_async_t *hnd = new uv_async_t;
-			uv_async_init(uv_default_loop(), hnd, afterWork);
-			hnd->data = work;
-			if (CreateIoCompletionPort(work->hnd, hnd->loop->iocp, (ULONG_PTR)hnd, 0)) {
+			uv_loop_t *loop = uv_default_loop();
+			if (CreateIoCompletionPort(work->hnd, loop->iocp, (ULONG_PTR)work->hnd, 0)) {
+				uv_async_t *hnd = new uv_async_t;
+				uv_async_init(uv_default_loop(), hnd, afterWork);
+				hnd->data = work;
 				USHORT c = compress ? COMPRESSION_FORMAT_DEFAULT : COMPRESSION_FORMAT_NONE;
 				DeviceIoControl(work->hnd, FSCTL_SET_COMPRESSION, &c, sizeof(USHORT), NULL, 0, NULL, &hnd->async_req.overlapped);
 				if (GetLastError() == ERROR_IO_PENDING) {
