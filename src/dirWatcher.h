@@ -287,7 +287,7 @@ private:
 		dirWatcher *self = (dirWatcher*)hnd->data;
 		self->watchingParent = FALSE;
 		if (self->parenthnd == INVALID_HANDLE_VALUE) {
-			uv_close((uv_handle_t*)&hnd, NULL);
+			uv_close((uv_handle_t*)hnd, NULL);
 			checkWatchingStoped(self);
 		} else {
 			if (hnd->async_req.overlapped.Internal == ERROR_SUCCESS) {
@@ -338,7 +338,7 @@ private:
 		dirWatcher *self = (dirWatcher*)hnd->data;
 		self->watchingPath = FALSE;
 		if (self->pathhnd == INVALID_HANDLE_VALUE) {
-			uv_close((uv_handle_t*)&hnd, NULL);
+			uv_close((uv_handle_t*)hnd, NULL);
 			free(self->pathbuffer);
 			checkWatchingStoped(self);
 		} else {

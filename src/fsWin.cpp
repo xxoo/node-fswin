@@ -1,4 +1,4 @@
-#define FSWIN_VERSION "2.14.1108"
+#define FSWIN_VERSION "2.14.1109"
 #include "convertPath.h"
 #include "dirWatcher.h"
 #include "find.h"
