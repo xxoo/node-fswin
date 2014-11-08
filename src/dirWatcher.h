@@ -82,10 +82,10 @@ public:
 		}
 		if (watchingPath) {
 			if (realPath) {
-				callJs(this, SYB_EVT_STA, NEWSTRING_TOWBYTE(realPath));
+				callJs(this, SYB_EVT_STA, NEWSTRING_TWOBYTES(realPath));
 				free(realPath);
 			} else {
-				callJs(this, SYB_EVT_STA, NEWSTRING_TOWBYTE(spath));
+				callJs(this, SYB_EVT_STA, NEWSTRING_TWOBYTES(spath));
 			}
 			if (!mute && !watchingParent) {
 				callJs(this, SYB_EVT_ERR, NEWSTRING(SYB_ERR_UNABLE_TO_WATCH_SELF));
@@ -322,7 +322,7 @@ private:
 				if (newpath) {
 					ISOLATE_NEW;
 					SCOPE;
-					callJs(self, SYB_EVT_MOV, NEWSTRING_TOWBYTE(newpath));
+					callJs(self, SYB_EVT_MOV, NEWSTRING_TWOBYTES(newpath));
 					free(newpath);
 				}
 			}
@@ -352,7 +352,7 @@ private:
 				DWORD d = 0;
 				do {
 					pInfo = (FILE_NOTIFY_INFORMATION*)((ULONG_PTR)buffer + d);
-					RETURNTYPE<String> filename = NEWSTRING_TOWBYTE_LEN(pInfo->FileName, pInfo->FileNameLength / sizeof(wchar_t));
+					RETURNTYPE<String> filename = NEWSTRING_TWOBYTES_LEN(pInfo->FileName, pInfo->FileNameLength / sizeof(wchar_t));
 					if (pInfo->Action == FILE_ACTION_ADDED) {
 						callJs(self, SYB_EVT_NEW, filename);
 					} else if (pInfo->Action == FILE_ACTION_REMOVED) {
@@ -364,7 +364,7 @@ private:
 							if (self->newName) {
 								RETURNTYPE<Object> arg = Object::New(ISOLATE);
 								arg->Set(NEWSTRING(SYB_EVT_REN_OLDNAME), filename);
-								arg->Set(NEWSTRING(SYB_EVT_REN_NEWNAME), NEWSTRING_TOWBYTE(self->newName));
+								arg->Set(NEWSTRING(SYB_EVT_REN_NEWNAME), NEWSTRING_TWOBYTES(self->newName));
 								delete self->newName;
 								self->newName = NULL;
 								callJs(self, SYB_EVT_REN, arg);
@@ -377,7 +377,7 @@ private:
 							if (self->oldName) {
 								RETURNTYPE<Object> arg = Object::New(ISOLATE);
 								arg->Set(NEWSTRING(SYB_EVT_REN_OLDNAME), filename);
-								arg->Set(NEWSTRING(SYB_EVT_REN_NEWNAME), NEWSTRING_TOWBYTE(self->oldName));
+								arg->Set(NEWSTRING(SYB_EVT_REN_NEWNAME), NEWSTRING_TWOBYTES(self->oldName));
 								delete self->oldName;
 								self->oldName = NULL;
 								callJs(self, SYB_EVT_REN, arg);

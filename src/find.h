@@ -116,8 +116,8 @@ public:
 		SCOPE_ESCAPABLE;
 		RETURNTYPE<String> tmp;
 		RETURNTYPE<Object> o = Object::New(ISOLATE);
-		o->Set(NEWSTRING(SYB_RETURNS_LONGNAME), NEWSTRING_TOWBYTE(info->cFileName));
-		o->Set(NEWSTRING(SYB_RETURNS_SHORTNAME), NEWSTRING_TOWBYTE(info->cAlternateFileName));
+		o->Set(NEWSTRING(SYB_RETURNS_LONGNAME), NEWSTRING_TWOBYTES(info->cFileName));
+		o->Set(NEWSTRING(SYB_RETURNS_SHORTNAME), NEWSTRING_TWOBYTES(info->cAlternateFileName));
 		o->Set(NEWSTRING(SYB_FILEATTR_CREATIONTIME), Date::New(ISOLATE_C fileTimeToJsDateVal(&info->ftCreationTime)));
 		o->Set(NEWSTRING(SYB_FILEATTR_LASTACCESSTIME), Date::New(ISOLATE_C fileTimeToJsDateVal(&info->ftLastAccessTime)));
 		o->Set(NEWSTRING(SYB_FILEATTR_LASTWRITETIME), Date::New(ISOLATE_C fileTimeToJsDateVal(&info->ftLastWriteTime)));

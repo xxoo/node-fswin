@@ -3,7 +3,7 @@
 #include <node.h>
 #include <node_object_wrap.h>
 #include <uv.h>
-#include <iostream>
+//#include <iostream>
 #pragma comment(lib, "node.lib")
 
 using namespace v8;
@@ -25,8 +25,8 @@ using namespace node;
 #	define RETURN(v) return scope.Close(v)
 #	define RETURN_SCOPE(v) RETURN(v)
 #	define NEWSTRING(v) String::New((v))
-#	define NEWSTRING_TOWBYTE(v) String::New((uint16_t*)(v))
-#	define NEWSTRING_TOWBYTE_LEN(v, l) String::New((uint16_t*)(v), (l))
+#	define NEWSTRING_TWOBYTES(v) String::New((uint16_t*)(v))
+#	define NEWSTRING_TWOBYTES_LEN(v, l) String::New((uint16_t*)(v), (l))
 #	define THROWEXCEPTION(v) ThrowException(Exception::Error(String::New((v))))
 #	define JSFUNC(name) Handle<Value> (name)(const Arguments& args)
 #	define PERSISTENT_NEW(name, v, t) (name) = Persistent<t>::New((v))
@@ -45,9 +45,9 @@ using namespace node;
 #	define RETURN(v) args.GetReturnValue().Set((v))
 #	define RETURN_SCOPE(v) return scope.Escape((v))
 #	define NEWSTRING(v) String::NewFromOneByte(isolate, (uint8_t*)(v))
-#	define NEWSTRING_TOWBYTE(v) String::NewFromTwoByte(isolate, (uint_16_t*)(v))
-#	define NEWSTRING_TOWBYTE_LEN(v, l) String::NewFromTwoByte(isolate, (uint16_t*)(v), String::kNormalString, (l))
-#	define THROWEXCEPTION(v) isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, (v))))
+#	define NEWSTRING_TWOBYTES(v) String::NewFromTwoByte(isolate, (uint16_t*)(v))
+#	define NEWSTRING_TWOBYTES_LEN(v, l) String::NewFromTwoByte(isolate, (uint16_t*)(v), String::kNormalString, (l))
+#	define THROWEXCEPTION(v) isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, (uint8_t*)(v))))
 #	define JSFUNC(name) void (name)(const FunctionCallbackInfo<Value>& args)
 #	define PERSISTENT_NEW(name, v, t) (name).Reset(isolate, (v))
 #	define PERSISTENT_CONV(v, t) Local<t>::New(isolate, (v))

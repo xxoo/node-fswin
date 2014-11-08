@@ -61,8 +61,8 @@ public:
 		String::Value p1(path);
 		splitedPath *s = basic((wchar_t*)*p1);
 		RETURNTYPE<Object> r = Object::New(ISOLATE);
-		r->Set(NEWSTRING(SYB_RETURN_PARENT), NEWSTRING_TOWBYTE_LEN(*p1, s->parentLen));
-		r->Set(NEWSTRING(SYB_RETURN_NAME), NEWSTRING_TOWBYTE(s->name));
+		r->Set(NEWSTRING(SYB_RETURN_PARENT), NEWSTRING_TWOBYTES_LEN(*p1, s->parentLen));
+		r->Set(NEWSTRING(SYB_RETURN_NAME), NEWSTRING_TWOBYTES(s->name));
 		delete s;
 		RETURN_SCOPE(r);
 	}

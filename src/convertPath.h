@@ -29,7 +29,7 @@ public:
 		String::Value spath(path);
 		wchar_t *tpath = basic((wchar_t*)*spath, islong);
 		if (tpath) {
-			r = NEWSTRING_TOWBYTE(tpath);
+			r = NEWSTRING_TWOBYTES(tpath);
 			free(tpath);
 		} else {
 			r = String::Empty(ISOLATE);
@@ -109,7 +109,7 @@ private:
 		workdata *data = (workdata*)req->data;
 		RETURNTYPE<Value> p;
 		if (data->path) {
-			p = NEWSTRING_TOWBYTE(data->path);
+			p = NEWSTRING_TWOBYTES(data->path);
 			free(data->path);
 		} else {
 			p = String::Empty(ISOLATE);
