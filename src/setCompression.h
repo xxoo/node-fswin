@@ -56,23 +56,23 @@ public:
 		return result;
 	}
 	static Handle<Function> functionRegister(bool isAsyncVersion) {
-		Isolate *isolate = Isolate::GetCurrent();
-		EscapableHandleScope scope(isolate);
-		Local<String> tmp;
-		Local<FunctionTemplate> t = FunctionTemplate::New(isolate, isAsyncVersion ? jsAsync : jsSync);
+		ISOLATE_NEW;
+		SCOPE_ESCAPABLE;
+		RETURNTYPE<String> tmp;
+		RETURNTYPE<FunctionTemplate> t = FunctionTemplate::New(ISOLATE_C isAsyncVersion ? jsAsync : jsSync);
 
 		//set errmessages
-		Local<Object> errors = Object::New(isolate);
-		tmp = String::NewFromOneByte(isolate, SYB_ERR_WRONG_ARGUMENTS);
+		RETURNTYPE<Object> errors = Object::New(ISOLATE);
+		tmp = NEWSTRING(SYB_ERR_WRONG_ARGUMENTS);
 		errors->Set(tmp, tmp, SYB_ATTR_CONST);
-		tmp = String::NewFromOneByte(isolate, SYB_ERR_NOT_A_CONSTRUCTOR);
+		tmp = NEWSTRING(SYB_ERR_NOT_A_CONSTRUCTOR);
 		errors->Set(tmp, tmp, SYB_ATTR_CONST);
-		t->Set(String::NewFromOneByte(isolate, SYB_ERRORS), errors, SYB_ATTR_CONST);
+		t->Set(NEWSTRING(SYB_ERRORS), errors, SYB_ATTR_CONST);
 
-		return scope.Escape(t->GetFunction());
+		RETURN_SCOPE(t->GetFunction());
 	}
 private:
-	static void afterWork(uv_async_t *hnd) {
+	static ASYNCCB(afterWork) {
 		workdata2 *work = (workdata2*)hnd->data;
 		CloseHandle(work->hnd);
 		work->callback(hnd->async_req.overlapped.Internal == ERROR_SUCCESS, work->data);
@@ -80,28 +80,28 @@ private:
 		delete hnd;
 		delete work;
 	}
-	static void jsSync(const FunctionCallbackInfo<Value>& args) {
-		Isolate *isolate = args.GetIsolate();
-		HandleScope scope(isolate);
-		Local<Value> result;
+	static JSFUNC(jsSync) {
+		ISOLATE_NEW_ARGS;
+		SCOPE;
+		RETURNTYPE<Value> result;
 		if (args.IsConstructCall()) {
-			result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_NOT_A_CONSTRUCTOR)));
+			result = THROWEXCEPTION(SYB_ERR_NOT_A_CONSTRUCTOR);
 		} else {
 			if (args.Length() > 0 && (args[0]->IsString() || args[0]->IsStringObject())) {
 				String::Value spath(args[0]);
-				result = basic((wchar_t*)*spath, args[1]->ToBoolean()->IsTrue()) ? True(isolate) : False(isolate);
+				result = basic((wchar_t*)*spath, args[1]->ToBoolean()->IsTrue()) ? True(ISOLATE) : False(ISOLATE);
 			} else {
-				result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_WRONG_ARGUMENTS)));
+				result = THROWEXCEPTION(SYB_ERR_WRONG_ARGUMENTS);
 			}
 		}
-		args.GetReturnValue().Set(result);
+		RETURN(result);
 	}
-	static void jsAsync(const FunctionCallbackInfo<Value>& args) {
-		Isolate *isolate = args.GetIsolate();
-		HandleScope scope(isolate);
-		Local<Value> result;
+	static JSFUNC(jsAsync) {
+		ISOLATE_NEW_ARGS;
+		SCOPE;
+		RETURNTYPE<Value> result;
 		if (args.IsConstructCall()) {
-			result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_NOT_A_CONSTRUCTOR)));
+			result = THROWEXCEPTION(SYB_ERR_NOT_A_CONSTRUCTOR);
 		} else {
 			if (args.Length() > 0 && (args[0]->IsString() || args[0]->IsStringObject())) {
 				workdata *data = NULL;
@@ -109,8 +109,8 @@ private:
 				if (args.Length() > 1) {
 					if (args[1]->IsFunction()) {
 						data = new workdata;
-						data->self.Reset(isolate, args.This());
-						data->func.Reset(isolate, Local<Function>::Cast(args[1]));
+						PERSISTENT_NEW(data->self, args.This(), Object);
+						PERSISTENT_NEW(data->func, RETURNTYPE<Function>::Cast(args[1]), Function);
 						b = args[2]->ToBoolean()->IsTrue();
 					} else {
 						b = args[1]->ToBoolean()->IsTrue();
@@ -120,30 +120,30 @@ private:
 				}
 				String::Value p(args[0]);
 				if (basicWithCallback((wchar_t*)*p, b, asyncCallback, data)) {
-					result = True(isolate);
+					result = True(ISOLATE);
 				} else {
 					if (data) {
-						data->self.Reset();
-						data->func.Reset();
+						PERSISTENT_RELEASE(data->self);
+						PERSISTENT_RELEASE(data->func);
 						delete data;
 					}
-					result = False(isolate);
+					result = False(ISOLATE);
 				}
 			} else {
-				result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_WRONG_ARGUMENTS)));
+				result = THROWEXCEPTION(SYB_ERR_WRONG_ARGUMENTS);
 			}
 		}
-		args.GetReturnValue().Set(result);
+		RETURN(result);
 	}
 	static void asyncCallback(const bool succeeded, void *data) {
 		if (data) {
-			Isolate *isolate = Isolate::GetCurrent();
-			EscapableHandleScope scope(isolate);
+			ISOLATE_NEW;
+			SCOPE;
 			workdata *work = (workdata*)data;
-			Local<Value> r = succeeded ? True(isolate) : False(isolate);
-			Local<Function>::New(isolate, work->func)->Call(Local<Object>::New(isolate, work->self), 1, &r);
-			work->func.Reset();
-			work->self.Reset();
+			RETURNTYPE<Value> r = succeeded ? True(ISOLATE) : False(ISOLATE);
+			PERSISTENT_CONV(work->func, Function)->Call(PERSISTENT_CONV(work->self, Object), 1, &r);
+			PERSISTENT_RELEASE(work->self);
+			PERSISTENT_RELEASE(work->func);
 			delete work;
 		}
 	}

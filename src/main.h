@@ -3,43 +3,91 @@
 #include <node.h>
 #include <node_object_wrap.h>
 #include <uv.h>
-//#include <iostream>
+#include <iostream>
 #pragma comment(lib, "node.lib")
 
 using namespace v8;
 using namespace node;
 
-#define SYB_ERR_WRONG_ARGUMENTS (uint8_t*)"WRONG_ARGUMENTS"
-#define SYB_ERR_NOT_A_CONSTRUCTOR (uint8_t*)"THIS_FUNCTION_IS_NOT_A_CONSTRUCTOR"
-#define SYB_ERR_INITIALIZATION_FAILED (uint8_t*)"INITIALIZATION_FAILED"
-#define SYB_EVT_ERR (uint8_t*)"ERROR"
-#define SYB_EVT_END (uint8_t*)"ENDED"
-#define SYB_EVT_SUCCEEDED (uint8_t*)"SUCCEEDED"
-#define SYB_EVT_FAILED (uint8_t*)"FAILED"
-#define SYB_FILEATTR_ISARCHIVED (uint8_t*)"IS_ARCHIVED"
-#define SYB_FILEATTR_ISHIDDEN (uint8_t*)"IS_HIDDEN"
-#define SYB_FILEATTR_ISNOTCONTENTINDEXED (uint8_t*)"IS_NOT_CONTENT_INDEXED"
-#define SYB_FILEATTR_ISOFFLINE (uint8_t*)"IS_OFFLINE"
-#define SYB_FILEATTR_ISREADONLY (uint8_t*)"IS_READ_ONLY"
-#define SYB_FILEATTR_ISSYSTEM (uint8_t*)"IS_SYSTEM"
-#define SYB_FILEATTR_ISTEMPORARY (uint8_t*)"IS_TEMPORARY"
-#define SYB_FILEATTR_CREATIONTIME (uint8_t*)"CREATION_TIME"
-#define SYB_FILEATTR_LASTACCESSTIME (uint8_t*)"LAST_ACCESS_TIME"
-#define SYB_FILEATTR_LASTWRITETIME (uint8_t*)"LAST_WRITE_TIME"
-#define SYB_FILEATTR_SIZE (uint8_t*)"SIZE"
-#define SYB_FILEATTR_ISDIRECTORY (uint8_t*)"IS_DIRECTORY"
-#define SYB_FILEATTR_ISCOMPRESSED (uint8_t*)"IS_COMPRESSED"
-#define SYB_FILEATTR_ISENCRYPTED (uint8_t*)"IS_ENCRYPTED"
-#define SYB_FILEATTR_ISSPARSEFILE (uint8_t*)"IS_SPARSE_FILE"
-#define SYB_FILEATTR_ISDEVICE (uint8_t*)"IS_DEVICE"
-#define SYB_FILEATTR_ISINTEGERITYSTREAM (uint8_t*)"IS_INTEGRITY_STREAM"
-#define SYB_FILEATTR_ISNOSCRUBDATA (uint8_t*)"IS_NO_SCRUB_DATA"
+# if NODE_MODULE_VERSION < 0x000B
+#	define AFTERWORKCB(name) void (name)(uv_work_t *req)
+#else
+#	define AFTERWORKCB(name) void (name)(uv_work_t *req, int status)
+#endif
 
-#define SYB_ERRORS (uint8_t*)"errors"
-#define SYB_RETURNS (uint8_t*)"returns"
-#define SYB_EVENTS (uint8_t*)"events"
-#define SYB_OPTIONS (uint8_t*)"options"
-#define SYB_PARAMS (uint8_t*)"params"
+#if NODE_MODULE_VERSION < 0x000C
+#	define ASYNCCB(name) void (name)(uv_async_t *hnd, int status)
+#	define ISOLATE
+#	define ISOLATE_C
+#	define ISOLATE_NEW
+#	define ISOLATE_NEW_ARGS
+#	define RETURNTYPE Handle
+#	define RETURN(v) return scope.Close(v)
+#	define RETURN_SCOPE(v) RETURN(v)
+#	define NEWSTRING(v) String::New((v))
+#	define NEWSTRING_TOWBYTE(v) String::New((uint16_t*)(v))
+#	define NEWSTRING_TOWBYTE_LEN(v, l) String::New((uint16_t*)(v), (l))
+#	define THROWEXCEPTION(v) ThrowException(Exception::Error(String::New((v))))
+#	define JSFUNC(name) Handle<Value> (name)(const Arguments& args)
+#	define PERSISTENT_NEW(name, v, t) (name) = Persistent<t>::New((v))
+#	define PERSISTENT_CONV(v, t) (v)
+#	define PERSISTENT_RELEASE(name) (name).Dispose();(name).Clear()
+#	define SCOPE HandleScope scope
+#	define SCOPE_ESCAPABLE SCOPE
+#	define OBJ_HANDLE handle_
+#else
+#	define ASYNCCB(name) void (name)(uv_async_t *hnd)
+#	define ISOLATE isolate
+#	define ISOLATE_C isolate,
+#	define ISOLATE_NEW Isolate *isolate = Isolate::GetCurrent()
+#	define ISOLATE_NEW_ARGS Isolate *isolate = args.GetIsolate()
+#	define RETURNTYPE Local
+#	define RETURN(v) args.GetReturnValue().Set((v))
+#	define RETURN_SCOPE(v) return scope.Escape((v))
+#	define NEWSTRING(v) String::NewFromOneByte(isolate, (uint8_t*)(v))
+#	define NEWSTRING_TOWBYTE(v) String::NewFromTwoByte(isolate, (uint_16_t*)(v))
+#	define NEWSTRING_TOWBYTE_LEN(v, l) String::NewFromTwoByte(isolate, (uint16_t*)(v), String::kNormalString, (l))
+#	define THROWEXCEPTION(v) isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, (v))))
+#	define JSFUNC(name) void (name)(const FunctionCallbackInfo<Value>& args)
+#	define PERSISTENT_NEW(name, v, t) (name).Reset(isolate, (v))
+#	define PERSISTENT_CONV(v, t) Local<t>::New(isolate, (v))
+#	define PERSISTENT_RELEASE(name) (name).Reset()
+#	define SCOPE HandleScope scope(isolate)
+#	define SCOPE_ESCAPABLE EscapableHandleScope scope(isolate)
+#	define OBJ_HANDLE persistent()
+#endif
+
+#define SYB_ERR_WRONG_ARGUMENTS "WRONG_ARGUMENTS"
+#define SYB_ERR_NOT_A_CONSTRUCTOR "THIS_FUNCTION_IS_NOT_A_CONSTRUCTOR"
+#define SYB_ERR_INITIALIZATION_FAILED "INITIALIZATION_FAILED"
+#define SYB_EVT_ERR "ERROR"
+#define SYB_EVT_END "ENDED"
+#define SYB_EVT_SUCCEEDED "SUCCEEDED"
+#define SYB_EVT_FAILED "FAILED"
+#define SYB_FILEATTR_ISARCHIVED "IS_ARCHIVED"
+#define SYB_FILEATTR_ISHIDDEN "IS_HIDDEN"
+#define SYB_FILEATTR_ISNOTCONTENTINDEXED "IS_NOT_CONTENT_INDEXED"
+#define SYB_FILEATTR_ISOFFLINE "IS_OFFLINE"
+#define SYB_FILEATTR_ISREADONLY "IS_READ_ONLY"
+#define SYB_FILEATTR_ISSYSTEM "IS_SYSTEM"
+#define SYB_FILEATTR_ISTEMPORARY "IS_TEMPORARY"
+#define SYB_FILEATTR_CREATIONTIME "CREATION_TIME"
+#define SYB_FILEATTR_LASTACCESSTIME "LAST_ACCESS_TIME"
+#define SYB_FILEATTR_LASTWRITETIME "LAST_WRITE_TIME"
+#define SYB_FILEATTR_SIZE "SIZE"
+#define SYB_FILEATTR_ISDIRECTORY "IS_DIRECTORY"
+#define SYB_FILEATTR_ISCOMPRESSED "IS_COMPRESSED"
+#define SYB_FILEATTR_ISENCRYPTED "IS_ENCRYPTED"
+#define SYB_FILEATTR_ISSPARSEFILE "IS_SPARSE_FILE"
+#define SYB_FILEATTR_ISDEVICE "IS_DEVICE"
+#define SYB_FILEATTR_ISINTEGERITYSTREAM "IS_INTEGRITY_STREAM"
+#define SYB_FILEATTR_ISNOSCRUBDATA "IS_NO_SCRUB_DATA"
+
+#define SYB_ERRORS "errors"
+#define SYB_RETURNS "returns"
+#define SYB_EVENTS "events"
+#define SYB_OPTIONS "options"
+#define SYB_PARAMS "params"
 
 #define SYB_ATTR_CONST (PropertyAttribute)(ReadOnly | DontDelete)
 
@@ -126,80 +174,3 @@ static ULONGLONG combineHiLow(const DWORD hi, const DWORD low) {
 static double fileTimeToJsDateVal(const FILETIME *ft) {//Date::New(fileTimeToJsDateVal(&filetime)) converts FILETIME to javascript date
 	return (double)(combineHiLow(ft->dwHighDateTime, ft->dwLowDateTime) / 10000 - 11644473600000);
 }
-/*
-struct pathCom {
-	wchar_t *shortName;
-	wchar_t *longName;
-	pathCom *next;
-};
-static pathCom *getPathComs(const wchar_t *path, const wchar_t *shortPath) {
-	pathCom *result = NULL;
-	pathCom *lst = NULL;
-	USHORT i = 0;
-	USHORT j = 0;
-	for (i = 0; i <= wcslen(path); i++) {
-		if (i == wcslen(path) || path[i] == L'\\') {
-			pathCom *com = new pathCom;
-			com->next = NULL;
-			com->shortName = NULL;
-			//com->longName = _wcsdup(path);
-			size_t sz = i - j + 1;
-			com->longName = new wchar_t[sz];
-			wcsncpy_s(com->longName, sz, &path[j], sz - 1);
-			//std::wcout << com->longName << std::endl;
-			if (!lst) {
-				result = com;
-			} else {
-				lst->next = com;
-			}
-			lst = com;
-			j = i + 1;
-		}
-	}
-	j = 0;
-	lst = result;
-	for (i = 0; i <= wcslen(shortPath); i++) {
-		if (i == wcslen(shortPath) || shortPath[i] == L'\\') {
-			if (wcsncmp(lst->longName, &shortPath[j], wcslen(lst->longName)) != 0) {
-				size_t sz = i - j + 1;
-				lst->shortName = new wchar_t[sz];
-				wcsncpy_s(lst->shortName, sz, &shortPath[j], sz - 1);
-			}
-			lst = lst->next;
-			j = i + 1;
-		}
-	}
-	return result;
-}
-static void freePathCom(const pathCom *p) {
-	if (p->next) {
-		freePathCom(p->next);
-	}
-	if (p->shortName) {
-		delete p->shortName;
-	}
-	if (p->longName) {
-		delete p->longName;
-	}
-	delete p;
-}
-static bool pathComComp(const pathCom *p, const wchar_t *path, size_t len=0) {
-	USHORT i = 0;
-	USHORT j = 0;
-	const pathCom *c = p;
-	if (!len) {
-		len = wcslen(path);
-	}
-	for (i = 0; i <= len; i++) {
-		if (i == len || path[i] == L'\\') {
-			if (!c || (wcsncmp(c->longName, &path[j], MAX(i - j, wcslen(c->longName)))) != 0 && (!c->shortName || wcsncmp(c->shortName, &path[j], MAX(i - j, wcslen(c->shortName))) != 0)) {
-				//std::wcout << L'wrong' << std::endl;
-				return false;
-			}
-			c = c->next;
-			j = i + 1;
-		}
-	}
-	return true;
-}
-*/

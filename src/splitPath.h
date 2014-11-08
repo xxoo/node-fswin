@@ -1,8 +1,8 @@
 #pragma once
 #include "main.h"
 
-#define SYB_RETURN_PARENT (uint8_t*)"PARENT"
-#define SYB_RETURN_NAME (uint8_t*)"NAME"
+#define SYB_RETURN_PARENT "PARENT"
+#define SYB_RETURN_NAME "NAME"
 
 class splitPath {
 public:
@@ -10,10 +10,7 @@ public:
 		DWORD parentLen;//the length of the parent
 		const wchar_t *name;//this could also be considered as the start position of the name
 	};
-private:
-	static const Persistent<String> syb_err_wrong_arguments;
-	static const Persistent<String> syb_err_not_a_constructor;
-public:
+
 	static splitedPath *basic(const wchar_t *path) {//you need to delete the return value your self if it is not NULL;
 		wchar_t *s = L"\\\\", s1 = L'\\';
 		DWORD i, j = 0, k = 0, l = (DWORD)wcslen(path), m = (DWORD)wcslen(s);
@@ -59,54 +56,54 @@ public:
 	//this function returns an Object with two properties: PARENT and NAME
 	//the parent property could be empty if path is a rootdir
 	static Handle<Object> js(Handle<String> path) {
-		Isolate *isolate = Isolate::GetCurrent();
-		EscapableHandleScope scope(isolate);
+		ISOLATE_NEW;
+		SCOPE_ESCAPABLE;
 		String::Value p1(path);
 		splitedPath *s = basic((wchar_t*)*p1);
-		Local<Object> r = Object::New(isolate);
-		r->Set(String::NewFromOneByte(isolate, SYB_RETURN_PARENT), String::NewFromTwoByte(isolate, *p1, String::kNormalString, s->parentLen));
-		r->Set(String::NewFromOneByte(isolate, SYB_RETURN_NAME), String::NewFromTwoByte(isolate, (uint16_t*)s->name));
+		RETURNTYPE<Object> r = Object::New(ISOLATE);
+		r->Set(NEWSTRING(SYB_RETURN_PARENT), NEWSTRING_TOWBYTE_LEN(*p1, s->parentLen));
+		r->Set(NEWSTRING(SYB_RETURN_NAME), NEWSTRING_TOWBYTE(s->name));
 		delete s;
-		return scope.Escape(r);
+		RETURN_SCOPE(r);
 	}
 	static Handle<Function> functionRegister() {
-		Isolate *isolate = Isolate::GetCurrent();
-		EscapableHandleScope scope(isolate);
-		Local<String> tmp;
-		Local<FunctionTemplate> t = FunctionTemplate::New(isolate, jsSync);
+		ISOLATE_NEW;
+		SCOPE_ESCAPABLE;
+		RETURNTYPE<String> tmp;
+		RETURNTYPE<FunctionTemplate> t = FunctionTemplate::New(ISOLATE_C jsSync);
 
 		//set errmessages
-		Local<Object> errors = Object::New(isolate);
-		tmp = String::NewFromOneByte(isolate, SYB_ERR_WRONG_ARGUMENTS);
+		RETURNTYPE<Object> errors = Object::New(ISOLATE);
+		tmp = NEWSTRING(SYB_ERR_WRONG_ARGUMENTS);
 		errors->Set(tmp, tmp, SYB_ATTR_CONST);
-		tmp = String::NewFromOneByte(isolate, SYB_ERR_NOT_A_CONSTRUCTOR);
+		tmp = NEWSTRING(SYB_ERR_NOT_A_CONSTRUCTOR);
 		errors->Set(tmp, tmp, SYB_ATTR_CONST);
-		t->Set(String::NewFromOneByte(isolate, SYB_ERRORS), errors, SYB_ATTR_CONST);
+		t->Set(NEWSTRING(SYB_ERRORS), errors, SYB_ATTR_CONST);
 
 		//set properties of the return value
-		Local<Object> returns = Object::New(isolate);
-		tmp = String::NewFromOneByte(isolate, SYB_RETURN_PARENT);
+		RETURNTYPE<Object> returns = Object::New(ISOLATE);
+		tmp = NEWSTRING(SYB_RETURN_PARENT);
 		returns->Set(tmp, tmp, SYB_ATTR_CONST);
-		tmp = String::NewFromOneByte(isolate, SYB_RETURN_NAME);
+		tmp = NEWSTRING(SYB_RETURN_NAME);
 		returns->Set(tmp, tmp, SYB_ATTR_CONST);
-		t->Set(String::NewFromOneByte(isolate, SYB_RETURNS), returns, SYB_ATTR_CONST);
+		t->Set(NEWSTRING(SYB_RETURNS), returns, SYB_ATTR_CONST);
 
-		return scope.Escape(t->GetFunction());
+		RETURN_SCOPE(t->GetFunction());
 	}
 private:
-	static void jsSync(const FunctionCallbackInfo<Value>& args) {
-		Isolate *isolate = Isolate::GetCurrent();
-		HandleScope scope(isolate);
-		Local<Value> result;
+	static JSFUNC(jsSync) {
+		ISOLATE_NEW_ARGS;
+		SCOPE;
+		RETURNTYPE<Value> result;
 		if (args.IsConstructCall()) {
-			result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_NOT_A_CONSTRUCTOR)));
+			result = THROWEXCEPTION(SYB_ERR_NOT_A_CONSTRUCTOR);
 		} else {
 			if (args.Length() > 0 && (args[0]->IsString() || args[0]->IsStringObject())) {
-				result = js(Local<String>::Cast(args[0]));
+				result = js(RETURNTYPE<String>::Cast(args[0]));
 			} else {
-				result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_WRONG_ARGUMENTS)));
+				result = THROWEXCEPTION(SYB_ERR_WRONG_ARGUMENTS);
 			}
 		}
-		args.GetReturnValue().Set(result);
+		RETURN(result);
 	}
 };

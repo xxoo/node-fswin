@@ -23,79 +23,79 @@ public:
 		return tpath;
 	}
 	static Handle<String> js(Handle<String> path, bool islong) {
-		Isolate *isolate = Isolate::GetCurrent();
-		EscapableHandleScope scope(isolate);
-		Local<String> r;
+		ISOLATE_NEW;
+		SCOPE_ESCAPABLE;
+		RETURNTYPE<String> r;
 		String::Value spath(path);
 		wchar_t *tpath = basic((wchar_t*)*spath, islong);
 		if (tpath) {
-			r = String::NewFromTwoByte(isolate, (uint16_t*)tpath);
+			r = NEWSTRING_TOWBYTE(tpath);
 			free(tpath);
 		} else {
-			r = String::Empty(isolate);
+			r = String::Empty(ISOLATE);
 		}
-		return scope.Escape(r);
+		RETURN_SCOPE(r);
 	}
 	static Handle<Function> functionRegister(bool isAsyncVersion) {
-		Isolate *isolate = Isolate::GetCurrent();
-		EscapableHandleScope scope(isolate);
-		Local<FunctionTemplate> t = FunctionTemplate::New(isolate, isAsyncVersion ? jsAsync : jsSync);
-		Local<String> tmp;
+		ISOLATE_NEW;
+		SCOPE_ESCAPABLE;
+		RETURNTYPE<FunctionTemplate> t = FunctionTemplate::New(ISOLATE_C isAsyncVersion ? jsAsync : jsSync);
+		RETURNTYPE<String> tmp;
 		//set errmessages
-		Local<Object> errors = Object::New(isolate);
-		tmp = String::NewFromOneByte(isolate, SYB_ERR_WRONG_ARGUMENTS);
+		RETURNTYPE<Object> errors = Object::New(ISOLATE);
+		tmp = NEWSTRING(SYB_ERR_WRONG_ARGUMENTS);
 		errors->Set(tmp, tmp, SYB_ATTR_CONST);
-		tmp = String::NewFromOneByte(isolate, SYB_ERR_NOT_A_CONSTRUCTOR);
+		tmp = NEWSTRING(SYB_ERR_NOT_A_CONSTRUCTOR);
 		errors->Set(tmp, tmp, SYB_ATTR_CONST);
-		t->Set(String::NewFromOneByte(isolate, SYB_ERRORS), errors, SYB_ATTR_CONST);
+		t->Set(NEWSTRING(SYB_ERRORS), errors, SYB_ATTR_CONST);
 
-		return scope.Escape(t->GetFunction());
+		RETURN_SCOPE(t->GetFunction());
 	}
 private:
-	static void jsSync(const FunctionCallbackInfo<Value>& args) {
-		Isolate *isolate = args.GetIsolate();
-		HandleScope scope(isolate);
-		Local<Value> result;
+	static JSFUNC(jsSync) {
+		ISOLATE_NEW;
+		SCOPE;
+		RETURNTYPE<Value> result;
 		if (args.IsConstructCall()) {
-			result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_NOT_A_CONSTRUCTOR)));
+			result = THROWEXCEPTION(SYB_ERR_NOT_A_CONSTRUCTOR);
 		} else {
 			if (args.Length() > 0 && (args[0]->IsString() || args[0]->IsStringObject())) {
-				result = js(Local<String>::Cast(args[0]), args[1]->ToBoolean()->IsTrue());
+				result = js(RETURNTYPE<String>::Cast(args[0]), args[1]->ToBoolean()->IsTrue());
 			} else {
-				result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_WRONG_ARGUMENTS)));
+				result = THROWEXCEPTION(SYB_ERR_WRONG_ARGUMENTS);
 			}
 		}
-		args.GetReturnValue().Set(result);
+		RETURN(result);
 	}
-	static void jsAsync(const FunctionCallbackInfo<Value>& args) {
-		Isolate *isolate = args.GetIsolate();
-		HandleScope scope(isolate);
-		Local<Value> result;
+	static JSFUNC(jsAsync) {
+		ISOLATE_NEW_ARGS;
+		SCOPE;
+		RETURNTYPE<Value> result;
 		if (args.IsConstructCall()) {
-			result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_NOT_A_CONSTRUCTOR)));
+			result = THROWEXCEPTION(SYB_ERR_NOT_A_CONSTRUCTOR);
 		} else {
 			if (args.Length() > 1 && (args[0]->IsString() || args[0]->IsStringObject()) && args[1]->IsFunction()) {
 				workdata *data = new workdata;
 				data->req.data = data;
-				data->self.Reset(isolate, args.This());
-				data->func.Reset(isolate, Local<Function>::Cast(args[1]));
+				PERSISTENT_NEW(data->self, args.This(), Object);
+				PERSISTENT_NEW(data->func, RETURNTYPE<Function>::Cast(args[1]), Function);
 				data->islong = args[2]->ToBoolean()->IsTrue();
 				String::Value p(args[0]);
 				data->path = _wcsdup((wchar_t*)*p);
 				if (uv_queue_work(uv_default_loop(), &data->req, beginWork, afterWork) == 0) {
-					result = True(isolate);
+					result = True(ISOLATE);
 				} else {
 					free(data->path);
-					data->self.Reset();
-					data->func.Reset();
+					PERSISTENT_RELEASE(data->self);
+					PERSISTENT_RELEASE(data->func);
 					delete data;
-					result = False(isolate);
+					result = False(ISOLATE);
 				}
 			} else {
-				result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_WRONG_ARGUMENTS)));
+				result = THROWEXCEPTION(SYB_ERR_WRONG_ARGUMENTS);
 			}
 		}
-		args.GetReturnValue().Set(result);
+		RETURN(result);
 	}
 	static void beginWork(uv_work_t *req) {
 		workdata *data = (workdata*)req->data;
@@ -103,20 +103,20 @@ private:
 		free(data->path);
 		data->path = p;
 	}
-	static void afterWork(uv_work_t *req, int status) {
-		Isolate *isolate = Isolate::GetCurrent();
-		HandleScope scope(isolate);
+	static AFTERWORKCB(afterWork) {
+		ISOLATE_NEW;
+		SCOPE;
 		workdata *data = (workdata*)req->data;
-		Local<Value> p;
+		RETURNTYPE<Value> p;
 		if (data->path) {
-			p = String::NewFromTwoByte(isolate, (uint16_t*)data->path);
+			p = NEWSTRING_TOWBYTE(data->path);
 			free(data->path);
 		} else {
-			p = String::Empty(isolate);
+			p = String::Empty(ISOLATE);
 		}
-		Local<Function>::New(isolate, data->func)->Call(Local<Object>::New(isolate, data->self), 1, &p);
-		data->func.Reset();
-		data->self.Reset();
+		PERSISTENT_CONV(data->func, Function)->Call(PERSISTENT_CONV(data->self, Object), 1, &p);
+		PERSISTENT_RELEASE(data->func);
+		PERSISTENT_RELEASE(data->self);
 		delete data;
 	}
 };

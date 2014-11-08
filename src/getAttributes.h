@@ -1,7 +1,7 @@
 #pragma once
 #include "main.h"
 
-#define SYB_RETURNS_ISREPARSEPOINT (uint8_t*)"IS_REPARSE_POINT"
+#define SYB_RETURNS_ISREPARSEPOINT "IS_REPARSE_POINT"
 
 class getAttributes {
 private:
@@ -14,95 +14,97 @@ private:
 	};
 public:
 	static Handle<Object> attrDataToJs(WIN32_FILE_ATTRIBUTE_DATA *data) {
-		Isolate *isolate = Isolate::GetCurrent();
-		EscapableHandleScope scope(isolate);
-		Local<Object> o = Object::New(isolate);
-		o->Set(String::NewFromOneByte(isolate, SYB_FILEATTR_CREATIONTIME), Date::New(isolate, fileTimeToJsDateVal(&data->ftCreationTime)));
-		o->Set(String::NewFromOneByte(isolate, SYB_FILEATTR_LASTACCESSTIME), Date::New(isolate, fileTimeToJsDateVal(&data->ftLastAccessTime)));
-		o->Set(String::NewFromOneByte(isolate, SYB_FILEATTR_LASTWRITETIME), Date::New(isolate, fileTimeToJsDateVal(&data->ftLastWriteTime)));
-		o->Set(String::NewFromOneByte(isolate, SYB_FILEATTR_SIZE), Number::New(isolate, (double)combineHiLow(data->nFileSizeHigh, data->nFileSizeLow)));
+		ISOLATE_NEW;
+		SCOPE_ESCAPABLE;
 
-		o->Set(String::NewFromOneByte(isolate, SYB_FILEATTR_ISARCHIVED), data->dwFileAttributes&FILE_ATTRIBUTE_ARCHIVE ? True(isolate) : False(isolate));
-		o->Set(String::NewFromOneByte(isolate, SYB_FILEATTR_ISCOMPRESSED), data->dwFileAttributes&FILE_ATTRIBUTE_COMPRESSED ? True(isolate) : False(isolate));
-		o->Set(String::NewFromOneByte(isolate, SYB_FILEATTR_ISDEVICE), data->dwFileAttributes&FILE_ATTRIBUTE_DEVICE ? True(isolate) : False(isolate));
-		o->Set(String::NewFromOneByte(isolate, SYB_FILEATTR_ISDIRECTORY), data->dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY ? True(isolate) : False(isolate));
-		o->Set(String::NewFromOneByte(isolate, SYB_FILEATTR_ISENCRYPTED), data->dwFileAttributes&FILE_ATTRIBUTE_ENCRYPTED ? True(isolate) : False(isolate));
-		o->Set(String::NewFromOneByte(isolate, SYB_FILEATTR_ISHIDDEN), data->dwFileAttributes&FILE_ATTRIBUTE_HIDDEN ? True(isolate) : False(isolate));
-		o->Set(String::NewFromOneByte(isolate, SYB_FILEATTR_ISNOTCONTENTINDEXED), data->dwFileAttributes&FILE_ATTRIBUTE_NOT_CONTENT_INDEXED ? True(isolate) : False(isolate));
-		o->Set(String::NewFromOneByte(isolate, SYB_FILEATTR_ISOFFLINE), data->dwFileAttributes&FILE_ATTRIBUTE_OFFLINE ? True(isolate) : False(isolate));
-		o->Set(String::NewFromOneByte(isolate, SYB_FILEATTR_ISREADONLY), data->dwFileAttributes&FILE_ATTRIBUTE_READONLY ? True(isolate) : False(isolate));
-		o->Set(String::NewFromOneByte(isolate, SYB_FILEATTR_ISSPARSEFILE), data->dwFileAttributes&FILE_ATTRIBUTE_SPARSE_FILE ? True(isolate) : False(isolate));
-		o->Set(String::NewFromOneByte(isolate, SYB_FILEATTR_ISSYSTEM), data->dwFileAttributes&FILE_ATTRIBUTE_SYSTEM ? True(isolate) : False(isolate));
-		o->Set(String::NewFromOneByte(isolate, SYB_FILEATTR_ISTEMPORARY), data->dwFileAttributes&FILE_ATTRIBUTE_TEMPORARY ? True(isolate) : False(isolate));
-		o->Set(String::NewFromOneByte(isolate, SYB_FILEATTR_ISINTEGERITYSTREAM), data->dwFileAttributes&FILE_ATTRIBUTE_INTEGRITY_STREAM ? True(isolate) : False(isolate));
-		o->Set(String::NewFromOneByte(isolate, SYB_FILEATTR_ISNOSCRUBDATA), data->dwFileAttributes&FILE_ATTRIBUTE_NO_SCRUB_DATA ? True(isolate) : False(isolate));
-		o->Set(String::NewFromOneByte(isolate, SYB_RETURNS_ISREPARSEPOINT), data->dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT ? True(isolate) : False(isolate));
-		return scope.Escape(o);
+		RETURNTYPE<Object> o = Object::New(ISOLATE);
+		o->Set(NEWSTRING(SYB_FILEATTR_CREATIONTIME), Date::New(ISOLATE_C fileTimeToJsDateVal(&data->ftCreationTime)));
+		o->Set(NEWSTRING(SYB_FILEATTR_LASTACCESSTIME), Date::New(ISOLATE_C fileTimeToJsDateVal(&data->ftLastAccessTime)));
+		o->Set(NEWSTRING(SYB_FILEATTR_LASTWRITETIME), Date::New(ISOLATE_C fileTimeToJsDateVal(&data->ftLastWriteTime)));
+		o->Set(NEWSTRING(SYB_FILEATTR_SIZE), Number::New(ISOLATE_C (double)combineHiLow(data->nFileSizeHigh, data->nFileSizeLow)));
+
+		o->Set(NEWSTRING(SYB_FILEATTR_ISARCHIVED), data->dwFileAttributes&FILE_ATTRIBUTE_ARCHIVE ? True(ISOLATE) : False(ISOLATE));
+		o->Set(NEWSTRING(SYB_FILEATTR_ISCOMPRESSED), data->dwFileAttributes&FILE_ATTRIBUTE_COMPRESSED ? True(ISOLATE) : False(ISOLATE));
+		o->Set(NEWSTRING(SYB_FILEATTR_ISDEVICE), data->dwFileAttributes&FILE_ATTRIBUTE_DEVICE ? True(ISOLATE) : False(ISOLATE));
+		o->Set(NEWSTRING(SYB_FILEATTR_ISDIRECTORY), data->dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY ? True(ISOLATE) : False(ISOLATE));
+		o->Set(NEWSTRING(SYB_FILEATTR_ISENCRYPTED), data->dwFileAttributes&FILE_ATTRIBUTE_ENCRYPTED ? True(ISOLATE) : False(ISOLATE));
+		o->Set(NEWSTRING(SYB_FILEATTR_ISHIDDEN), data->dwFileAttributes&FILE_ATTRIBUTE_HIDDEN ? True(ISOLATE) : False(ISOLATE));
+		o->Set(NEWSTRING(SYB_FILEATTR_ISNOTCONTENTINDEXED), data->dwFileAttributes&FILE_ATTRIBUTE_NOT_CONTENT_INDEXED ? True(ISOLATE) : False(ISOLATE));
+		o->Set(NEWSTRING(SYB_FILEATTR_ISOFFLINE), data->dwFileAttributes&FILE_ATTRIBUTE_OFFLINE ? True(ISOLATE) : False(ISOLATE));
+		o->Set(NEWSTRING(SYB_FILEATTR_ISREADONLY), data->dwFileAttributes&FILE_ATTRIBUTE_READONLY ? True(ISOLATE) : False(ISOLATE));
+		o->Set(NEWSTRING(SYB_FILEATTR_ISSPARSEFILE), data->dwFileAttributes&FILE_ATTRIBUTE_SPARSE_FILE ? True(ISOLATE) : False(ISOLATE));
+		o->Set(NEWSTRING(SYB_FILEATTR_ISSYSTEM), data->dwFileAttributes&FILE_ATTRIBUTE_SYSTEM ? True(ISOLATE) : False(ISOLATE));
+		o->Set(NEWSTRING(SYB_FILEATTR_ISTEMPORARY), data->dwFileAttributes&FILE_ATTRIBUTE_TEMPORARY ? True(ISOLATE) : False(ISOLATE));
+		o->Set(NEWSTRING(SYB_FILEATTR_ISINTEGERITYSTREAM), data->dwFileAttributes&FILE_ATTRIBUTE_INTEGRITY_STREAM ? True(ISOLATE) : False(ISOLATE));
+		o->Set(NEWSTRING(SYB_FILEATTR_ISNOSCRUBDATA), data->dwFileAttributes&FILE_ATTRIBUTE_NO_SCRUB_DATA ? True(ISOLATE) : False(ISOLATE));
+		o->Set(NEWSTRING(SYB_RETURNS_ISREPARSEPOINT), data->dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT ? True(ISOLATE) : False(ISOLATE));
+
+		RETURN_SCOPE(o);
 	}
 	static Handle<Function> functionRegister(bool isAsyncVersion) {
-		Isolate *isolate = Isolate::GetCurrent();
-		EscapableHandleScope scope(isolate);
-		Local<String> tmp;
-		Local<FunctionTemplate> t = FunctionTemplate::New(isolate, isAsyncVersion ? jsAsync : jsSync);
+		ISOLATE_NEW;
+		SCOPE_ESCAPABLE;
+		RETURNTYPE<String> tmp;
+		RETURNTYPE<FunctionTemplate> t = FunctionTemplate::New(ISOLATE_C isAsyncVersion ? jsAsync : jsSync);
 
 		//set errmessages
-		Local<Object> errors = Object::New(isolate);
-		tmp = String::NewFromOneByte(isolate, SYB_ERR_WRONG_ARGUMENTS);
+		RETURNTYPE<Object> errors = Object::New(ISOLATE);
+		tmp = NEWSTRING(SYB_ERR_WRONG_ARGUMENTS);
 		errors->Set(tmp, tmp, SYB_ATTR_CONST);
-		tmp = String::NewFromOneByte(isolate, SYB_ERR_NOT_A_CONSTRUCTOR);
+		tmp = NEWSTRING(SYB_ERR_NOT_A_CONSTRUCTOR);
 		errors->Set(tmp, tmp, SYB_ATTR_CONST);
-		t->Set(String::NewFromOneByte(isolate, SYB_ERRORS), errors, SYB_ATTR_CONST);
+		t->Set(NEWSTRING(SYB_ERRORS), errors, SYB_ATTR_CONST);
 
 		//set returns
-		Local<Object> returns = Object::New(isolate);
-		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_CREATIONTIME);
+		RETURNTYPE<Object> returns = Object::New(ISOLATE);
+		tmp = NEWSTRING(SYB_FILEATTR_CREATIONTIME);
 		returns->Set(tmp, tmp, SYB_ATTR_CONST);
-		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_LASTACCESSTIME);
+		tmp = NEWSTRING(SYB_FILEATTR_LASTACCESSTIME);
 		returns->Set(tmp, tmp, SYB_ATTR_CONST);
-		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_LASTWRITETIME);
+		tmp = NEWSTRING(SYB_FILEATTR_LASTWRITETIME);
 		returns->Set(tmp, tmp, SYB_ATTR_CONST);
-		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_SIZE);
+		tmp = NEWSTRING(SYB_FILEATTR_SIZE);
 		returns->Set(tmp, tmp, SYB_ATTR_CONST);
-		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_ISARCHIVED);
+		tmp = NEWSTRING(SYB_FILEATTR_ISARCHIVED);
 		returns->Set(tmp, tmp, SYB_ATTR_CONST);
-		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_ISCOMPRESSED);
+		tmp = NEWSTRING(SYB_FILEATTR_ISCOMPRESSED);
 		returns->Set(tmp, tmp, SYB_ATTR_CONST);
-		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_ISDEVICE);
+		tmp = NEWSTRING(SYB_FILEATTR_ISDEVICE);
 		returns->Set(tmp, tmp, SYB_ATTR_CONST);
-		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_ISDIRECTORY);
+		tmp = NEWSTRING(SYB_FILEATTR_ISDIRECTORY);
 		returns->Set(tmp, tmp, SYB_ATTR_CONST);
-		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_ISENCRYPTED);
+		tmp = NEWSTRING(SYB_FILEATTR_ISENCRYPTED);
 		returns->Set(tmp, tmp, SYB_ATTR_CONST);
-		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_ISHIDDEN);
+		tmp = NEWSTRING(SYB_FILEATTR_ISHIDDEN);
 		returns->Set(tmp, tmp, SYB_ATTR_CONST);
-		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_ISNOTCONTENTINDEXED);
+		tmp = NEWSTRING(SYB_FILEATTR_ISNOTCONTENTINDEXED);
 		returns->Set(tmp, tmp, SYB_ATTR_CONST);
-		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_ISREADONLY);
+		tmp = NEWSTRING(SYB_FILEATTR_ISREADONLY);
 		returns->Set(tmp, tmp, SYB_ATTR_CONST);
-		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_ISSPARSEFILE);
+		tmp = NEWSTRING(SYB_FILEATTR_ISSPARSEFILE);
 		returns->Set(tmp, tmp, SYB_ATTR_CONST);
-		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_ISSYSTEM);
+		tmp = NEWSTRING(SYB_FILEATTR_ISSYSTEM);
 		returns->Set(tmp, tmp, SYB_ATTR_CONST);
-		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_ISTEMPORARY);
+		tmp = NEWSTRING(SYB_FILEATTR_ISTEMPORARY);
 		returns->Set(tmp, tmp, SYB_ATTR_CONST);
-		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_ISINTEGERITYSTREAM);
+		tmp = NEWSTRING(SYB_FILEATTR_ISINTEGERITYSTREAM);
 		returns->Set(tmp, tmp, SYB_ATTR_CONST);
-		tmp = String::NewFromOneByte(isolate, SYB_FILEATTR_ISNOSCRUBDATA);
+		tmp = NEWSTRING(SYB_FILEATTR_ISNOSCRUBDATA);
 		returns->Set(tmp, tmp, SYB_ATTR_CONST);
-		tmp = String::NewFromOneByte(isolate, SYB_RETURNS_ISREPARSEPOINT);
+		tmp = NEWSTRING(SYB_RETURNS_ISREPARSEPOINT);
 		returns->Set(tmp, tmp, SYB_ATTR_CONST);
 
-		t->Set(String::NewFromOneByte(isolate, SYB_RETURNS), returns, SYB_ATTR_CONST);
+		t->Set(NEWSTRING(SYB_RETURNS), returns, SYB_ATTR_CONST);
 
-		return scope.Escape(t->GetFunction());
+		RETURN_SCOPE(t->GetFunction());
 	}
 private:
-	static void jsSync(const FunctionCallbackInfo<Value>& args) {
-		Isolate *isolate = args.GetIsolate();
-		HandleScope scope(isolate);
-		Local<Value> result;
+	static JSFUNC(jsSync) {
+		ISOLATE_NEW_ARGS;
+		SCOPE;
+		RETURNTYPE<Value> result;
 		if (args.IsConstructCall()) {
-			result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_NOT_A_CONSTRUCTOR)));
+			result = THROWEXCEPTION(SYB_ERR_NOT_A_CONSTRUCTOR);
 		} else {
 			if (args.Length() > 0 && (args[0]->IsString() || args[0]->IsStringObject())) {
 				String::Value p(args[0]);
@@ -110,46 +112,46 @@ private:
 				if (GetFileAttributesExW((wchar_t*)*p, GetFileExInfoStandard, &data)) {
 					result = attrDataToJs(&data);
 				} else {
-					result = Undefined(isolate);
+					result = Undefined(ISOLATE);
 				}
 			} else {
-				result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_WRONG_ARGUMENTS)));
+				result = THROWEXCEPTION(SYB_ERR_WRONG_ARGUMENTS);
 			}
 		}
-		args.GetReturnValue().Set(result);
+		RETURN(result);
 	}
-	static void jsAsync(const FunctionCallbackInfo<Value>& args) {
-		Isolate *isolate = args.GetIsolate();
-		HandleScope scope(isolate);
-		Local<Value> result;
+	static JSFUNC(jsAsync) {
+		ISOLATE_NEW_ARGS;
+		SCOPE;
+		RETURNTYPE<Value> result;
 		if (args.IsConstructCall()) {
-			result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_NOT_A_CONSTRUCTOR)));
+			result = THROWEXCEPTION(SYB_ERR_NOT_A_CONSTRUCTOR);
 		} else {
 			if (args.Length() > 1 && (args[0]->IsString() || args[0]->IsStringObject()) && args[1]->IsFunction()) {
 				workdata *data = new workdata;
 				data->req.data = data;
-				data->self.Reset(isolate, args.This());
-				data->func.Reset(isolate, Local<Function>::Cast(args[1]));
+				PERSISTENT_NEW(data->self, args.This(), Object);
+				PERSISTENT_NEW(data->func, RETURNTYPE<Function>::Cast(args[1]), Function);
 				String::Value p(args[0]);
 				data->path = _wcsdup((wchar_t*)*p);
 				data->attr = new WIN32_FILE_ATTRIBUTE_DATA;
 				if (uv_queue_work(uv_default_loop(), &data->req, beginWork, afterWork) == 0) {
-					result = True(isolate);
+					result = True(ISOLATE);
 				} else {
 					free(data->path);
-					data->self.Reset();
+					PERSISTENT_RELEASE(data->self);
 					if (!data->func.IsEmpty()) {
-						data->func.Reset();
+						PERSISTENT_RELEASE(data->func);
 					}
 					delete data->attr;
 					delete data;
-					result = False(isolate);
+					result = False(ISOLATE);
 				}
 			} else {
-				result = isolate->ThrowException(Exception::Error(String::NewFromOneByte(isolate, SYB_ERR_WRONG_ARGUMENTS)));
+				result = THROWEXCEPTION(SYB_ERR_WRONG_ARGUMENTS);
 			}
 		}
-		args.GetReturnValue().Set(result);
+		RETURN(result);
 	}
 	static void beginWork(uv_work_t *req) {
 		workdata *data = (workdata*)req->data;
@@ -159,20 +161,18 @@ private:
 		}
 		free(data->path);
 	}
-	static void afterWork(uv_work_t *req, int status) {
-		Isolate *isolate = Isolate::GetCurrent();
-		HandleScope scope(isolate);
+	static AFTERWORKCB(afterWork) {
+		ISOLATE_NEW;
+		SCOPE;
 		workdata *data = (workdata*)req->data;
-		Local<Function> func = Local<Function>::New(isolate, data->func);
-		Local<Object> self = Local<Object>::New(isolate, data->self);
 		if (data->attr) {
-			Local<Value> result = attrDataToJs(data->attr);
-			func->Call(self, 1, &result);
+			RETURNTYPE<Value> result = attrDataToJs(data->attr);
+			PERSISTENT_CONV(data->func, Function)->Call(PERSISTENT_CONV(data->self, Object), 1, &result);
 		} else {
-			func->Call(self, 0, NULL);
+			PERSISTENT_CONV(data->func, Function)->Call(PERSISTENT_CONV(data->self, Object), 0, NULL);
 		}
-		data->func.Reset();
-		data->self.Reset();
+		PERSISTENT_RELEASE(data->func);
+		PERSISTENT_RELEASE(data->self);
 		delete data;
 	}
 };
