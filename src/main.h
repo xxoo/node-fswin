@@ -9,13 +9,13 @@
 using namespace v8;
 using namespace node;
 
-# if NODE_MODULE_VERSION < 0x000B
+# if NODE_MODULE_VERSION < 11
 #	define AFTERWORKCB(name) void (name)(uv_work_t *req)
 #else
 #	define AFTERWORKCB(name) void (name)(uv_work_t *req, int status)
 #endif
 
-#if NODE_MODULE_VERSION < 0x000C
+#if NODE_MODULE_VERSION < 12
 #	define ASYNCCB(name) void (name)(uv_async_t *hnd, int status)
 #	define ISOLATE
 #	define ISOLATE_C
@@ -55,6 +55,12 @@ using namespace node;
 #	define SCOPE HandleScope scope(isolate)
 #	define SCOPE_ESCAPABLE EscapableHandleScope scope(isolate)
 #	define OBJ_HANDLE persistent()
+#endif
+
+#if NODE_MODULE_VERSION < 14
+#	define SETWITHATTR(obj, key, value, attr) (obj)->Set((key), (value), (attr))
+#else
+#	define SETWITHATTR(obj, key, value, attr) (obj)->ForceSet((key), (value), (attr))
 #endif
 
 #define SYB_ERR_WRONG_ARGUMENTS "WRONG_ARGUMENTS"

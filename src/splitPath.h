@@ -75,17 +75,17 @@ public:
 		//set errmessages
 		RETURNTYPE<Object> errors = Object::New(ISOLATE);
 		tmp = NEWSTRING(SYB_ERR_WRONG_ARGUMENTS);
-		errors->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(errors, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_ERR_NOT_A_CONSTRUCTOR);
-		errors->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(errors, tmp, tmp, SYB_ATTR_CONST);
 		t->Set(NEWSTRING(SYB_ERRORS), errors, SYB_ATTR_CONST);
 
 		//set properties of the return value
 		RETURNTYPE<Object> returns = Object::New(ISOLATE);
 		tmp = NEWSTRING(SYB_RETURN_PARENT);
-		returns->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_RETURN_NAME);
-		returns->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
 		t->Set(NEWSTRING(SYB_RETURNS), returns, SYB_ATTR_CONST);
 
 		RETURN_SCOPE(t->GetFunction());

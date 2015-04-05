@@ -130,27 +130,27 @@ public:
 		//set errmessages
 		RETURNTYPE<Object> errors = Object::New(ISOLATE);
 		tmp = NEWSTRING(SYB_ERR_WRONG_ARGUMENTS);
-		errors->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(errors, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_ERR_NOT_A_CONSTRUCTOR);
-		errors->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(errors, tmp, tmp, SYB_ATTR_CONST);
 		t->Set(NEWSTRING(SYB_ERRORS), errors, SYB_ATTR_CONST);
 
 		//set params
 		RETURNTYPE<Object> params = Object::New(ISOLATE);
 		tmp = NEWSTRING(SYB_FILEATTR_ISARCHIVED);
-		params->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(params, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_FILEATTR_ISHIDDEN);
-		params->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(params, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_FILEATTR_ISNOTCONTENTINDEXED);
-		params->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(params, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_FILEATTR_ISOFFLINE);
-		params->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(params, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_FILEATTR_ISREADONLY);
-		params->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(params, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_FILEATTR_ISSYSTEM);
-		params->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(params, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_FILEATTR_ISTEMPORARY);
-		params->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(params, tmp, tmp, SYB_ATTR_CONST);
 		t->Set(NEWSTRING(SYB_PARAMS), params, SYB_ATTR_CONST);
 
 		RETURN_SCOPE(t->GetFunction());

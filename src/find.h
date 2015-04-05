@@ -191,67 +191,67 @@ public:
 		//set error messages
 		RETURNTYPE<Object> errors = Object::New(ISOLATE);
 		tmp = NEWSTRING(SYB_ERR_WRONG_ARGUMENTS);
-		errors->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(errors, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_ERR_NOT_A_CONSTRUCTOR);
-		errors->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(errors, tmp, tmp, SYB_ATTR_CONST);
 		t->Set(NEWSTRING(SYB_ERRORS), errors, SYB_ATTR_CONST);
 
 		//set events
 		if (isAsyncVersion) {
 			RETURNTYPE<Object> events = Object::New(ISOLATE);
 			tmp = NEWSTRING(SYB_EVT_FOUND);
-			events->Set(tmp, tmp, SYB_ATTR_CONST);
+			SETWITHATTR(events, tmp, tmp, SYB_ATTR_CONST);
 			tmp = NEWSTRING(SYB_EVT_SUCCEEDED);
-			events->Set(tmp, tmp, SYB_ATTR_CONST);
+			SETWITHATTR(events, tmp, tmp, SYB_ATTR_CONST);
 			tmp = NEWSTRING(SYB_EVT_FAILED);
-			events->Set(tmp, tmp, SYB_ATTR_CONST);
+			SETWITHATTR(events, tmp, tmp, SYB_ATTR_CONST);
 			tmp = NEWSTRING(SYB_EVT_INTERRUPTED);
-			events->Set(tmp, tmp, SYB_ATTR_CONST);
+			SETWITHATTR(events, tmp, tmp, SYB_ATTR_CONST);
 			t->Set(NEWSTRING(SYB_EVENTS), events, SYB_ATTR_CONST);
 		}
 
 		//set properties of return value
 		RETURNTYPE<Object> returns = Object::New(ISOLATE);
 		tmp = NEWSTRING(SYB_RETURNS_LONGNAME);
-		returns->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_RETURNS_SHORTNAME);
-		returns->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_FILEATTR_CREATIONTIME);
-		returns->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_FILEATTR_LASTACCESSTIME);
-		returns->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_FILEATTR_LASTWRITETIME);
-		returns->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_FILEATTR_SIZE);
-		returns->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_FILEATTR_ISARCHIVED);
-		returns->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_FILEATTR_ISCOMPRESSED);
-		returns->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_FILEATTR_ISDEVICE);
-		returns->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_FILEATTR_ISDIRECTORY);
-		returns->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_FILEATTR_ISENCRYPTED);
-		returns->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_FILEATTR_ISHIDDEN);
-		returns->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_FILEATTR_ISNOTCONTENTINDEXED);
-		returns->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_FILEATTR_ISOFFLINE);
-		returns->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_FILEATTR_ISREADONLY);
-		returns->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_FILEATTR_ISSPARSEFILE);
-		returns->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_FILEATTR_ISSYSTEM);
-		returns->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_FILEATTR_ISTEMPORARY);
-		returns->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_FILEATTR_ISNOSCRUBDATA);
-		returns->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_RETURNS_REPARSEPOINTTAG);
-		returns->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
 		t->Set(NEWSTRING(SYB_RETURNS), returns, SYB_ATTR_CONST);
 
 		RETURN_SCOPE(t->GetFunction());

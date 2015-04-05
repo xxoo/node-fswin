@@ -111,51 +111,51 @@ public:
 		//set error messages
 		RETURNTYPE<Object> errmsgs = Object::New(ISOLATE);
 		tmp = NEWSTRING(SYB_ERR_UNABLE_TO_WATCH_SELF);
-		errmsgs->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(errmsgs, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_ERR_UNABLE_TO_CONTINUE_WATCHING);
-		errmsgs->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(errmsgs, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_ERR_INITIALIZATION_FAILED);
-		errmsgs->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(errmsgs, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_ERR_WRONG_ARGUMENTS);
-		errmsgs->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(errmsgs, tmp, tmp, SYB_ATTR_CONST);
 		t->Set(NEWSTRING(SYB_ERRORS), errmsgs, SYB_ATTR_CONST);
 
 		//set events
 		RETURNTYPE<Object> evts = Object::New(ISOLATE);
 		tmp = NEWSTRING(SYB_EVT_STA);
-		evts->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(evts, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_EVT_END);
-		evts->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(evts, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_EVT_NEW);
-		evts->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(evts, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_EVT_DEL);
-		evts->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(evts, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_EVT_REN);
-		evts->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(evts, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_EVT_CHG);
-		evts->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(evts, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_EVT_CHG);
-		evts->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(evts, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_EVT_ERR);
-		evts->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(evts, tmp, tmp, SYB_ATTR_CONST);
 		t->Set(NEWSTRING(SYB_EVENTS), evts, SYB_ATTR_CONST);
 
 		//set options
 		RETURNTYPE<Object> opts = Object::New(ISOLATE);
 		tmp = NEWSTRING(SYB_OPT_SUBDIRS);
-		opts->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(opts, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_OPT_FILESIZE);
-		opts->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(opts, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_OPT_LASTWRITE);
-		opts->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(opts, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_OPT_LASTACCESS);
-		opts->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(opts, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_OPT_CREATION);
-		opts->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(opts, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_OPT_ATTRIBUTES);
-		opts->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(opts, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_OPT_SECURITY);
-		opts->Set(tmp, tmp, SYB_ATTR_CONST);
+		SETWITHATTR(opts, tmp, tmp, SYB_ATTR_CONST);
 		t->Set(NEWSTRING(SYB_OPTIONS), evts, SYB_ATTR_CONST);
 
 		RETURN_SCOPE(t->GetFunction());
