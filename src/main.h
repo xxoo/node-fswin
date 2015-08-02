@@ -4,7 +4,6 @@
 #include <node_object_wrap.h>
 #include <uv.h>
 //#include <iostream>
-#pragma comment(lib, "node.lib")
 
 using namespace v8;
 using namespace node;
@@ -58,9 +57,17 @@ using namespace node;
 #endif
 
 #if NODE_MODULE_VERSION < 14
+#	define THEASYNCOVERLAP overlapped
 #	define SETWITHATTR(obj, key, value, attr) (obj)->Set((key), (value), (attr))
 #else
+#	define THEASYNCOVERLAP u.io.overlapped
 #	define SETWITHATTR(obj, key, value, attr) (obj)->ForceSet((key), (value), (attr))
+#endif
+
+#if NODE_MODULE_VERSION < 42
+#	pragma comment(lib, "node.lib")
+#else
+#	pragma comment(lib, "iojs.lib")
 #endif
 
 #define SYB_ERR_WRONG_ARGUMENTS "WRONG_ARGUMENTS"

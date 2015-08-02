@@ -6,7 +6,7 @@
 
 class splitPath {
 public:
-	static const struct splitedPath {
+	const struct splitedPath {
 		DWORD parentLen;//the length of the parent
 		const wchar_t *name;//this could also be considered as the start position of the name
 	};

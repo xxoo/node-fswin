@@ -272,12 +272,12 @@ private:
 		return result;
 	}
 	static void beginWatchingParent(dirWatcher *self) {
-		self->watchingParent = ReadDirectoryChangesW(self->parenthnd, self->parentbuffer, SYB_BUFFERSIZE, FALSE, FILE_NOTIFY_CHANGE_DIR_NAME, NULL, &self->uvparenthnd.async_req.overlapped, NULL);
+		self->watchingParent = ReadDirectoryChangesW(self->parenthnd, self->parentbuffer, SYB_BUFFERSIZE, FALSE, FILE_NOTIFY_CHANGE_DIR_NAME, NULL, &self->uvparenthnd.async_req.THEASYNCOVERLAP, NULL);
 	}
 	static void beginWatchingPath(dirWatcher *self) {
 		self->pathbuffer = malloc(SYB_BUFFERSIZE);
 		if (self->pathbuffer) {
-			self->watchingPath = ReadDirectoryChangesW(self->pathhnd, self->pathbuffer, SYB_BUFFERSIZE, self->subDirs, self->options, NULL, &self->uvpathhnd.async_req.overlapped, NULL);
+			self->watchingPath = ReadDirectoryChangesW(self->pathhnd, self->pathbuffer, SYB_BUFFERSIZE, self->subDirs, self->options, NULL, &self->uvpathhnd.async_req.THEASYNCOVERLAP, NULL);
 			if (!self->watchingPath) {
 				free(self->pathbuffer);
 			}
@@ -290,7 +290,7 @@ private:
 			uv_close((uv_handle_t*)hnd, NULL);
 			checkWatchingStoped(self);
 		} else {
-			if (hnd->async_req.overlapped.Internal == ERROR_SUCCESS) {
+			if (hnd->async_req.THEASYNCOVERLAP.Internal == ERROR_SUCCESS) {
 				wchar_t *newpath = NULL;
 				FILE_NOTIFY_INFORMATION *pInfo;
 				DWORD d = 0;
@@ -345,7 +345,7 @@ private:
 			ISOLATE_NEW;
 			SCOPE;
 			bool e = false;
-			if (hnd->async_req.overlapped.Internal == ERROR_SUCCESS) {
+			if (hnd->async_req.THEASYNCOVERLAP.Internal == ERROR_SUCCESS) {
 				FILE_NOTIFY_INFORMATION *pInfo;
 				void *buffer = self->pathbuffer;
 				beginWatchingPath(self);

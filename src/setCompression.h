@@ -5,11 +5,11 @@ class setCompression {
 public:
 	typedef void(*callbackFunc)(const bool result, void *data);
 private:
-	static const struct workdata {
+	const struct workdata {
 		Persistent<Object> self;
 		Persistent<Function> func;
 	};
-	static const struct workdata2 {
+	const struct workdata2 {
 		callbackFunc callback;
 		void *data;
 		HANDLE hnd;
@@ -43,7 +43,7 @@ public:
 				uv_async_init(uv_default_loop(), hnd, afterWork);
 				hnd->data = work;
 				USHORT c = compress ? COMPRESSION_FORMAT_DEFAULT : COMPRESSION_FORMAT_NONE;
-				DeviceIoControl(work->hnd, FSCTL_SET_COMPRESSION, &c, sizeof(USHORT), NULL, 0, NULL, &hnd->async_req.overlapped);
+				DeviceIoControl(work->hnd, FSCTL_SET_COMPRESSION, &c, sizeof(USHORT), NULL, 0, NULL, &hnd->async_req.THEASYNCOVERLAP);
 				if (GetLastError() == ERROR_IO_PENDING) {
 					result = true;
 				} else {
@@ -76,7 +76,7 @@ private:
 	static ASYNCCB(afterWork) {
 		workdata2 *work = (workdata2*)hnd->data;
 		CloseHandle(work->hnd);
-		work->callback(hnd->async_req.overlapped.Internal == ERROR_SUCCESS, work->data);
+		work->callback(hnd->async_req.THEASYNCOVERLAP.Internal == ERROR_SUCCESS, work->data);
 		uv_close((uv_handle_t*)hnd, NULL);
 		delete hnd;
 		delete work;

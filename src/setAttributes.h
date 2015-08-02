@@ -3,7 +3,7 @@
 
 class setAttributes {
 public:
-	static const struct attrVal {//0=keep,1=yes,-1=no
+	const struct attrVal {//0=keep,1=yes,-1=no
 		char archive;
 		char hidden;
 		char notContentIndexed;
@@ -13,7 +13,7 @@ public:
 		char temporary;
 	};
 private:
-	static const struct workdata {
+	const struct workdata {
 		uv_work_t req;
 		Persistent<Object> self;
 		Persistent<Function> func;

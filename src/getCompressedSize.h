@@ -3,7 +3,7 @@
 
 class getCompressedSize {
 private:
-	static const struct workdata {
+	const struct workdata {
 		uv_work_t req;
 		Persistent<Object> self;
 		Persistent<Function> func;

@@ -5,12 +5,12 @@
 #define SYB_RETURNS_FREESPACE "FREE"
 class getVolumeSpace {
 public:
-	static const struct spaces {
+	const struct spaces {
 		ULONGLONG totalSpace;
 		ULONGLONG freeSpace;
 	};
 private:
-	static const struct workdata {
+	const struct workdata {
 		uv_work_t req;
 		Persistent<Object> self;
 		Persistent<Function> func;

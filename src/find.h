@@ -34,18 +34,18 @@
 
 class find {
 public:
-	static const struct resultData {//this is a linked table
+	const struct resultData {//this is a linked table
 		WIN32_FIND_DATAW data;
 		resultData *next;
 	};
 	//progressive callback type, if this callback returns true, the search will stop immediately. the contents of info will be rewritten or released after the callback returns, so make a copy before starting a new thread if you still need to use it
 	typedef bool(*findResultCall)(const WIN32_FIND_DATAW *info, void *data);
 private:
-	static const struct jsCallbackData {
+	const struct jsCallbackData {
 		Handle<Object> self;
 		Handle<Function> func;
 	};
-	static const struct workdata {
+	const struct workdata {
 		uv_work_t req;
 		Persistent<Object> self;
 		Persistent<Function> func;
