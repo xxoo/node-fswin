@@ -39,7 +39,7 @@ public:
 	static Handle<Function> functionRegister(bool isAsyncVersion) {
 		ISOLATE_NEW;
 		SCOPE_ESCAPABLE;
-		RETURNTYPE<FunctionTemplate> t = FunctionTemplate::New(ISOLATE_C isAsyncVersion ? jsAsync : jsSync);
+		RETURNTYPE<Function> t = NEWFUNCTION(isAsyncVersion ? jsAsync : jsSync);
 		RETURNTYPE<String> tmp;
 		//set errmessages
 		RETURNTYPE<Object> errors = Object::New(ISOLATE);
@@ -47,9 +47,9 @@ public:
 		SETWITHATTR(errors, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_ERR_NOT_A_CONSTRUCTOR);
 		SETWITHATTR(errors, tmp, tmp, SYB_ATTR_CONST);
-		t->Set(NEWSTRING(SYB_ERRORS), errors, SYB_ATTR_CONST);
+		SETWITHATTR(t, NEWSTRING(SYB_ERRORS), errors, SYB_ATTR_CONST);
 
-		RETURN_SCOPE(t->GetFunction());
+		RETURN_SCOPE(t);
 	}
 private:
 	static JSFUNC(jsSync) {

@@ -16,7 +16,7 @@ using namespace node;
 #	define AFTERWORKCB(name) void (name)(uv_work_t *req, int status)
 #endif
 
-#if NODE_MODULE_VERSION < 12
+#if NODE_MODULE_VERSION < 14
 #	define ASYNCCB(name) void (name)(uv_async_t *hnd, int status)
 #	define ISOLATE
 #	define ISOLATE_C
@@ -36,6 +36,9 @@ using namespace node;
 #	define SCOPE HandleScope scope
 #	define SCOPE_ESCAPABLE SCOPE
 #	define OBJ_HANDLE handle_
+#	define THEASYNCOVERLAP overlapped
+#	define SETWITHATTR(obj, key, value, attr) (obj)->Set((key), (value), (attr))
+#	define NEWFUNCTION(call) FunctionTemplate::New((call))->GetFunction()
 #else
 #	define ASYNCCB(name) void (name)(uv_async_t *hnd)
 #	define ISOLATE isolate
@@ -56,14 +59,9 @@ using namespace node;
 #	define SCOPE HandleScope scope(isolate)
 #	define SCOPE_ESCAPABLE EscapableHandleScope scope(isolate)
 #	define OBJ_HANDLE persistent()
-#endif
-
-#if NODE_MODULE_VERSION < 14
-#	define THEASYNCOVERLAP overlapped
-#	define SETWITHATTR(obj, key, value, attr) (obj)->Set((key), (value), (attr))
-#else
 #	define THEASYNCOVERLAP u.io.overlapped
 #	define SETWITHATTR(obj, key, value, attr) (obj)->ForceSet((key), (value), (attr))
+#	define NEWFUNCTION(call) Function::New(isolate, (call))
 #endif
 
 #define SYB_ERR_WRONG_ARGUMENTS "WRONG_ARGUMENTS"
@@ -97,6 +95,7 @@ using namespace node;
 #define SYB_EVENTS "events"
 #define SYB_OPTIONS "options"
 #define SYB_PARAMS "params"
+#define SYB_PROTOTYPE "prototype"
 
 #define SYB_ATTR_CONST (PropertyAttribute)(ReadOnly | DontDelete)
 

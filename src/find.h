@@ -186,7 +186,7 @@ public:
 		ISOLATE_NEW;
 		SCOPE_ESCAPABLE;
 		RETURNTYPE<String> tmp;
-		RETURNTYPE<FunctionTemplate> t = FunctionTemplate::New(ISOLATE_C isAsyncVersion ? jsAsync : jsSync);
+		RETURNTYPE<Function> t = NEWFUNCTION(isAsyncVersion ? jsAsync : jsSync);
 
 		//set error messages
 		RETURNTYPE<Object> errors = Object::New(ISOLATE);
@@ -194,7 +194,7 @@ public:
 		SETWITHATTR(errors, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_ERR_NOT_A_CONSTRUCTOR);
 		SETWITHATTR(errors, tmp, tmp, SYB_ATTR_CONST);
-		t->Set(NEWSTRING(SYB_ERRORS), errors, SYB_ATTR_CONST);
+		SETWITHATTR(t, NEWSTRING(SYB_ERRORS), errors, SYB_ATTR_CONST);
 
 		//set events
 		if (isAsyncVersion) {
@@ -207,7 +207,7 @@ public:
 			SETWITHATTR(events, tmp, tmp, SYB_ATTR_CONST);
 			tmp = NEWSTRING(SYB_EVT_INTERRUPTED);
 			SETWITHATTR(events, tmp, tmp, SYB_ATTR_CONST);
-			t->Set(NEWSTRING(SYB_EVENTS), events, SYB_ATTR_CONST);
+			SETWITHATTR(t, NEWSTRING(SYB_EVENTS), events, SYB_ATTR_CONST);
 		}
 
 		//set properties of return value
@@ -252,9 +252,9 @@ public:
 		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_RETURNS_REPARSEPOINTTAG);
 		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		t->Set(NEWSTRING(SYB_RETURNS), returns, SYB_ATTR_CONST);
+		SETWITHATTR(t, NEWSTRING(SYB_RETURNS), returns, SYB_ATTR_CONST);
 
-		RETURN_SCOPE(t->GetFunction());
+		RETURN_SCOPE(t);
 	}
 private:
 	static bool isValidInfo(const WIN32_FIND_DATAW *info) {//determine whether it is the real content 

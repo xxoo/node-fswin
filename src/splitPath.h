@@ -70,7 +70,7 @@ public:
 		ISOLATE_NEW;
 		SCOPE_ESCAPABLE;
 		RETURNTYPE<String> tmp;
-		RETURNTYPE<FunctionTemplate> t = FunctionTemplate::New(ISOLATE_C jsSync);
+		RETURNTYPE<Function> t = NEWFUNCTION(jsSync);
 
 		//set errmessages
 		RETURNTYPE<Object> errors = Object::New(ISOLATE);
@@ -78,7 +78,7 @@ public:
 		SETWITHATTR(errors, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_ERR_NOT_A_CONSTRUCTOR);
 		SETWITHATTR(errors, tmp, tmp, SYB_ATTR_CONST);
-		t->Set(NEWSTRING(SYB_ERRORS), errors, SYB_ATTR_CONST);
+		SETWITHATTR(t, NEWSTRING(SYB_ERRORS), errors, SYB_ATTR_CONST);
 
 		//set properties of the return value
 		RETURNTYPE<Object> returns = Object::New(ISOLATE);
@@ -86,9 +86,9 @@ public:
 		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_RETURN_NAME);
 		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		t->Set(NEWSTRING(SYB_RETURNS), returns, SYB_ATTR_CONST);
+		SETWITHATTR(t, NEWSTRING(SYB_RETURNS), returns, SYB_ATTR_CONST);
 
-		RETURN_SCOPE(t->GetFunction());
+		RETURN_SCOPE(t);
 	}
 private:
 	static JSFUNC(jsSync) {

@@ -103,10 +103,11 @@ public:
 		ISOLATE_NEW;
 		SCOPE_ESCAPABLE;
 		RETURNTYPE<String> tmp;
-		RETURNTYPE<FunctionTemplate> t = FunctionTemplate::New(ISOLATE_C New);
-		t->InstanceTemplate()->SetInternalFieldCount(1);
+		RETURNTYPE<FunctionTemplate> ft = FunctionTemplate::New(ISOLATE_C New);
+		ft->InstanceTemplate()->SetInternalFieldCount(1);
+		RETURNTYPE<Function> t = ft->GetFunction();
 		//set methods
-		NODE_SET_PROTOTYPE_METHOD(t, "close", close);
+		SETWITHATTR(t->Get(NEWSTRING(SYB_PROTOTYPE))->ToObject(), NEWSTRING("close"), NEWFUNCTION(close), SYB_ATTR_CONST);
 
 		//set error messages
 		RETURNTYPE<Object> errmsgs = Object::New(ISOLATE);
@@ -118,7 +119,7 @@ public:
 		SETWITHATTR(errmsgs, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_ERR_WRONG_ARGUMENTS);
 		SETWITHATTR(errmsgs, tmp, tmp, SYB_ATTR_CONST);
-		t->Set(NEWSTRING(SYB_ERRORS), errmsgs, SYB_ATTR_CONST);
+		SETWITHATTR(t, NEWSTRING(SYB_ERRORS), errmsgs, SYB_ATTR_CONST);
 
 		//set events
 		RETURNTYPE<Object> evts = Object::New(ISOLATE);
@@ -138,7 +139,7 @@ public:
 		SETWITHATTR(evts, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_EVT_ERR);
 		SETWITHATTR(evts, tmp, tmp, SYB_ATTR_CONST);
-		t->Set(NEWSTRING(SYB_EVENTS), evts, SYB_ATTR_CONST);
+		SETWITHATTR(t, NEWSTRING(SYB_EVENTS), evts, SYB_ATTR_CONST);
 
 		//set options
 		RETURNTYPE<Object> opts = Object::New(ISOLATE);
@@ -156,9 +157,9 @@ public:
 		SETWITHATTR(opts, tmp, tmp, SYB_ATTR_CONST);
 		tmp = NEWSTRING(SYB_OPT_SECURITY);
 		SETWITHATTR(opts, tmp, tmp, SYB_ATTR_CONST);
-		t->Set(NEWSTRING(SYB_OPTIONS), evts, SYB_ATTR_CONST);
+		SETWITHATTR(t, NEWSTRING(SYB_OPTIONS), evts, SYB_ATTR_CONST);
 
-		RETURN_SCOPE(t->GetFunction());
+		RETURN_SCOPE(t);
 	}
 private:
 	static JSFUNC(New) {
