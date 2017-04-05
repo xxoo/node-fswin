@@ -5,7 +5,7 @@
 #include <uv.h>
 //#include <iostream>
 
-#pragma comment(lib, "node.lib")
+//#pragma comment(lib, "iojs.lib")
 
 using namespace v8;
 using namespace node;
