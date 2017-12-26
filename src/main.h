@@ -10,10 +10,18 @@
 using namespace v8;
 using namespace node;
 
-# if NODE_MODULE_VERSION < 11
+#if NODE_MODULE_VERSION < 11
 #	define AFTERWORKCB(name) void (name)(uv_work_t *req)
 #else
 #	define AFTERWORKCB(name) void (name)(uv_work_t *req, int status)
+#endif
+
+#if NODE_MODULE_VERSION < 14
+#	define SETWITHATTR(obj, key, value, attr) (obj)->Set((key), (value), (attr))
+#elif NODE_MODULE_VERSION < 46
+#	define SETWITHATTR(obj, key, value, attr) (obj)->ForceSet((key), (value), (attr))
+#else
+#	define SETWITHATTR(obj, key, value, attr) (obj)->DefineOwnProperty(isolate->GetCurrentContext(), (key), (value), (attr))
 #endif
 
 #if NODE_MODULE_VERSION < 14
@@ -37,7 +45,6 @@ using namespace node;
 #	define SCOPE_ESCAPABLE SCOPE
 #	define OBJ_HANDLE handle_
 #	define THEASYNCOVERLAP overlapped
-#	define SETWITHATTR(obj, key, value, attr) (obj)->Set((key), (value), (attr))
 #	define NEWFUNCTION(call) FunctionTemplate::New((call))->GetFunction()
 #else
 #	define ASYNCCB(name) void (name)(uv_async_t *hnd)
@@ -60,7 +67,6 @@ using namespace node;
 #	define SCOPE_ESCAPABLE EscapableHandleScope scope(isolate)
 #	define OBJ_HANDLE persistent()
 #	define THEASYNCOVERLAP u.io.overlapped
-#	define SETWITHATTR(obj, key, value, attr) (obj)->ForceSet((key), (value), (attr))
 #	define NEWFUNCTION(call) Function::New(isolate, (call))
 #endif
 
