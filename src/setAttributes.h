@@ -12,17 +12,7 @@ public:
 		char system;
 		char temporary;
 	};
-private:
-	const struct workdata {
-		uv_work_t req;
-		Persistent<Object> self;
-		Persistent<Function> func;
-		wchar_t *path;
-		attrVal *attr;
-		bool result;
-	};
-public:
-	static bool basic(const wchar_t *file, const attrVal *attr) {
+	static bool func(const wchar_t *file, const attrVal *attr) {
 		bool result;
 		DWORD oldattr = GetFileAttributesW(file);
 		if (oldattr == INVALID_FILE_ATTRIBUTES) {
@@ -72,159 +62,179 @@ public:
 		}
 		return result;
 	}
-	static attrVal *jsToAttrval(Handle<Object> attr) {//delete the result if it is not NULL
-		ISOLATE_NEW;
-		SCOPE;
-		RETURNTYPE<String> tmp;
-		attrVal *a = new attrVal;
-		tmp = NEWSTRING(SYB_FILEATTR_ISARCHIVED);
-		if (attr->HasOwnProperty(tmp)) {
-			a->archive = attr->Get(tmp)->ToBoolean()->IsTrue() ? 1 : -1;
-		} else {
-			a->archive = 0;
-		}
-		tmp = NEWSTRING(SYB_FILEATTR_ISHIDDEN);
-		if (attr->HasOwnProperty(tmp)) {
-			a->hidden = attr->Get(tmp)->ToBoolean()->IsTrue() ? 1 : -1;
-		} else {
-			a->hidden = 0;
-		}
-		tmp = NEWSTRING(SYB_FILEATTR_ISNOTCONTENTINDEXED);
-		if (attr->HasOwnProperty(tmp)) {
-			a->notContentIndexed = attr->Get(tmp)->ToBoolean()->IsTrue() ? 1 : -1;
-		} else {
-			a->notContentIndexed = 0;
-		}
-		tmp = NEWSTRING(SYB_FILEATTR_ISOFFLINE);
-		if (attr->HasOwnProperty(tmp)) {
-			a->offline = attr->Get(tmp)->ToBoolean()->IsTrue() ? 1 : -1;
-		} else {
-			a->offline = 0;
-		}
-		tmp = NEWSTRING(SYB_FILEATTR_ISREADONLY);
-		if (attr->HasOwnProperty(tmp)) {
-			a->readonly = (attr->Get(tmp)->ToBoolean()->IsTrue() ? 1 : -1);
-		} else {
-			a->readonly = 0;
-		}
-		tmp = NEWSTRING(SYB_FILEATTR_ISSYSTEM);
-		if (attr->HasOwnProperty(tmp)) {
-			a->system = attr->Get(tmp)->ToBoolean()->IsTrue() ? 1 : -1;
-		} else {
-			a->system = 0;
-		}
-		tmp = NEWSTRING(SYB_FILEATTR_ISTEMPORARY);
-		if (attr->HasOwnProperty(tmp)) {
-			a->temporary = attr->Get(tmp)->ToBoolean()->IsTrue() ? 1 : -1;
-		} else {
-			a->temporary = 0;
-		}
-		return a;
-	}
-	static Handle<Function> functionRegister(bool isAsyncVersion) {
-		ISOLATE_NEW;
-		SCOPE_ESCAPABLE;
-		RETURNTYPE<String> tmp;
-		RETURNTYPE<Function> t = NEWFUNCTION(isAsyncVersion ? jsAsync : jsSync);
-
-		//set errmessages
-		RETURNTYPE<Object> errors = Object::New(ISOLATE);
-		tmp = NEWSTRING(SYB_ERR_WRONG_ARGUMENTS);
-		SETWITHATTR(errors, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_ERR_NOT_A_CONSTRUCTOR);
-		SETWITHATTR(errors, tmp, tmp, SYB_ATTR_CONST);
-		SETWITHATTR(t, NEWSTRING(SYB_ERRORS), errors, SYB_ATTR_CONST);
-
-		//set params
-		RETURNTYPE<Object> params = Object::New(ISOLATE);
-		tmp = NEWSTRING(SYB_FILEATTR_ISARCHIVED);
-		SETWITHATTR(params, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISHIDDEN);
-		SETWITHATTR(params, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISNOTCONTENTINDEXED);
-		SETWITHATTR(params, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISOFFLINE);
-		SETWITHATTR(params, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISREADONLY);
-		SETWITHATTR(params, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISSYSTEM);
-		SETWITHATTR(params, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISTEMPORARY);
-		SETWITHATTR(params, tmp, tmp, SYB_ATTR_CONST);
-		SETWITHATTR(t, NEWSTRING(SYB_PARAMS), params, SYB_ATTR_CONST);
-
-		RETURN_SCOPE(t);
+	static napi_value init(napi_env env, bool isSync = false) {
+		napi_value f;
+		napi_create_function(env, NULL, 0, isSync ? sync : async, NULL, &f);
+		return f;
 	}
 private:
-	static JSFUNC(jsSync) {
-		ISOLATE_NEW_ARGS;
-		SCOPE;
-		RETURNTYPE<Value> result;
-		if (args.IsConstructCall()) {
-			THROWEXCEPTION(SYB_ERR_NOT_A_CONSTRUCTOR);
+	const struct cbdata {
+		napi_async_work work;
+		napi_ref self;
+		napi_ref cb;
+		wchar_t *path;
+		attrVal *attr;
+		bool result;
+	};
+	static napi_value sync(napi_env env, napi_callback_info info) {
+		napi_value result;
+		napi_get_new_target(env, info, &result);
+		if (result) {
+			result = NULL;
+			napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_NOT_A_CONSTRUCTOR);
 		} else {
-			if (args.Length() > 1 && (args[0]->IsString() || args[0]->IsStringObject()) && args[1]->IsObject()) {
-				attrVal *a = jsToAttrval(RETURNTYPE<Object>::Cast(args[1]));
-				String::Value p(args[0]);
-				result = basic((wchar_t*)*p, a) ? True(ISOLATE) : False(ISOLATE);
-				delete a;
+			napi_value argv[2];
+			size_t argc = 2;
+			napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+			if (argc < 2) {
+				napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
 			} else {
-				THROWEXCEPTION(SYB_ERR_WRONG_ARGUMENTS);
-			}
-		}
-		RETURN(result);
-	}
-	static JSFUNC(jsAsync) {
-		ISOLATE_NEW_ARGS;
-		SCOPE;
-		RETURNTYPE<Value> result;
-		if (args.IsConstructCall()) {
-			result = THROWEXCEPTION(SYB_ERR_NOT_A_CONSTRUCTOR);
-		} else {
-			if (args.Length() > 1 && (args[0]->IsString() || args[0]->IsStringObject()) && args[1]->IsObject()) {
-				workdata *data = new workdata;
-				data->req.data = data;
-				PERSISTENT_NEW(data->self, args.This(), Object);
-				if (args.Length() > 2 && args[2]->IsFunction()) {
-					PERSISTENT_NEW(data->func, RETURNTYPE<Function>::Cast(args[2]), Function);
-				}
-				String::Value p(args[0]);
-				data->path = _wcsdup((wchar_t*)*p);
-				data->attr = jsToAttrval(RETURNTYPE<Object>::Cast(args[1]));
-				if (uv_queue_work(uv_default_loop(), &data->req, beginWork, afterWork) == 0) {
-					result = True(ISOLATE);
+				napi_valuetype t;
+				napi_typeof(env, argv[1], &t);
+				if (t == napi_object) {
+					size_t str_len;
+					napi_value tmp;
+					napi_coerce_to_string(env, argv[0], &tmp);
+					napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
+					str_len += 1;
+					wchar_t *str = (wchar_t*)malloc(sizeof(wchar_t) * str_len);
+					napi_get_value_string_utf16(env, tmp, (char16_t*)str, str_len, NULL);
+					attrVal *attr = convert(env, argv[1]);
+					napi_get_boolean(env, func(str, attr), &result);
+					free(attr);
+					free(str);
 				} else {
-					free(data->path);
-					PERSISTENT_RELEASE(data->self);
-					if (!data->func.IsEmpty()) {
-						PERSISTENT_RELEASE(data->func);
-					}
-					delete data->attr;
-					delete data;
-					result = False(ISOLATE);
+					napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
 				}
-			} else {
-				result = THROWEXCEPTION(SYB_ERR_WRONG_ARGUMENTS);
 			}
 		}
-		RETURN(result);
+		return result;
 	}
-	static void beginWork(uv_work_t *req) {
-		workdata *data = (workdata*)req->data;
-		data->result = basic(data->path, data->attr);
-		free(data->path);
-		delete data->attr;
-	}
-	static AFTERWORKCB(afterWork) {
-		ISOLATE_NEW;
-		SCOPE;
-		workdata *data = (workdata*)req->data;
-		RETURNTYPE<Value> p = data->result ? True(ISOLATE) : False(ISOLATE);
-		if (!data->func.IsEmpty()) {
-			PERSISTENT_CONV(data->func, Function)->Call(PERSISTENT_CONV(data->self, Object), 1, &p);
-			PERSISTENT_RELEASE(data->func);
+	static napi_value async(napi_env env, napi_callback_info info) {
+		napi_value result;
+		napi_get_new_target(env, info, &result);
+		if (result) {
+			result = NULL;
+			napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_NOT_A_CONSTRUCTOR);
+		} else {
+			napi_value argv[3], self;
+			size_t argc = 3;
+			napi_get_cb_info(env, info, &argc, argv, &self, NULL);
+			if (argc < 3) {
+				napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
+			} else {
+				napi_valuetype t, t1;
+				napi_typeof(env, argv[1], &t1);
+				napi_typeof(env, argv[2], &t);
+				if (t1 == napi_object && t == napi_function) {
+					cbdata *data = (cbdata*)malloc(sizeof(cbdata));
+					size_t str_len;
+					napi_value tmp;
+					data->attr = convert(env, argv[1]);
+					napi_create_reference(env, argv[2], 1, &data->cb);
+					napi_create_reference(env, self, 1, &data->self);
+					napi_coerce_to_string(env, argv[0], &tmp);
+					napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
+					str_len += 1;
+					data->path = (wchar_t*)malloc(sizeof(wchar_t) * str_len);
+					napi_get_value_string_utf16(env, tmp, (char16_t*)data->path, str_len, NULL);
+					napi_create_string_latin1(env, "fswin.setAttrubutes", NAPI_AUTO_LENGTH, &tmp);
+					napi_create_async_work(env, argv[0], tmp, execute, complete, data, &data->work);
+					if (napi_queue_async_work(env, data->work) == napi_ok) {
+						napi_get_boolean(env, true, &result);
+					} else {
+						napi_get_boolean(env, false, &result);
+						napi_delete_reference(env, data->cb);
+						napi_delete_reference(env, data->self);
+						napi_delete_async_work(env, data->work);
+						free(data->path);
+						free(data);
+					}
+				} else {
+					napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
+				}
+			}
 		}
-		PERSISTENT_RELEASE(data->self);
-		delete data;
+		return result;
+	}
+	static attrVal *convert(napi_env env, napi_value attr) {//free the result yourself
+		attrVal *result = (attrVal*)malloc(sizeof(attrVal));
+		bool tmp;
+		napi_value val;
+		napi_has_named_property(env, attr, SYB_FILEATTR_ISARCHIVED, &tmp);
+		if (tmp) {
+			napi_get_named_property(env, attr, SYB_FILEATTR_ISARCHIVED, &val);
+			napi_get_value_bool(env, val, &tmp);
+			result->archive = tmp ? 1 : -1;
+		} else {
+			result->archive = 0;
+		}
+		napi_has_named_property(env, attr, SYB_FILEATTR_ISHIDDEN, &tmp);
+		if (tmp) {
+			napi_get_named_property(env, attr, SYB_FILEATTR_ISHIDDEN, &val);
+			napi_get_value_bool(env, val, &tmp);
+			result->hidden = tmp ? 1 : -1;
+		} else {
+			result->hidden = 0;
+		}
+		napi_has_named_property(env, attr, SYB_FILEATTR_ISNOTCONTENTINDEXED, &tmp);
+		if (tmp) {
+			napi_get_named_property(env, attr, SYB_FILEATTR_ISNOTCONTENTINDEXED, &val);
+			napi_get_value_bool(env, val, &tmp);
+			result->notContentIndexed = tmp ? 1 : -1;
+		} else {
+			result->notContentIndexed = 0;
+		}
+		napi_has_named_property(env, attr, SYB_FILEATTR_ISOFFLINE, &tmp);
+		if (tmp) {
+			napi_get_named_property(env, attr, SYB_FILEATTR_ISOFFLINE, &val);
+			napi_get_value_bool(env, val, &tmp);
+			result->offline = tmp ? 1 : -1;
+		} else {
+			result->offline = 0;
+		}
+		napi_has_named_property(env, attr, SYB_FILEATTR_ISREADONLY, &tmp);
+		if (tmp) {
+			napi_get_named_property(env, attr, SYB_FILEATTR_ISREADONLY, &val);
+			napi_get_value_bool(env, val, &tmp);
+			result->readonly = tmp ? 1 : -1;
+		} else {
+			result->readonly = 0;
+		}
+		napi_has_named_property(env, attr, SYB_FILEATTR_ISSYSTEM, &tmp);
+		if (tmp) {
+			napi_get_named_property(env, attr, SYB_FILEATTR_ISSYSTEM, &val);
+			napi_get_value_bool(env, val, &tmp);
+			result->system = tmp ? 1 : -1;
+		} else {
+			result->system = 0;
+		}
+		napi_has_named_property(env, attr, SYB_FILEATTR_ISTEMPORARY, &tmp);
+		if (tmp) {
+			napi_get_named_property(env, attr, SYB_FILEATTR_ISTEMPORARY, &val);
+			napi_get_value_bool(env, val, &tmp);
+			result->temporary = tmp ? 1 : -1;
+		} else {
+			result->temporary = 0;
+		}
+		return result;
+	}
+	static void execute(napi_env env, void* data) {
+		cbdata *d = (cbdata*)data;
+		d->result = func(d->path, d->attr);
+	}
+	static void complete(napi_env env, napi_status status, void *data) {
+		cbdata *d = (cbdata*)data;
+		free(d->path);
+		free(d->attr);
+		napi_value cb, self, argv;
+		napi_get_reference_value(env, d->cb, &cb);
+		napi_get_reference_value(env, d->self, &self);
+		napi_get_boolean(env, status == napi_ok && d->result, &argv);
+		napi_call_function(env, self, cb, 1, &argv, NULL);
+		napi_delete_reference(env, d->cb);
+		napi_delete_reference(env, d->self);
+		napi_delete_async_work(env, d->work);
+		free(d);
 	}
 };

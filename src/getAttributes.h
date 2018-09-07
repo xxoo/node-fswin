@@ -1,177 +1,169 @@
 #pragma once
 #include "main.h"
 
-#define SYB_RETURNS_ISREPARSEPOINT "IS_REPARSE_POINT"
-
 class getAttributes {
-private:
-	const struct workdata {
-		uv_work_t req;
-		Persistent<Object> self;
-		Persistent<Function> func;
-		wchar_t *path;
-		WIN32_FILE_ATTRIBUTE_DATA *attr;
-	};
 public:
-	static Handle<Object> attrDataToJs(WIN32_FILE_ATTRIBUTE_DATA *data) {
-		ISOLATE_NEW;
-		SCOPE_ESCAPABLE;
-
-		RETURNTYPE<Object> o = Object::New(ISOLATE);
-		o->Set(NEWSTRING(SYB_FILEATTR_CREATIONTIME), Date::New(ISOLATE_C fileTimeToJsDateVal(&data->ftCreationTime)));
-		o->Set(NEWSTRING(SYB_FILEATTR_LASTACCESSTIME), Date::New(ISOLATE_C fileTimeToJsDateVal(&data->ftLastAccessTime)));
-		o->Set(NEWSTRING(SYB_FILEATTR_LASTWRITETIME), Date::New(ISOLATE_C fileTimeToJsDateVal(&data->ftLastWriteTime)));
-		o->Set(NEWSTRING(SYB_FILEATTR_SIZE), Number::New(ISOLATE_C (double)combineHiLow(data->nFileSizeHigh, data->nFileSizeLow)));
-
-		o->Set(NEWSTRING(SYB_FILEATTR_ISARCHIVED), data->dwFileAttributes&FILE_ATTRIBUTE_ARCHIVE ? True(ISOLATE) : False(ISOLATE));
-		o->Set(NEWSTRING(SYB_FILEATTR_ISCOMPRESSED), data->dwFileAttributes&FILE_ATTRIBUTE_COMPRESSED ? True(ISOLATE) : False(ISOLATE));
-		o->Set(NEWSTRING(SYB_FILEATTR_ISDEVICE), data->dwFileAttributes&FILE_ATTRIBUTE_DEVICE ? True(ISOLATE) : False(ISOLATE));
-		o->Set(NEWSTRING(SYB_FILEATTR_ISDIRECTORY), data->dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY ? True(ISOLATE) : False(ISOLATE));
-		o->Set(NEWSTRING(SYB_FILEATTR_ISENCRYPTED), data->dwFileAttributes&FILE_ATTRIBUTE_ENCRYPTED ? True(ISOLATE) : False(ISOLATE));
-		o->Set(NEWSTRING(SYB_FILEATTR_ISHIDDEN), data->dwFileAttributes&FILE_ATTRIBUTE_HIDDEN ? True(ISOLATE) : False(ISOLATE));
-		o->Set(NEWSTRING(SYB_FILEATTR_ISNOTCONTENTINDEXED), data->dwFileAttributes&FILE_ATTRIBUTE_NOT_CONTENT_INDEXED ? True(ISOLATE) : False(ISOLATE));
-		o->Set(NEWSTRING(SYB_FILEATTR_ISOFFLINE), data->dwFileAttributes&FILE_ATTRIBUTE_OFFLINE ? True(ISOLATE) : False(ISOLATE));
-		o->Set(NEWSTRING(SYB_FILEATTR_ISREADONLY), data->dwFileAttributes&FILE_ATTRIBUTE_READONLY ? True(ISOLATE) : False(ISOLATE));
-		o->Set(NEWSTRING(SYB_FILEATTR_ISSPARSEFILE), data->dwFileAttributes&FILE_ATTRIBUTE_SPARSE_FILE ? True(ISOLATE) : False(ISOLATE));
-		o->Set(NEWSTRING(SYB_FILEATTR_ISSYSTEM), data->dwFileAttributes&FILE_ATTRIBUTE_SYSTEM ? True(ISOLATE) : False(ISOLATE));
-		o->Set(NEWSTRING(SYB_FILEATTR_ISTEMPORARY), data->dwFileAttributes&FILE_ATTRIBUTE_TEMPORARY ? True(ISOLATE) : False(ISOLATE));
-		o->Set(NEWSTRING(SYB_FILEATTR_ISINTEGERITYSTREAM), data->dwFileAttributes&FILE_ATTRIBUTE_INTEGRITY_STREAM ? True(ISOLATE) : False(ISOLATE));
-		o->Set(NEWSTRING(SYB_FILEATTR_ISNOSCRUBDATA), data->dwFileAttributes&FILE_ATTRIBUTE_NO_SCRUB_DATA ? True(ISOLATE) : False(ISOLATE));
-		o->Set(NEWSTRING(SYB_RETURNS_ISREPARSEPOINT), data->dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT ? True(ISOLATE) : False(ISOLATE));
-
-		RETURN_SCOPE(o);
-	}
-	static Handle<Function> functionRegister(bool isAsyncVersion) {
-		ISOLATE_NEW;
-		SCOPE_ESCAPABLE;
-		RETURNTYPE<String> tmp;
-		RETURNTYPE<Function> t = NEWFUNCTION(isAsyncVersion ? jsAsync : jsSync);
-
-		//set errmessages
-		RETURNTYPE<Object> errors = Object::New(ISOLATE);
-		tmp = NEWSTRING(SYB_ERR_WRONG_ARGUMENTS);
-		SETWITHATTR(errors, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_ERR_NOT_A_CONSTRUCTOR);
-		SETWITHATTR(errors, tmp, tmp, SYB_ATTR_CONST);
-		SETWITHATTR(t, NEWSTRING(SYB_ERRORS), errors, SYB_ATTR_CONST);
-
-		//set returns
-		RETURNTYPE<Object> returns = Object::New(ISOLATE);
-		tmp = NEWSTRING(SYB_FILEATTR_CREATIONTIME);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_LASTACCESSTIME);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_LASTWRITETIME);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_SIZE);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISARCHIVED);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISCOMPRESSED);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISDEVICE);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISDIRECTORY);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISENCRYPTED);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISHIDDEN);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISNOTCONTENTINDEXED);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISREADONLY);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISSPARSEFILE);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISSYSTEM);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISTEMPORARY);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISINTEGERITYSTREAM);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISNOSCRUBDATA);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_RETURNS_ISREPARSEPOINT);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		SETWITHATTR(t, NEWSTRING(SYB_RETURNS), returns, SYB_ATTR_CONST);
-
-		RETURN_SCOPE(t);
+	static napi_value init(napi_env env, bool isSync = false) {
+		napi_value f;
+		napi_create_function(env, NULL, 0, isSync ? sync : async, NULL, &f);
+		return f;
 	}
 private:
-	static JSFUNC(jsSync) {
-		ISOLATE_NEW_ARGS;
-		SCOPE;
-		RETURNTYPE<Value> result;
-		if (args.IsConstructCall()) {
-			result = THROWEXCEPTION(SYB_ERR_NOT_A_CONSTRUCTOR);
+	const struct cbdata {
+		napi_async_work work;
+		napi_ref self;
+		napi_ref cb;
+		wchar_t *path;
+		WIN32_FILE_ATTRIBUTE_DATA *result;
+	};
+	static napi_value sync(napi_env env, napi_callback_info info) {
+		napi_value result;
+		napi_get_new_target(env, info, &result);
+		if (result) {
+			result = NULL;
+			napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_NOT_A_CONSTRUCTOR);
 		} else {
-			if (args.Length() > 0 && (args[0]->IsString() || args[0]->IsStringObject())) {
-				String::Value p(args[0]);
+			napi_value argv;
+			size_t argc = 1;
+			napi_get_cb_info(env, info, &argc, &argv, NULL, NULL);
+			if (argc < 1) {
+				napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
+			} else {
+				size_t str_len;
+				napi_value tmp;
+				napi_coerce_to_string(env, argv, &tmp);
+				napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
+				str_len += 1;
+				wchar_t *str = (wchar_t*)malloc(sizeof(wchar_t) * str_len);
+				napi_get_value_string_utf16(env, tmp, (char16_t*)str, str_len, NULL);
 				WIN32_FILE_ATTRIBUTE_DATA data;
-				if (GetFileAttributesExW((wchar_t*)*p, GetFileExInfoStandard, &data)) {
-					result = attrDataToJs(&data);
+				if (GetFileAttributesExW(str, GetFileExInfoStandard, &data)) {
+					result = convert(env, &data);
 				} else {
-					result = Undefined(ISOLATE);
+					napi_get_null(env, &result);
 				}
-			} else {
-				result = THROWEXCEPTION(SYB_ERR_WRONG_ARGUMENTS);
+				free(str);
 			}
 		}
-		RETURN(result);
+		return result;
 	}
-	static JSFUNC(jsAsync) {
-		ISOLATE_NEW_ARGS;
-		SCOPE;
-		RETURNTYPE<Value> result;
-		if (args.IsConstructCall()) {
-			result = THROWEXCEPTION(SYB_ERR_NOT_A_CONSTRUCTOR);
+	static napi_value async(napi_env env, napi_callback_info info) {
+		napi_value result;
+		napi_get_new_target(env, info, &result);
+		if (result) {
+			result = NULL;
+			napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_NOT_A_CONSTRUCTOR);
 		} else {
-			if (args.Length() > 1 && (args[0]->IsString() || args[0]->IsStringObject()) && args[1]->IsFunction()) {
-				workdata *data = new workdata;
-				data->req.data = data;
-				PERSISTENT_NEW(data->self, args.This(), Object);
-				PERSISTENT_NEW(data->func, RETURNTYPE<Function>::Cast(args[1]), Function);
-				String::Value p(args[0]);
-				data->path = _wcsdup((wchar_t*)*p);
-				data->attr = new WIN32_FILE_ATTRIBUTE_DATA;
-				if (uv_queue_work(uv_default_loop(), &data->req, beginWork, afterWork) == 0) {
-					result = True(ISOLATE);
-				} else {
-					free(data->path);
-					PERSISTENT_RELEASE(data->self);
-					if (!data->func.IsEmpty()) {
-						PERSISTENT_RELEASE(data->func);
+			napi_value argv[2], self;
+			size_t argc = 2;
+			napi_get_cb_info(env, info, &argc, argv, &self, NULL);
+			if (argc < 2) {
+				napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
+			} else {
+				napi_valuetype t;
+				napi_typeof(env, argv[1], &t);
+				if (t == napi_function) {
+					cbdata *data = (cbdata*)malloc(sizeof(cbdata));
+					size_t str_len;
+					napi_value tmp;
+					napi_create_reference(env, argv[1], 1, &data->cb);
+					napi_create_reference(env, self, 1, &data->self);
+					napi_coerce_to_string(env, argv[0], &tmp);
+					napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
+					str_len += 1;
+					data->path = (wchar_t*)malloc(sizeof(wchar_t) * str_len);
+					napi_get_value_string_utf16(env, tmp, (char16_t*)data->path, str_len, NULL);
+					napi_create_string_latin1(env, "fswin.getAttributes", NAPI_AUTO_LENGTH, &tmp);
+					napi_create_async_work(env, argv[0], tmp, execute, complete, data, &data->work);
+					if (napi_queue_async_work(env, data->work) == napi_ok) {
+						napi_get_boolean(env, true, &result);
+					} else {
+						napi_get_boolean(env, false, &result);
+						napi_delete_reference(env, data->cb);
+						napi_delete_reference(env, data->self);
+						napi_delete_async_work(env, data->work);
+						free(data->path);
+						free(data);
 					}
-					delete data->attr;
-					delete data;
-					result = False(ISOLATE);
+				} else {
+					napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
 				}
-			} else {
-				result = THROWEXCEPTION(SYB_ERR_WRONG_ARGUMENTS);
 			}
 		}
-		RETURN(result);
+		return result;
 	}
-	static void beginWork(uv_work_t *req) {
-		workdata *data = (workdata*)req->data;
-		if (!GetFileAttributesExW(data->path, GetFileExInfoStandard, data->attr)) {
-			delete data->attr;
-			data->attr = NULL;
+	static napi_value convert(napi_env env, WIN32_FILE_ATTRIBUTE_DATA *info) {
+		napi_value result, tmp, date;
+		napi_get_global(env, &date);
+		napi_get_named_property(env, date, "Date", &date);
+		napi_create_object(env, &result);
+		napi_create_double(env, fileTimeToJsDateVal(&info->ftCreationTime), &tmp);
+		napi_new_instance(env, date, 1, &tmp, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_CREATIONTIME, tmp);
+		napi_create_double(env, fileTimeToJsDateVal(&info->ftLastAccessTime), &tmp);
+		napi_new_instance(env, date, 1, &tmp, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_LASTACCESSTIME, tmp);
+		napi_create_double(env, fileTimeToJsDateVal(&info->ftLastWriteTime), &tmp);
+		napi_new_instance(env, date, 1, &tmp, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_LASTWRITETIME, tmp);
+		napi_create_int64(env, (int64_t)combineHiLow(info->nFileSizeHigh, info->nFileSizeLow), &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_SIZE, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_ARCHIVE, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISARCHIVED, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_COMPRESSED, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISCOMPRESSED, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_DEVICE, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISDEVICE, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISDIRECTORY, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_ENCRYPTED, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISENCRYPTED, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_HIDDEN, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISHIDDEN, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_NOT_CONTENT_INDEXED, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISNOTCONTENTINDEXED, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_OFFLINE, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISOFFLINE, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_READONLY, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISREADONLY, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_SPARSE_FILE, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISSPARSEFILE, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_SYSTEM, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISSYSTEM, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_TEMPORARY, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISTEMPORARY, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_INTEGRITY_STREAM, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISINTEGERITYSTREAM, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_NO_SCRUB_DATA, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISNOSCRUBDATA, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT, &tmp);
+		napi_set_named_property(env, result, "IS_REPARSE_POINT", tmp);
+		return result;
+	}
+	static void execute(napi_env env, void* data) {
+		cbdata *d = (cbdata*)data;
+		d->result = (WIN32_FILE_ATTRIBUTE_DATA*)malloc(sizeof(WIN32_FILE_ATTRIBUTE_DATA));
+		if (!GetFileAttributesExW((wchar_t*)*d->path, GetFileExInfoStandard, d->result)) {
+			free(d->result);
+			d->result = NULL;
 		}
-		free(data->path);
 	}
-	static AFTERWORKCB(afterWork) {
-		ISOLATE_NEW;
-		SCOPE;
-		workdata *data = (workdata*)req->data;
-		if (data->attr) {
-			RETURNTYPE<Value> result = attrDataToJs(data->attr);
-			PERSISTENT_CONV(data->func, Function)->Call(PERSISTENT_CONV(data->self, Object), 1, &result);
+	static void complete(napi_env env, napi_status status, void *data) {
+		cbdata *d = (cbdata*)data;
+		free(d->path);
+		napi_value cb, self, argv;
+		napi_get_reference_value(env, d->cb, &cb);
+		napi_get_reference_value(env, d->self, &self);
+		if (status == napi_ok && d->result) {
+			argv = convert(env, d->result);
+			free(d->result);
 		} else {
-			PERSISTENT_CONV(data->func, Function)->Call(PERSISTENT_CONV(data->self, Object), 0, NULL);
+			napi_get_null(env, &argv);
 		}
-		PERSISTENT_RELEASE(data->func);
-		PERSISTENT_RELEASE(data->self);
-		delete data;
+		napi_call_function(env, self, cb, 1, &argv, NULL);
+		napi_delete_reference(env, d->cb);
+		napi_delete_reference(env, d->self);
+		napi_delete_async_work(env, d->work);
+		free(d);
 	}
 };

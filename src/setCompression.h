@@ -3,19 +3,7 @@
 
 class setCompression {
 public:
-	typedef void(*callbackFunc)(const bool result, void *data);
-private:
-	const struct workdata {
-		Persistent<Object> self;
-		Persistent<Function> func;
-	};
-	const struct workdata2 {
-		callbackFunc callback;
-		void *data;
-		HANDLE hnd;
-	};
-public:
-	static bool basic(const wchar_t *path, const bool compress) {
+	static bool func(const wchar_t *path, const bool compress) {
 		bool result = false;
 		HANDLE hnd = CreateFileW(path, FILE_GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
 		if (hnd != INVALID_HANDLE_VALUE) {
@@ -28,124 +16,109 @@ public:
 		}
 		return result;
 	}
-	static bool basicWithCallback(const wchar_t *path, const bool compress, callbackFunc callback, void *data) {
-		bool result = false;
-		workdata2 *work = new workdata2;
-		work->callback = callback;
-		work->data = data;
-		work->hnd = CreateFileW(path, FILE_GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, NULL);
-		if (work->hnd == INVALID_HANDLE_VALUE) {
-			delete work;
+	static napi_value init(napi_env env, bool isSync = false) {
+		napi_value f;
+		napi_create_function(env, NULL, 0, isSync ? sync : async, NULL, &f);
+		return f;
+	}
+private:
+	const struct cbdata {
+		napi_async_work work;
+		napi_ref self;
+		napi_ref cb;
+		wchar_t *path;
+		bool compress;
+		bool result;
+	};
+	static napi_value sync(napi_env env, napi_callback_info info) {
+		napi_value result;
+		napi_get_new_target(env, info, &result);
+		if (result) {
+			result = NULL;
+			napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_NOT_A_CONSTRUCTOR);
 		} else {
-			uv_loop_t *loop = uv_default_loop();
-			if (CreateIoCompletionPort(work->hnd, loop->iocp, (ULONG_PTR)work->hnd, 0)) {
-				uv_async_t *hnd = new uv_async_t;
-				uv_async_init(uv_default_loop(), hnd, afterWork);
-				hnd->data = work;
-				USHORT c = compress ? COMPRESSION_FORMAT_DEFAULT : COMPRESSION_FORMAT_NONE;
-				DeviceIoControl(work->hnd, FSCTL_SET_COMPRESSION, &c, sizeof(USHORT), NULL, 0, NULL, &hnd->async_req.THEASYNCOVERLAP);
-				if (GetLastError() == ERROR_IO_PENDING) {
-					result = true;
+			napi_value argv[2];
+			size_t argc = 2;
+			napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+			if (argc < 2) {
+				napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
+			} else {
+				size_t str_len;
+				napi_value tmp;
+				napi_coerce_to_string(env, argv[0], &tmp);
+				napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
+				str_len += 1;
+				wchar_t *path = (wchar_t*)malloc(sizeof(wchar_t) * str_len);
+				napi_get_value_string_utf16(env, tmp, (char16_t*)path, str_len, NULL);
+				bool compress;
+				napi_get_value_bool(env, argv[1], &compress);
+				napi_get_boolean(env, func(path, compress), &result);
+				free(path);
+			}
+		}
+		return result;
+	}
+	static napi_value async(napi_env env, napi_callback_info info) {
+		napi_value result;
+		napi_get_new_target(env, info, &result);
+		if (result) {
+			result = NULL;
+			napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_NOT_A_CONSTRUCTOR);
+		} else {
+			napi_value argv[3], self;
+			size_t argc = 3;
+			napi_get_cb_info(env, info, &argc, argv, &self, NULL);
+			if (argc < 3) {
+				napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
+			} else {
+				napi_valuetype t;
+				napi_typeof(env, argv[2], &t);
+				if (t == napi_function) {
+					cbdata *data = (cbdata*)malloc(sizeof(cbdata));
+					size_t str_len;
+					napi_value tmp;
+					napi_create_reference(env, argv[2], 1, &data->cb);
+					napi_create_reference(env, self, 1, &data->self);
+					napi_coerce_to_string(env, argv[0], &tmp);
+					napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
+					str_len += 1;
+					data->path = (wchar_t*)malloc(sizeof(wchar_t) * str_len);
+					napi_get_value_string_utf16(env, tmp, (char16_t*)data->path, str_len, NULL);
+					napi_get_value_bool(env, argv[1], &data->compress);
+					napi_create_string_latin1(env, "fswin.ntfs.setCompression", NAPI_AUTO_LENGTH, &tmp);
+					napi_create_async_work(env, argv[0], tmp, execute, complete, data, &data->work);
+					if (napi_queue_async_work(env, data->work) == napi_ok) {
+						napi_get_boolean(env, true, &result);
+					} else {
+						napi_get_boolean(env, false, &result);
+						napi_delete_reference(env, data->cb);
+						napi_delete_reference(env, data->self);
+						napi_delete_async_work(env, data->work);
+						free(data->path);
+						free(data);
+					}
 				} else {
-					CloseHandle(work->hnd);
-					uv_close((uv_handle_t*)hnd, NULL);
-					delete hnd;
-					delete work;
+					napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
 				}
 			}
 		}
 		return result;
 	}
-	static Handle<Function> functionRegister(bool isAsyncVersion) {
-		ISOLATE_NEW;
-		SCOPE_ESCAPABLE;
-		RETURNTYPE<String> tmp;
-		RETURNTYPE<Function> t = NEWFUNCTION(isAsyncVersion ? jsAsync : jsSync);
-
-		//set errmessages
-		RETURNTYPE<Object> errors = Object::New(ISOLATE);
-		tmp = NEWSTRING(SYB_ERR_WRONG_ARGUMENTS);
-		SETWITHATTR(errors, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_ERR_NOT_A_CONSTRUCTOR);
-		SETWITHATTR(errors, tmp, tmp, SYB_ATTR_CONST);
-		SETWITHATTR(t, NEWSTRING(SYB_ERRORS), errors, SYB_ATTR_CONST);
-
-		RETURN_SCOPE(t);
+	static void execute(napi_env env, void* data) {
+		cbdata *d = (cbdata*)data;
+		d->result = func(d->path, d->compress);
 	}
-private:
-	static ASYNCCB(afterWork) {
-		workdata2 *work = (workdata2*)hnd->data;
-		CloseHandle(work->hnd);
-		work->callback(hnd->async_req.THEASYNCOVERLAP.Internal == ERROR_SUCCESS, work->data);
-		uv_close((uv_handle_t*)hnd, NULL);
-		delete hnd;
-		delete work;
-	}
-	static JSFUNC(jsSync) {
-		ISOLATE_NEW_ARGS;
-		SCOPE;
-		RETURNTYPE<Value> result;
-		if (args.IsConstructCall()) {
-			result = THROWEXCEPTION(SYB_ERR_NOT_A_CONSTRUCTOR);
-		} else {
-			if (args.Length() > 0 && (args[0]->IsString() || args[0]->IsStringObject())) {
-				String::Value spath(args[0]);
-				result = basic((wchar_t*)*spath, args[1]->ToBoolean()->IsTrue()) ? True(ISOLATE) : False(ISOLATE);
-			} else {
-				result = THROWEXCEPTION(SYB_ERR_WRONG_ARGUMENTS);
-			}
-		}
-		RETURN(result);
-	}
-	static JSFUNC(jsAsync) {
-		ISOLATE_NEW_ARGS;
-		SCOPE;
-		RETURNTYPE<Value> result;
-		if (args.IsConstructCall()) {
-			result = THROWEXCEPTION(SYB_ERR_NOT_A_CONSTRUCTOR);
-		} else {
-			if (args.Length() > 0 && (args[0]->IsString() || args[0]->IsStringObject())) {
-				workdata *data = NULL;
-				bool b;
-				if (args.Length() > 1) {
-					if (args[1]->IsFunction()) {
-						data = new workdata;
-						PERSISTENT_NEW(data->self, args.This(), Object);
-						PERSISTENT_NEW(data->func, RETURNTYPE<Function>::Cast(args[1]), Function);
-						b = args[2]->ToBoolean()->IsTrue();
-					} else {
-						b = args[1]->ToBoolean()->IsTrue();
-					}
-				} else {
-					b = false;
-				}
-				String::Value p(args[0]);
-				if (basicWithCallback((wchar_t*)*p, b, asyncCallback, data)) {
-					result = True(ISOLATE);
-				} else {
-					if (data) {
-						PERSISTENT_RELEASE(data->self);
-						PERSISTENT_RELEASE(data->func);
-						delete data;
-					}
-					result = False(ISOLATE);
-				}
-			} else {
-				result = THROWEXCEPTION(SYB_ERR_WRONG_ARGUMENTS);
-			}
-		}
-		RETURN(result);
-	}
-	static void asyncCallback(const bool succeeded, void *data) {
-		if (data) {
-			ISOLATE_NEW;
-			SCOPE;
-			workdata *work = (workdata*)data;
-			RETURNTYPE<Value> r = succeeded ? True(ISOLATE) : False(ISOLATE);
-			PERSISTENT_CONV(work->func, Function)->Call(PERSISTENT_CONV(work->self, Object), 1, &r);
-			PERSISTENT_RELEASE(work->self);
-			PERSISTENT_RELEASE(work->func);
-			delete work;
-		}
+	static void complete(napi_env env, napi_status status, void *data) {
+		cbdata *d = (cbdata*)data;
+		free(d->path);
+		napi_value cb, self, argv;
+		napi_get_reference_value(env, d->cb, &cb);
+		napi_get_reference_value(env, d->self, &self);
+		napi_get_boolean(env, status == napi_ok && d->result, &argv);
+		napi_call_function(env, self, cb, 1, &argv, NULL);
+		napi_delete_reference(env, d->cb);
+		napi_delete_reference(env, d->self);
+		napi_delete_async_work(env, d->work);
+		free(d);
 	}
 };

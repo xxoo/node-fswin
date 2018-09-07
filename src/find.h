@@ -1,37 +1,6 @@
 #pragma once
 #include "main.h"
 
-#ifndef IO_REPARSE_TAG_DEDUP
-#	define IO_REPARSE_TAG_DEDUP (0x80000013L)
-#endif
-#ifndef IO_REPARSE_TAG_NFS
-#	define IO_REPARSE_TAG_NFS (0x80000014L)
-#endif
-#ifndef IO_REPARSE_TAG_FILE_PLACEHOLDER
-#	define IO_REPARSE_TAG_FILE_PLACEHOLDER (0x80000015L)
-#endif
-
-#define SYB_EVT_FOUND "FOUND"
-#define SYB_EVT_SUCCEEDED "SUCCEEDED"
-#define SYB_EVT_FAILED "FAILED"
-#define SYB_EVT_INTERRUPTED "INTERRUPTED"
-#define SYB_RETURNS_LONGNAME "LONG_NAME"
-#define SYB_RETURNS_SHORTNAME "SHORT_NAME"
-#define SYB_RETURNS_REPARSEPOINTTAG "REPARSE_POINT_TAG"
-#define SYB_REPARSEPOINT_UNKNOWN "UNKNOWN"
-#define SYB_REPARSEPOINT_CSV "CSV"
-#define SYB_REPARSEPOINT_DEDUP "DEDUP"
-#define SYB_REPARSEPOINT_DFS "DFS"
-#define SYB_REPARSEPOINT_DFSR "DFSR"
-#define SYB_REPARSEPOINT_HSM "HSM"
-#define SYB_REPARSEPOINT_HSM2 "HSM2"
-#define SYB_REPARSEPOINT_MOUNTPOINT "MOUNT_POINT"
-#define SYB_REPARSEPOINT_NFS "NFS"
-#define SYB_REPARSEPOINT_PLACEHOLDER "PLACE_HOLDER"
-#define SYB_REPARSEPOINT_SIS "SIS"
-#define SYB_REPARSEPOINT_SYMLINK "SYMLINK"
-#define SYB_REPARSEPOINT_WIM "WIM"
-
 class find {
 public:
 	const struct resultData {//this is a linked table
@@ -40,32 +9,16 @@ public:
 	};
 	//progressive callback type, if this callback returns true, the search will stop immediately. the contents of info will be rewritten or released after the callback returns, so make a copy before starting a new thread if you still need to use it
 	typedef bool(*findResultCall)(const WIN32_FIND_DATAW *info, void *data);
-private:
-	const struct jsCallbackData {
-		Handle<Object> self;
-		Handle<Function> func;
-	};
-	const struct workdata {
-		uv_work_t req;
-		Persistent<Object> self;
-		Persistent<Function> func;
-		void *data;
-		//the following data is only used in progressive mode
-		HANDLE hnd;
-		size_t count;
-		bool stop;
-	};
-public:
-	static resultData *basic(const wchar_t *path) {//you have to delete every linked data yourself if it is not NULL
-		resultData *result = new resultData;
+	static resultData *func(const wchar_t *path) {//you have to free every linked data yourself if it is not NULL
+		resultData *result = (resultData*)malloc(sizeof(resultData));
 		HANDLE hnd = FindFirstFileExW(path, FindExInfoStandard, &result->data, FindExSearchNameMatch, NULL, NULL);
 		if (hnd == INVALID_HANDLE_VALUE) {
-			delete result;
+			free(result);
 			result = NULL;
 		} else {
 			resultData *resultnew, *resultold;
 			if (isValidInfo(&result->data)) {
-				resultnew = new resultData;
+				resultnew = (resultData*)malloc(sizeof(resultData));
 				resultold = result;
 			} else {
 				resultnew = result;
@@ -86,12 +39,12 @@ public:
 			resultold->next = NULL;
 			FindClose(hnd);
 			if (resultnew != result) {
-				delete resultnew;
+				free(resultnew);
 			}
 		}
 		return result;
 	}
-	static DWORD basicWithCallback(const wchar_t *path, const findResultCall callback, void *data) {//data could be anything that will directly pass to the callback
+	static DWORD funcWithCallback(const wchar_t *path, const findResultCall callback, void *data) {//data could be anything that will directly pass to the callback
 		WIN32_FIND_DATAW info;
 		HANDLE hnd = FindFirstFileExW(path, FindExInfoStandard, &info, FindExSearchNameMatch, NULL, NULL);
 		DWORD result = 0;
@@ -101,7 +54,7 @@ public:
 				stop = callback(&info, data);
 				result++;
 			}
-			while (!stop&&FindNextFileW(hnd, &info)) {
+			while (!stop && FindNextFileW(hnd, &info)) {
 				if (isValidInfo(&info)) {
 					stop = callback(&info, data);
 					result++;
@@ -111,305 +64,396 @@ public:
 		}
 		return result;
 	}
-	static Handle<Object> fileInfoToJs(const WIN32_FIND_DATAW *info) {//this function does not check whether info is NULL, make sure it is not before calling
-		ISOLATE_NEW;
-		SCOPE_ESCAPABLE;
-		RETURNTYPE<String> tmp;
-		RETURNTYPE<Object> o = Object::New(ISOLATE);
-		o->Set(NEWSTRING(SYB_RETURNS_LONGNAME), NEWSTRING_TWOBYTES(info->cFileName));
-		o->Set(NEWSTRING(SYB_RETURNS_SHORTNAME), NEWSTRING_TWOBYTES(info->cAlternateFileName));
-		o->Set(NEWSTRING(SYB_FILEATTR_CREATIONTIME), Date::New(ISOLATE_C fileTimeToJsDateVal(&info->ftCreationTime)));
-		o->Set(NEWSTRING(SYB_FILEATTR_LASTACCESSTIME), Date::New(ISOLATE_C fileTimeToJsDateVal(&info->ftLastAccessTime)));
-		o->Set(NEWSTRING(SYB_FILEATTR_LASTWRITETIME), Date::New(ISOLATE_C fileTimeToJsDateVal(&info->ftLastWriteTime)));
-		o->Set(NEWSTRING(SYB_FILEATTR_SIZE), Number::New(ISOLATE_C(double)combineHiLow(info->nFileSizeHigh, info->nFileSizeLow)));
-		tmp = NEWSTRING(SYB_RETURNS_REPARSEPOINTTAG);
-		if (info->dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT) {
-			if (info->dwReserved0 == IO_REPARSE_TAG_CSV) {
-				o->Set(tmp, NEWSTRING(SYB_REPARSEPOINT_CSV));
-			} else if (info->dwReserved0 == IO_REPARSE_TAG_DEDUP) {
-				o->Set(tmp, NEWSTRING(SYB_REPARSEPOINT_DEDUP));
-			} else if (info->dwReserved0 == IO_REPARSE_TAG_DFS) {
-				o->Set(tmp, NEWSTRING(SYB_REPARSEPOINT_DFS));
-			} else if (info->dwReserved0 == IO_REPARSE_TAG_DFSR) {
-				o->Set(tmp, NEWSTRING(SYB_REPARSEPOINT_DFSR));
-			} else if (info->dwReserved0 == IO_REPARSE_TAG_HSM) {
-				o->Set(tmp, NEWSTRING(SYB_REPARSEPOINT_HSM));
-			} else if (info->dwReserved0 == IO_REPARSE_TAG_HSM2) {
-				o->Set(tmp, NEWSTRING(SYB_REPARSEPOINT_HSM2));
-			} else if (info->dwReserved0 == IO_REPARSE_TAG_MOUNT_POINT) {
-				o->Set(tmp, NEWSTRING(SYB_REPARSEPOINT_MOUNTPOINT));
-			} else if (info->dwReserved0 == IO_REPARSE_TAG_NFS) {
-				o->Set(tmp, NEWSTRING(SYB_REPARSEPOINT_NFS));
-			} else if (info->dwReserved0 == IO_REPARSE_TAG_FILE_PLACEHOLDER) {
-				o->Set(tmp, NEWSTRING(SYB_REPARSEPOINT_PLACEHOLDER));
-			} else if (info->dwReserved0 == IO_REPARSE_TAG_SIS) {
-				o->Set(tmp, NEWSTRING(SYB_REPARSEPOINT_SIS));
-			} else if (info->dwReserved0 == IO_REPARSE_TAG_SYMLINK) {
-				o->Set(tmp, NEWSTRING(SYB_REPARSEPOINT_SYMLINK));
-			} else if (info->dwReserved0 == IO_REPARSE_TAG_WIM) {
-				o->Set(tmp, NEWSTRING(SYB_REPARSEPOINT_WIM));
-			} else {
-				o->Set(tmp, NEWSTRING(SYB_REPARSEPOINT_UNKNOWN));
-			}
-		} else {
-			o->Set(tmp, String::Empty(ISOLATE));
-		}
-		o->Set(NEWSTRING(SYB_FILEATTR_ISARCHIVED), info->dwFileAttributes&FILE_ATTRIBUTE_ARCHIVE ? True(ISOLATE) : False(ISOLATE));
-		o->Set(NEWSTRING(SYB_FILEATTR_ISCOMPRESSED), info->dwFileAttributes&FILE_ATTRIBUTE_COMPRESSED ? True(ISOLATE) : False(ISOLATE));
-		o->Set(NEWSTRING(SYB_FILEATTR_ISDEVICE), info->dwFileAttributes&FILE_ATTRIBUTE_DEVICE ? True(ISOLATE) : False(ISOLATE));
-		o->Set(NEWSTRING(SYB_FILEATTR_ISDIRECTORY), info->dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY ? True(ISOLATE) : False(ISOLATE));
-		o->Set(NEWSTRING(SYB_FILEATTR_ISENCRYPTED), info->dwFileAttributes&FILE_ATTRIBUTE_ENCRYPTED ? True(ISOLATE) : False(ISOLATE));
-		o->Set(NEWSTRING(SYB_FILEATTR_ISHIDDEN), info->dwFileAttributes&FILE_ATTRIBUTE_HIDDEN ? True(ISOLATE) : False(ISOLATE));
-		o->Set(NEWSTRING(SYB_FILEATTR_ISNOTCONTENTINDEXED), info->dwFileAttributes&FILE_ATTRIBUTE_NOT_CONTENT_INDEXED ? True(ISOLATE) : False(ISOLATE));
-		o->Set(NEWSTRING(SYB_FILEATTR_ISOFFLINE), info->dwFileAttributes&FILE_ATTRIBUTE_OFFLINE ? True(ISOLATE) : False(ISOLATE));
-		o->Set(NEWSTRING(SYB_FILEATTR_ISREADONLY), info->dwFileAttributes&FILE_ATTRIBUTE_READONLY ? True(ISOLATE) : False(ISOLATE));
-		o->Set(NEWSTRING(SYB_FILEATTR_ISSPARSEFILE), info->dwFileAttributes&FILE_ATTRIBUTE_SPARSE_FILE ? True(ISOLATE) : False(ISOLATE));
-		o->Set(NEWSTRING(SYB_FILEATTR_ISSYSTEM), info->dwFileAttributes&FILE_ATTRIBUTE_SYSTEM ? True(ISOLATE) : False(ISOLATE));
-		o->Set(NEWSTRING(SYB_FILEATTR_ISTEMPORARY), info->dwFileAttributes&FILE_ATTRIBUTE_TEMPORARY ? True(ISOLATE) : False(ISOLATE));
-		o->Set(NEWSTRING(SYB_FILEATTR_ISINTEGERITYSTREAM), info->dwFileAttributes&FILE_ATTRIBUTE_INTEGRITY_STREAM ? True(ISOLATE) : False(ISOLATE));
-		o->Set(NEWSTRING(SYB_FILEATTR_ISNOSCRUBDATA), info->dwFileAttributes&FILE_ATTRIBUTE_NO_SCRUB_DATA ? True(ISOLATE) : False(ISOLATE));
-		RETURN_SCOPE(o);
-	}
-	static Handle<Array> basicToJs(resultData *data) {
-		ISOLATE_NEW;
-		SCOPE_ESCAPABLE;
-		RETURNTYPE<Array> a = Array::New(ISOLATE);
-		while (data) {
-			a->Set(a->Length(), fileInfoToJs(&data->data));
-			resultData *old = data;
-			data = old->next;
-			delete old;
-		}
-		RETURN_SCOPE(a);
-	}
-	static Handle<Function> functionRegister(bool isAsyncVersion) {
-		ISOLATE_NEW;
-		SCOPE_ESCAPABLE;
-		RETURNTYPE<String> tmp;
-		RETURNTYPE<Function> t = NEWFUNCTION(isAsyncVersion ? jsAsync : jsSync);
-
-		//set error messages
-		RETURNTYPE<Object> errors = Object::New(ISOLATE);
-		tmp = NEWSTRING(SYB_ERR_WRONG_ARGUMENTS);
-		SETWITHATTR(errors, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_ERR_NOT_A_CONSTRUCTOR);
-		SETWITHATTR(errors, tmp, tmp, SYB_ATTR_CONST);
-		SETWITHATTR(t, NEWSTRING(SYB_ERRORS), errors, SYB_ATTR_CONST);
-
-		//set events
-		if (isAsyncVersion) {
-			RETURNTYPE<Object> events = Object::New(ISOLATE);
-			tmp = NEWSTRING(SYB_EVT_FOUND);
-			SETWITHATTR(events, tmp, tmp, SYB_ATTR_CONST);
-			tmp = NEWSTRING(SYB_EVT_SUCCEEDED);
-			SETWITHATTR(events, tmp, tmp, SYB_ATTR_CONST);
-			tmp = NEWSTRING(SYB_EVT_FAILED);
-			SETWITHATTR(events, tmp, tmp, SYB_ATTR_CONST);
-			tmp = NEWSTRING(SYB_EVT_INTERRUPTED);
-			SETWITHATTR(events, tmp, tmp, SYB_ATTR_CONST);
-			SETWITHATTR(t, NEWSTRING(SYB_EVENTS), events, SYB_ATTR_CONST);
-		}
-
-		//set properties of return value
-		RETURNTYPE<Object> returns = Object::New(ISOLATE);
-		tmp = NEWSTRING(SYB_RETURNS_LONGNAME);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_RETURNS_SHORTNAME);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_CREATIONTIME);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_LASTACCESSTIME);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_LASTWRITETIME);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_SIZE);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISARCHIVED);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISCOMPRESSED);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISDEVICE);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISDIRECTORY);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISENCRYPTED);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISHIDDEN);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISNOTCONTENTINDEXED);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISOFFLINE);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISREADONLY);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISSPARSEFILE);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISSYSTEM);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISTEMPORARY);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_FILEATTR_ISNOSCRUBDATA);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		tmp = NEWSTRING(SYB_RETURNS_REPARSEPOINTTAG);
-		SETWITHATTR(returns, tmp, tmp, SYB_ATTR_CONST);
-		SETWITHATTR(t, NEWSTRING(SYB_RETURNS), returns, SYB_ATTR_CONST);
-
-		RETURN_SCOPE(t);
+	static napi_value init(napi_env env, bool isSync = false) {
+		napi_value f;
+		napi_create_function(env, NULL, 0, isSync ? sync : async, NULL, &f);
+		return f;
 	}
 private:
+	const struct syncCbData {
+		napi_env env;
+		napi_value self;
+		napi_value cb;
+	};
+	const struct asyncCbData {
+		napi_async_work work;
+		napi_ref self;
+		napi_ref cb;
+		void *data;
+		//the following data is only used in progressive mode
+		HANDLE hnd;
+		size_t count;
+		bool stop;
+	};
+	static napi_value sync(napi_env env, napi_callback_info info) {
+		napi_value result;
+		napi_get_new_target(env, info, &result);
+		if (result) {
+			result = NULL;
+			napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_NOT_A_CONSTRUCTOR);
+		} else {
+			napi_value argv[2], self;
+			size_t argc;
+			napi_get_cb_info(env, info, &argc, argv, &self, NULL);
+			if (argc < 1) {
+				napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
+			} else {
+				size_t str_len;
+				napi_value tmp, cb = NULL;
+				napi_coerce_to_string(env, argv[0], &tmp);
+				napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
+				str_len += 1;
+				wchar_t *str = (wchar_t*)malloc(sizeof(wchar_t) * str_len);
+				napi_get_value_string_utf16(env, tmp, (char16_t*)str, str_len, NULL);
+				if (argc > 1) {
+					napi_valuetype t;
+					napi_typeof(env, argv[1], &t);
+					if (t == napi_function) {
+						cb = argv[1];
+					}
+				}
+				if (cb) {
+					syncCbData d = { env, self, cb };
+					napi_create_int64(env, (int64_t)funcWithCallback(str, syncCallback, &d), &result);
+				} else {
+					result = resultDataToArray(env, func(str));
+				}
+				free(str);
+			}
+		}
+		return result;
+	}
+	static napi_value async(napi_env env, napi_callback_info info) {
+		napi_value result;
+		napi_get_new_target(env, info, &result);
+		if (result) {
+			result = NULL;
+			napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_NOT_A_CONSTRUCTOR);
+		} else {
+			napi_value argv[3], self;
+			size_t argc = 3;
+			napi_get_cb_info(env, info, &argc, argv, &self, NULL);
+			if (argc < 2) {
+				napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
+			} else {
+				napi_valuetype t;
+				napi_typeof(env, argv[1], &t);
+				if (t == napi_function) {
+					bool isProgressive = false;
+					asyncCbData *data = (asyncCbData*)malloc(sizeof(asyncCbData));
+					size_t str_len;
+					napi_value tmp;
+					napi_coerce_to_string(env, argv[0], &tmp);
+					napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
+					str_len += 1;
+					data->data = malloc(sizeof(wchar_t) * str_len);
+					napi_get_value_string_utf16(env, tmp, (char16_t*)data->data, str_len, NULL);
+					if (argc > 2) {
+						napi_coerce_to_bool(env, argv[2], &tmp);
+						napi_get_value_bool(env, tmp, &isProgressive);
+					}
+					napi_create_reference(env, argv[1], 1, &data->cb);
+					napi_create_reference(env, self, 1, &data->self);
+					if (isProgressive) {
+						data->hnd = INVALID_HANDLE_VALUE;
+						data->count = 0;
+						data->stop = false;
+					} else {
+						data->hnd = NULL;
+					}
+					napi_create_string_latin1(env, "fswin.find", NAPI_AUTO_LENGTH, &tmp);
+					napi_create_async_work(env, argv[0], tmp, execute, complete, data, &data->work);
+					if (napi_queue_async_work(env, data->work) == napi_ok) {
+						napi_get_boolean(env, true, &result);
+					} else {
+						napi_get_boolean(env, false, &result);
+						napi_delete_async_work(env, data->work);
+						napi_delete_reference(env, data->cb);
+						napi_delete_reference(env, data->self);
+						free(data->data);
+						free(data);
+					}
+				} else {
+					napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
+				}
+			}
+		}
+		return result;
+	}
 	static bool isValidInfo(const WIN32_FIND_DATAW *info) {//determine whether it is the real content 
 		return wcscmp(info->cFileName, L".") != 0 && wcscmp(info->cFileName, L"..") != 0;
 	}
-	static JSFUNC(jsSync) {
-		ISOLATE_NEW_ARGS;
-		SCOPE_ESCAPABLE;
-		RETURNTYPE<Value> result;
-		if (args.IsConstructCall()) {
-			result = THROWEXCEPTION(ISOLATE_C SYB_ERR_NOT_A_CONSTRUCTOR);
-		} else {
-			if (args.Length() > 0 && (args[0]->IsString() || args[0]->IsStringObject())) {
-				String::Value spath(args[0]);
-				if (args.Length() > 1 && args[1]->IsFunction()) {
-					jsCallbackData callbackdata = {args.This(), Handle<Function>::Cast(args[1])};
-					result = Integer::New(ISOLATE_C basicWithCallback((wchar_t*)*spath, jsSyncCallback, &callbackdata));
-				} else {
-					result = basicToJs(basic((wchar_t*)*spath));
-				}
-			} else {
-				result = THROWEXCEPTION(SYB_ERR_WRONG_ARGUMENTS);
+	static napi_value resultDataToArray(napi_env env, resultData *r) {
+		napi_value result;
+		napi_create_array(env, &result);
+		if (r) {
+			napi_value push, tmp;
+			napi_get_prototype(env, result, &tmp);
+			napi_get_named_property(env, tmp, "push", &push);
+			while (r) {
+				tmp = convert(env, &r->data);
+				napi_call_function(env, result, push, 1, &tmp, NULL);
+				resultData *n = r->next;
+				free(r);
+				r = n;
 			}
 		}
-		RETURN(result);
+		return result;
 	}
-	static bool jsSyncCallback(const WIN32_FIND_DATAW *info, void *data) {
-		ISOLATE_NEW;
-		SCOPE_ESCAPABLE;
-		RETURNTYPE<Value> o = fileInfoToJs(info);
-		jsCallbackData *d = (jsCallbackData*)data;
-		return d->func->Call(d->self, 1, &o)->ToBoolean()->IsTrue();
-	}
-	static JSFUNC(jsAsync) {
-		ISOLATE_NEW_ARGS;
-		SCOPE_ESCAPABLE;
-		RETURNTYPE<Value> result;
-		if (args.IsConstructCall()) {
-			result = THROWEXCEPTION(SYB_ERR_NOT_A_CONSTRUCTOR);
-		} else {
-			if (args.Length() > 1 && (args[0]->IsString() || args[0]->IsStringObject()) && args[1]->IsFunction()) {
-				workdata *data = new workdata;
-				data->req.data = data;
-				PERSISTENT_NEW(data->self, args.This(), Object);
-				PERSISTENT_NEW(data->func, RETURNTYPE<Function>::Cast(args[1]), Function);
-				String::Value spath(args[0]);
-				data->data = _wcsdup((wchar_t*)*spath);
-				if (args.Length() > 2 && args[2]->ToBoolean()->IsTrue()) {
-					data->hnd = INVALID_HANDLE_VALUE;
-					data->count = 0;
-					data->stop = false;
-				} else {
-					data->hnd = NULL;
-				}
-				if (uv_queue_work(uv_default_loop(), &data->req, beginWork, afterWork) == 0) {
-					result = True(ISOLATE);
-				} else {
-					free(data->data);
-					PERSISTENT_RELEASE(data->self);
-					PERSISTENT_RELEASE(data->func);
-					delete data;
-					result = False(ISOLATE);
-				}
+	static napi_value convert(napi_env env, const WIN32_FIND_DATAW *info) {
+		napi_value result, tmp, date;
+		napi_create_object(env, &result);
+		napi_get_global(env, &date);
+		napi_get_named_property(env, date, "Date", &date);
+		napi_create_string_utf16(env, (char16_t*)info->cFileName, wcslen(info->cFileName), &tmp);
+		napi_set_named_property(env, result, "LONG_NAME", tmp);
+		napi_create_string_utf16(env, (char16_t*)info->cFileName, wcslen(info->cAlternateFileName), &tmp);
+		napi_set_named_property(env, result, "SHORT_NAME", tmp);
+		napi_create_double(env, fileTimeToJsDateVal(&info->ftCreationTime), &tmp);
+		napi_new_instance(env, date, 1, &tmp, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_CREATIONTIME, tmp);
+		napi_create_double(env, fileTimeToJsDateVal(&info->ftLastAccessTime), &tmp);
+		napi_new_instance(env, date, 1, &tmp, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_LASTACCESSTIME, tmp);
+		napi_create_double(env, fileTimeToJsDateVal(&info->ftLastWriteTime), &tmp);
+		napi_new_instance(env, date, 1, &tmp, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_LASTWRITETIME, tmp);
+		napi_create_int64(env, (int64_t)combineHiLow(info->nFileSizeHigh, info->nFileSizeLow), &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_SIZE, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_ARCHIVE, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISARCHIVED, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_COMPRESSED, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISCOMPRESSED, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_DEVICE, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISDEVICE, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISDIRECTORY, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_ENCRYPTED, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISENCRYPTED, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_HIDDEN, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISHIDDEN, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_NOT_CONTENT_INDEXED, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISNOTCONTENTINDEXED, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_OFFLINE, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISOFFLINE, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_READONLY, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISREADONLY, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_SPARSE_FILE, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISSPARSEFILE, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_SYSTEM, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISSYSTEM, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_TEMPORARY, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISTEMPORARY, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_INTEGRITY_STREAM, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISINTEGERITYSTREAM, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_NO_SCRUB_DATA, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISNOSCRUBDATA, tmp);
+		if (info->dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) {
+			if (info->dwReserved0 == IO_REPARSE_TAG_MOUNT_POINT) {
+				napi_create_string_latin1(env, "MOUNT_POINT", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_HSM) {
+				napi_create_string_latin1(env, "HSM", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_HSM2) {
+				napi_create_string_latin1(env, "HSM2", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_SIS) {
+				napi_create_string_latin1(env, "SIS", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_WIM) {
+				napi_create_string_latin1(env, "WIM", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_CSV) {
+				napi_create_string_latin1(env, "CSV", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_DFS) {
+				napi_create_string_latin1(env, "DFS", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_SYMLINK) {
+				napi_create_string_latin1(env, "SYMLINK", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_DFSR) {
+				napi_create_string_latin1(env, "DFSR", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_DEDUP) {
+				napi_create_string_latin1(env, "DEDUP", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_NFS) {
+				napi_create_string_latin1(env, "NFS", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_FILE_PLACEHOLDER) {
+				napi_create_string_latin1(env, "FILE_PLACEHOLDER", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_WOF) {
+				napi_create_string_latin1(env, "WOF", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_WCI) {
+				napi_create_string_latin1(env, "WCI", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_WCI_1) {
+				napi_create_string_latin1(env, "WCI_1", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_GLOBAL_REPARSE) {
+				napi_create_string_latin1(env, "GLOBAL_REPARSE", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD) {
+				napi_create_string_latin1(env, "CLOUD", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_1) {
+				napi_create_string_latin1(env, "CLOUD_1", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_2) {
+				napi_create_string_latin1(env, "CLOUD_2", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_3) {
+				napi_create_string_latin1(env, "CLOUD_3", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_4) {
+				napi_create_string_latin1(env, "CLOUD_4", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_5) {
+				napi_create_string_latin1(env, "CLOUD_5", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_6) {
+				napi_create_string_latin1(env, "CLOUD_6", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_7) {
+				napi_create_string_latin1(env, "CLOUD_7", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_8) {
+				napi_create_string_latin1(env, "CLOUD_8", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_9) {
+				napi_create_string_latin1(env, "CLOUD_9", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_A) {
+				napi_create_string_latin1(env, "CLOUD_A", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_B) {
+				napi_create_string_latin1(env, "CLOUD_B", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_C) {
+				napi_create_string_latin1(env, "CLOUD_C", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_D) {
+				napi_create_string_latin1(env, "CLOUD_D", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_E) {
+				napi_create_string_latin1(env, "CLOUD_E", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_F) {
+				napi_create_string_latin1(env, "CLOUD_F", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_MASK) {
+				napi_create_string_latin1(env, "CLOUD_MASK", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_APPEXECLINK) {
+				napi_create_string_latin1(env, "APPEXECLINK", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_GVFS) {
+				napi_create_string_latin1(env, "GVFS", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_STORAGE_SYNC) {
+				napi_create_string_latin1(env, "STORAGE_SYNC", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_WCI_TOMBSTONE) {
+				napi_create_string_latin1(env, "WCI_TOMBSTONE", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_UNHANDLED) {
+				napi_create_string_latin1(env, "UNHANDLED", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_ONEDRIVE) {
+				napi_create_string_latin1(env, "ONEDRIVE", NAPI_AUTO_LENGTH, &tmp);
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_GVFS_TOMBSTONE) {
+				napi_create_string_latin1(env, "TOMBSTONE", NAPI_AUTO_LENGTH, &tmp);
 			} else {
-				result = THROWEXCEPTION(SYB_ERR_WRONG_ARGUMENTS);
+				napi_create_string_latin1(env, "UNKNOWN", NAPI_AUTO_LENGTH, &tmp);
 			}
+		} else {
+			napi_create_string_latin1(env, NULL, 0, &tmp);
 		}
-		RETURN(result);
+		napi_set_named_property(env, result, "REPARSE_POINT_TAG", tmp);
+		return result;
 	}
-	static void beginWork(uv_work_t *req) {
-		workdata *data = (workdata*)req->data;
-		if (data->hnd) {
-			WIN32_FIND_DATAW *info = new WIN32_FIND_DATAW;
-			if (data->hnd == INVALID_HANDLE_VALUE) {
-				data->hnd = FindFirstFileExW((wchar_t*)data->data, FindExInfoStandard, info, FindExSearchNameMatch, NULL, NULL);
-				free(data->data);
-				if (data->hnd != INVALID_HANDLE_VALUE) {
+	static bool syncCallback(const WIN32_FIND_DATAW *info, void *data) {
+		bool result;
+		syncCbData *d = (syncCbData*)data;
+		napi_value res, o = convert(d->env, info);
+		napi_call_function(d->env, d->self, d->cb, 1, &o, &res);
+		napi_coerce_to_bool(d->env, res, &res);
+		napi_get_value_bool(d->env, res, &result);
+		return result;
+	}
+	static void execute(napi_env env, void* data) {
+		asyncCbData *d = (asyncCbData*)data;
+		if (d->hnd) {
+			WIN32_FIND_DATAW *info = (WIN32_FIND_DATAW*)malloc(sizeof(WIN32_FIND_DATAW));
+			if (d->hnd == INVALID_HANDLE_VALUE) {
+				d->hnd = FindFirstFileExW((wchar_t*)d->data, FindExInfoStandard, info, FindExSearchNameMatch, NULL, NULL);
+				free(d->data);
+				if (d->hnd != INVALID_HANDLE_VALUE) {
 					while (!isValidInfo(info)) {
-						if (!FindNextFileW(data->hnd, info)) {
-							FindClose(data->hnd);
-							data->hnd = INVALID_HANDLE_VALUE;
+						if (!FindNextFileW(d->hnd, info)) {
+							FindClose(d->hnd);
+							d->hnd = INVALID_HANDLE_VALUE;
 							break;
 						}
 					}
 				}
 			} else {
-				if (!data->stop) {
-					if (!FindNextFileW(data->hnd, info)) {
-						FindClose(data->hnd);
-						data->hnd = INVALID_HANDLE_VALUE;
-					} else {
+				if (d->stop) {
+					FindClose(d->hnd);
+					d->hnd = INVALID_HANDLE_VALUE;
+				} else {
+					if (FindNextFileW(d->hnd, info)) {
 						while (!isValidInfo(info)) {
-							if (!FindNextFileW(data->hnd, info)) {
-								FindClose(data->hnd);
-								data->hnd = INVALID_HANDLE_VALUE;
+							if (!FindNextFileW(d->hnd, info)) {
+								FindClose(d->hnd);
+								d->hnd = INVALID_HANDLE_VALUE;
 								break;
 							}
 						}
+					} else {
+						FindClose(d->hnd);
+						d->hnd = INVALID_HANDLE_VALUE;
 					}
-				} else {
-					FindClose(data->hnd);
-					data->hnd = INVALID_HANDLE_VALUE;
 				}
 			}
-			if (data->hnd == INVALID_HANDLE_VALUE) {
-				delete info;
+			if (d->hnd == INVALID_HANDLE_VALUE) {
+				free(info);
 			} else {
-				data->data = info;
+				d->data = info;
 			}
 		} else {
-			resultData *rdata = basic((wchar_t*)data->data);
-			free(data->data);
-			data->data = rdata;
+			resultData *rdata = func((wchar_t*)d->data);
+			free(d->data);
+			d->data = rdata;
 		}
 	}
-	static AFTERWORKCB(afterWork) {
-		ISOLATE_NEW;
-		SCOPE;
-		workdata *data = (workdata*)req->data;
-		int del;
-		if (data->hnd) {
-			RETURNTYPE<Value> result[2];
-			if (data->hnd == INVALID_HANDLE_VALUE) {
-				result[0] = NEWSTRING(SYB_EVT_SUCCEEDED);
-				result[1] = Number::New(ISOLATE_C (double)data->count);
-				del = 1;
-			} else {
-				WIN32_FIND_DATAW *info = (WIN32_FIND_DATAW*)data->data;
-				if (data->stop) {
-					result[0] = NEWSTRING(data->stop ? SYB_EVT_INTERRUPTED : SYB_EVT_SUCCEEDED);
-					result[1] = Number::New(ISOLATE_C (double)data->count);
-					del = 1;
+	static void complete(napi_env env, napi_status status, void *data) {
+		asyncCbData *d = (asyncCbData*)data;
+		napi_value cb, self;
+		napi_get_reference_value(env, d->cb, &cb);
+		napi_get_reference_value(env, d->self, &self);
+		BYTE finish = 0;
+		if (status == napi_ok) {
+			if (d->hnd) {
+				napi_value result, argv[2];
+				if (d->hnd == INVALID_HANDLE_VALUE) {
+					napi_create_string_latin1(env, "SUCCEEDED", NAPI_AUTO_LENGTH, &argv[0]);
+					napi_create_int64(env, (int64_t)d->count, &argv[1]);
+					finish = 1;
 				} else {
-					data->count++;
-					result[0] = NEWSTRING(SYB_EVT_FOUND);
-					result[1] = fileInfoToJs(info);
-					del = uv_queue_work(uv_default_loop(), &data->req, beginWork, afterWork);
+					WIN32_FIND_DATAW *info = (WIN32_FIND_DATAW*)d->data;
+					if (d->stop) {
+						napi_create_string_latin1(env, "INTERRUPTED", NAPI_AUTO_LENGTH, &argv[0]);
+						napi_create_int64(env, (int64_t)d->count, &argv[1]);
+						finish = 1;
+					} else {
+						d->count++;
+						napi_create_string_latin1(env, "FOUND", NAPI_AUTO_LENGTH, &argv[0]);
+						argv[1] = convert(env, info);
+						if (napi_queue_async_work(env, d->work) != napi_ok) {
+							finish = 2;
+						}
+					}
+					free(info);
 				}
-				delete info;
+				napi_call_function(env, self, cb, 2, (napi_value*)&argv, &result);
+				napi_coerce_to_bool(env, result, &result);
+				napi_get_value_bool(env, result, &d->stop);
+			} else {
+				napi_value argv = resultDataToArray(env, (resultData*)d->data);
+				napi_call_function(env, self, cb, 1, &argv, NULL);
+				finish = 1;
 			}
-			data->stop = PERSISTENT_CONV(data->func, Function)->Call(PERSISTENT_CONV(data->self, Object), 2, result)->ToBoolean()->IsTrue();
 		} else {
-			RETURNTYPE<Value> result;
-			result = basicToJs((resultData*)data->data);
-			del = 1;
-			PERSISTENT_CONV(data->func, Function)->Call(PERSISTENT_CONV(data->self, Object), 1, &result);
-		}
-		if (del) {
-			if (del != 1) {
-				RETURNTYPE<Value> result[2] = {NEWSTRING(SYB_EVT_FAILED), Number::New(ISOLATE_C (double)data->count)};
-				PERSISTENT_CONV(data->func, Function)->Call(PERSISTENT_CONV(data->self, Object), 2, result);
+			if (d->hnd) {
+				finish = 2;
+				if (d->hnd != INVALID_HANDLE_VALUE) {
+					FindClose(d->hnd);
+				}
+			} else {
+				finish = 1;
+				napi_value argv;
+				napi_get_null(env, &argv);
+				napi_call_function(env, self, cb, 1, &argv, NULL);
 			}
-			PERSISTENT_RELEASE(data->func);
-			PERSISTENT_RELEASE(data->self);
-			delete data;
+		}
+		if (finish) {
+			if (finish > 1) {
+				napi_value argv[2];
+				napi_create_string_latin1(env, "FAILED", NAPI_AUTO_LENGTH, &argv[0]);
+				napi_create_int64(env, (int64_t)d->count, &argv[1]);
+				napi_call_function(env, self, cb, 2, (napi_value*)&argv, NULL);
+			}
+			napi_delete_reference(env, d->cb);
+			napi_delete_reference(env, d->self);
+			napi_delete_async_work(env, d->work);
+			free(d);
 		}
 	}
 };

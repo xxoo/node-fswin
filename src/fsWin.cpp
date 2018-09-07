@@ -1,39 +1,40 @@
-#define FSWIN_VERSION "2.17.1227"
-#include "convertPath.h"
 #include "dirWatcher.h"
-#include "find.h"
-#include "getCompressedSize.h"
-#include "getVolumeSize.h"
-#include "setAttributes.h"
-#include "getAttributes.h"
-#include "setCompression.h"
-#include "setShortName.h"
+#include "convertPath.h"
 #include "splitPath.h"
+#include "find.h"
+#include "getVolumeSize.h"
+#include "getAttributes.h"
+#include "setAttributes.h"
+#include "setShortName.h"
+#include "getCompressedSize.h"
+#include "setCompression.h"
 
-static void moduleRegister(Handle<Object> target) {
-	ISOLATE_NEW;
-	SCOPE;
-	SETWITHATTR(target, NEWSTRING("version"), NEWSTRING(FSWIN_VERSION), SYB_ATTR_CONST);
-	SETWITHATTR(target, NEWSTRING("convertPath"), convertPath::functionRegister(true), SYB_ATTR_CONST);
-	SETWITHATTR(target, NEWSTRING("convertPathSync"), convertPath::functionRegister(false), SYB_ATTR_CONST);
-	SETWITHATTR(target, NEWSTRING("dirWatcher"), dirWatcher::functionRegister(), SYB_ATTR_CONST);
-	SETWITHATTR(target, NEWSTRING("find"), find::functionRegister(true), SYB_ATTR_CONST);
-	SETWITHATTR(target, NEWSTRING("findSync"), find::functionRegister(false), SYB_ATTR_CONST);
-	SETWITHATTR(target, NEWSTRING("getVolumeSpace"), getVolumeSpace::functionRegister(true), SYB_ATTR_CONST);
-	SETWITHATTR(target, NEWSTRING("getVolumeSpaceSync"), getVolumeSpace::functionRegister(false), SYB_ATTR_CONST);
-	SETWITHATTR(target, NEWSTRING("setAttributes"), setAttributes::functionRegister(true), SYB_ATTR_CONST);
-	SETWITHATTR(target, NEWSTRING("setAttributesSync"), setAttributes::functionRegister(false), SYB_ATTR_CONST);
-	SETWITHATTR(target, NEWSTRING("getAttributes"), getAttributes::functionRegister(true), SYB_ATTR_CONST);
-	SETWITHATTR(target, NEWSTRING("getAttributesSync"), getAttributes::functionRegister(false), SYB_ATTR_CONST);
-	SETWITHATTR(target, NEWSTRING("splitPath"), splitPath::functionRegister(), SYB_ATTR_CONST);
-
-	RETURNTYPE<Object> ntfsgroup = Object::New(ISOLATE);
-	SETWITHATTR(ntfsgroup, NEWSTRING("getCompressedSize"), getCompressedSize::functionRegister(true), SYB_ATTR_CONST);
-	SETWITHATTR(ntfsgroup, NEWSTRING("getCompressedSizeSync"), getCompressedSize::functionRegister(false), SYB_ATTR_CONST);
-	SETWITHATTR(ntfsgroup, NEWSTRING("setCompression"), setCompression::functionRegister(true), SYB_ATTR_CONST);
-	SETWITHATTR(ntfsgroup, NEWSTRING("setCompressionSync"), setCompression::functionRegister(false), SYB_ATTR_CONST);
-	SETWITHATTR(ntfsgroup, NEWSTRING("setShortName"), setShortName::functionRegister(true), SYB_ATTR_CONST);
-	SETWITHATTR(ntfsgroup, NEWSTRING("setShortNameSync"), setShortName::functionRegister(false), SYB_ATTR_CONST);
-	SETWITHATTR(target, NEWSTRING("ntfs"), ntfsgroup, SYB_ATTR_CONST);
+napi_value init_all(napi_env env, napi_value exports) {
+	napi_value o;
+	napi_create_string_latin1(env, "3.18.908", NAPI_AUTO_LENGTH, &o);
+	napi_set_named_property(env, exports, "version", o);
+	napi_set_named_property(env, exports, "dirWatcher", dirWatcher::init(env));
+	napi_set_named_property(env, exports, "convertPath", convertPath::init(env));
+	napi_set_named_property(env, exports, "convertPathSync", convertPath::init(env, true));
+	napi_set_named_property(env, exports, "splitPath", splitPath::init(env));
+	napi_set_named_property(env, exports, "find", find::init(env));
+	napi_set_named_property(env, exports, "findSync", find::init(env, true));
+	napi_set_named_property(env, exports, "getVolumeSize", getVolumeSize::init(env));
+	napi_set_named_property(env, exports, "getVolumeSizeSync", getVolumeSize::init(env, true));
+	napi_set_named_property(env, exports, "getAttributes", getAttributes::init(env));
+	napi_set_named_property(env, exports, "getAttributesSync", getAttributes::init(env, true));
+	napi_set_named_property(env, exports, "setAttributes", setAttributes::init(env));
+	napi_set_named_property(env, exports, "setAttributesSync", setAttributes::init(env, true));
+	napi_create_object(env, &o);
+	napi_set_named_property(env, exports, "ntfs", o);
+	napi_set_named_property(env, o, "setShortName", setShortName::init(env));
+	napi_set_named_property(env, o, "setShortNameSync", setShortName::init(env, true));
+	napi_set_named_property(env, o, "getCompressedSize", getCompressedSize::init(env));
+	napi_set_named_property(env, o, "getCompressedSizeSync", getCompressedSize::init(env, true));
+	napi_set_named_property(env, o, "setCompression", setCompression::init(env));
+	napi_set_named_property(env, o, "setCompressionSync", setCompression::init(env, true));
+	
+	return exports;
 }
-NODE_MODULE(fswin, moduleRegister);
+
+NAPI_MODULE(NODE_GYP_MODULE_NAME, init_all)
