@@ -48,23 +48,28 @@ private:
 				napi_valuetype t;
 				napi_typeof(env, argv[1], &t);
 				if (t == napi_function) {
+					dirWatcher* self = new dirWatcher();
+					self->watchingParent = self->watchingPath = 0;
+					self->pathmsg = self->parentmsg = NULL;
+					self->oldName = self->newName = self->longName = self->shortName = NULL;
+					self->parenthnd = self->pathhnd = INVALID_HANDLE_VALUE;
+					self->options = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE;
+					self->subDirs = true;
 					napi_value tmp;
-					DWORD options = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE;
-					bool subDirs = true;
 					if (argc > 2 && napi_coerce_to_object(env, argv[2], &tmp) == napi_ok) {
 						napi_value v;
 						bool b;
 						napi_has_named_property(env, tmp, SYB_OPT_WATCH_SUB_DIRECTORIES, &b);
 						if (b) {
 							napi_get_named_property(env, tmp, SYB_OPT_WATCH_SUB_DIRECTORIES, &v);
-							napi_get_value_bool(env, v, &subDirs);
+							napi_get_value_bool(env, v, &self->subDirs);
 						}
 						napi_has_named_property(env, tmp, SYB_OPT_CHANGE_FILE_SIZE, &b);
 						if (b) {
 							napi_get_named_property(env, tmp, SYB_OPT_CHANGE_FILE_SIZE, &v);
 							napi_get_value_bool(env, v, &b);
 							if (!b) {
-								options ^= FILE_NOTIFY_CHANGE_SIZE;
+								self->options ^= FILE_NOTIFY_CHANGE_SIZE;
 							}
 						}
 						napi_has_named_property(env, tmp, SYB_OPT_CHANGE_LAST_WRITE, &b);
@@ -72,7 +77,7 @@ private:
 							napi_get_named_property(env, tmp, SYB_OPT_CHANGE_LAST_WRITE, &v);
 							napi_get_value_bool(env, v, &b);
 							if (!b) {
-								options ^= FILE_NOTIFY_CHANGE_LAST_WRITE;
+								self->options ^= FILE_NOTIFY_CHANGE_LAST_WRITE;
 							}
 						}
 						napi_has_named_property(env, tmp, SYB_OPT_CHANGE_LAST_ACCESS, &b);
@@ -80,7 +85,7 @@ private:
 							napi_get_named_property(env, tmp, SYB_OPT_CHANGE_LAST_ACCESS, &v);
 							napi_get_value_bool(env, v, &b);
 							if (b) {
-								options |= FILE_NOTIFY_CHANGE_LAST_ACCESS;
+								self->options |= FILE_NOTIFY_CHANGE_LAST_ACCESS;
 							}
 						}
 						napi_has_named_property(env, tmp, SYB_OPT_CHANGE_CREATION, &b);
@@ -88,7 +93,7 @@ private:
 							napi_get_named_property(env, tmp, SYB_OPT_CHANGE_CREATION, &v);
 							napi_get_value_bool(env, v, &b);
 							if (b) {
-								options |= FILE_NOTIFY_CHANGE_CREATION;
+								self->options |= FILE_NOTIFY_CHANGE_CREATION;
 							}
 						}
 						napi_has_named_property(env, tmp, SYB_OPT_CHANGE_ATTRIBUTES, &b);
@@ -96,7 +101,7 @@ private:
 							napi_get_named_property(env, tmp, SYB_OPT_CHANGE_ATTRIBUTES, &v);
 							napi_get_value_bool(env, v, &b);
 							if (b) {
-								options |= FILE_NOTIFY_CHANGE_ATTRIBUTES;
+								self->options |= FILE_NOTIFY_CHANGE_ATTRIBUTES;
 							}
 						}
 						napi_has_named_property(env, tmp, SYB_OPT_CHANGE_SECURITY, &b);
@@ -104,18 +109,11 @@ private:
 							napi_get_named_property(env, tmp, SYB_OPT_CHANGE_SECURITY, &v);
 							napi_get_value_bool(env, v, &b);
 							if (b) {
-								options |= FILE_NOTIFY_CHANGE_SECURITY;
+								self->options |= FILE_NOTIFY_CHANGE_SECURITY;
 							}
 						}
 					}
 					napi_coerce_to_string(env, argv[0], &tmp);
-					dirWatcher* self = new dirWatcher();
-					self->watchingParent = self->watchingPath = 0;
-					self->pathmsg = self->parentmsg = NULL;
-					wchar_t *realPath = self->oldName = self->newName = self->longName = self->shortName = NULL;
-					self->parenthnd = self->pathhnd = INVALID_HANDLE_VALUE;
-					self->options = options;
-					self->subDirs = subDirs;
 					size_t str_len;
 					napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
 					str_len += 1;
@@ -165,7 +163,7 @@ private:
 		dirWatcher *self = (dirWatcher*)data;
 		self->watchingPath = 2;
 		if (self->pathhnd == INVALID_HANDLE_VALUE) {
-			self->pathhnd = CreateFileW(self->path, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+			self->pathhnd = CreateFileW(self->path, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, NULL);
 			if (self->pathhnd == INVALID_HANDLE_VALUE) {
 				self->pathmsg = (msg*)malloc(sizeof(msg));
 				self->pathmsg->type = SYB_EVT_ERR;
@@ -210,9 +208,9 @@ private:
 						DWORD d = 0;
 						do {
 							pInfo = (FILE_NOTIFY_INFORMATION*)((ULONG_PTR)buffer + d);
+							d += pInfo->NextEntryOffset;
 							napi_value filename;
 							napi_create_string_utf16(env, (char16_t*)pInfo->FileName, pInfo->FileNameLength / sizeof(wchar_t), &filename);
-							//std::wcout << pInfo->FileName << std::endl;
 							if (pInfo->Action == FILE_ACTION_ADDED) {
 								self->callCb(env, "ADDED", filename);
 							} else if (pInfo->Action == FILE_ACTION_REMOVED) {
@@ -239,9 +237,9 @@ private:
 									if (self->oldName) {
 										napi_value arg, tmp;
 										napi_create_object(env, &arg);
-										napi_set_named_property(env, arg, SYB_EVT_RENAMED_OLD_NAME, filename);
+										napi_set_named_property(env, arg, SYB_EVT_RENAMED_NEW_NAME, filename);
 										napi_create_string_utf16(env, (char16_t*)self->oldName, NAPI_AUTO_LENGTH, &tmp);
-										napi_set_named_property(env, arg, SYB_EVT_RENAMED_NEW_NAME, tmp);
+										napi_set_named_property(env, arg, SYB_EVT_RENAMED_OLD_NAME, tmp);
 										free(self->oldName);
 										self->oldName = NULL;
 										self->callCb(env, SYB_EVT_RENAMED, arg);
@@ -252,7 +250,6 @@ private:
 									}
 								}
 							}
-							d += pInfo->NextEntryOffset;
 						} while (pInfo->NextEntryOffset > 0);
 						free(buffer);
 					} else {
@@ -275,7 +272,6 @@ private:
 			self->savePath(env);
 		} else {
 			DWORD d;
-			self->parentbuffer = malloc(SYB_BUFFERSIZE);
 			self->watchingParentResult = ReadDirectoryChangesW(self->parenthnd, self->parentbuffer, SYB_BUFFERSIZE, FALSE, FILE_NOTIFY_CHANGE_DIR_NAME, &d, NULL, NULL);
 		}
 	}
@@ -299,7 +295,6 @@ private:
 				}
 			} else {
 				if (self->parenthnd == INVALID_HANDLE_VALUE) {
-					free(self->parentbuffer);
 					self->checkWatchingStoped(env);
 				} else {
 					if (self->watchingParentResult) {
@@ -307,18 +302,19 @@ private:
 						DWORD d = 0;
 						do {
 							pInfo = (FILE_NOTIFY_INFORMATION*)((ULONG_PTR)self->parentbuffer + d);
+							d += pInfo->NextEntryOffset;
 							if ((pInfo->Action == FILE_ACTION_RENAMED_OLD_NAME || pInfo->Action == FILE_ACTION_REMOVED) && wcsncmp(self->longName, pInfo->FileName, MAX(pInfo->FileNameLength / sizeof(wchar_t), wcslen(self->longName))) == 0 || (self->shortName && wcsncmp(self->shortName, pInfo->FileName, MAX(pInfo->FileNameLength / sizeof(wchar_t), wcslen(self->shortName))) == 0)) {
 								CloseHandle(self->parenthnd);
 								self->parenthnd = INVALID_HANDLE_VALUE;
+								break;
 							}
 						} while (pInfo->NextEntryOffset > 0);
 						self->watchParent(env);
 					} else {
-						free(self->parentbuffer);
 						napi_value v;
 						napi_create_string_utf16(env, (char16_t*)SYB_EVT_ERR_UNABLE_TO_WATCH_SELF, NAPI_AUTO_LENGTH, &v);
 						self->callCb(env, SYB_EVT_ERR, v);
-						self->stopWatching(env);
+						self->stopWatchingParent(env);
 					}
 				}
 			}
@@ -345,7 +341,7 @@ private:
 	wchar_t *shortName;
 	wchar_t *longName;
 	void *pathbuffer;
-	void *parentbuffer;
+	BYTE *parentbuffer[SYB_BUFFERSIZE];
 	napi_ref wrapper;
 	napi_ref callback;
 
@@ -396,12 +392,16 @@ private:
 				if (this->longName) {
 					wchar_t *parent = (wchar_t*)malloc(sizeof(wchar_t) * (sp->parentLen + 1));
 					wcsncpy_s(parent, sp->parentLen + 1, realPath, sp->parentLen);
-					this->parenthnd = CreateFileW(parent, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, NULL);
+					this->parenthnd = CreateFileW(parent, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
 					free(parent);
-					if (this->parenthnd == INVALID_HANDLE_VALUE || napi_queue_async_work(env, this->parentwork) != napi_ok) {
+					if (this->parenthnd == INVALID_HANDLE_VALUE) {
 						e = true;
-					} else {
-						this->watchingParent = 1;
+					} else if (starting) {
+						if (napi_queue_async_work(env, this->parentwork) == napi_ok) {
+							this->watchingParent = 1;
+						} else {
+							e = true;
+						}
 					}
 				}
 			} else {

@@ -33,7 +33,7 @@ constexpr auto MAX_LONG_PATH = 32767;
 
 wchar_t *getCurrentPathByHandle(HANDLE hnd) {
 	wchar_t *r = NULL;
-	DWORD sz = GetFinalPathNameByHandleW(hnd, NULL, 0, FILE_NAME_NORMALIZED) + 1;
+	DWORD sz = GetFinalPathNameByHandleW(hnd, NULL, 0, FILE_NAME_NORMALIZED);
 	if (sz > 0) {
 		wchar_t *s = (wchar_t*)malloc(sizeof(wchar_t)*sz);
 		DWORD sz1 = (DWORD)wcslen(NETWORK_PATH);
