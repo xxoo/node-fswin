@@ -248,93 +248,95 @@ private:
 		napi_set_named_property(env, result, SYB_FILEATTR_ISINTEGERITYSTREAM, tmp);
 		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_NO_SCRUB_DATA, &tmp);
 		napi_set_named_property(env, result, SYB_FILEATTR_ISNOSCRUBDATA, tmp);
+		char *tag;
 		if (info->dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) {
 			if (info->dwReserved0 == IO_REPARSE_TAG_MOUNT_POINT) {
-				napi_create_string_latin1(env, "MOUNT_POINT", NAPI_AUTO_LENGTH, &tmp);
+				tag = "MOUNT_POINT";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_HSM) {
-				napi_create_string_latin1(env, "HSM", NAPI_AUTO_LENGTH, &tmp);
+				tag = "HSM";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_HSM2) {
-				napi_create_string_latin1(env, "HSM2", NAPI_AUTO_LENGTH, &tmp);
+				tag = "HSM2";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_SIS) {
-				napi_create_string_latin1(env, "SIS", NAPI_AUTO_LENGTH, &tmp);
+				tag = "SIS";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_WIM) {
-				napi_create_string_latin1(env, "WIM", NAPI_AUTO_LENGTH, &tmp);
+				tag = "WIM";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_CSV) {
-				napi_create_string_latin1(env, "CSV", NAPI_AUTO_LENGTH, &tmp);
+				tag = "CSV";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_DFS) {
-				napi_create_string_latin1(env, "DFS", NAPI_AUTO_LENGTH, &tmp);
+				tag = "DFS";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_SYMLINK) {
-				napi_create_string_latin1(env, "SYMLINK", NAPI_AUTO_LENGTH, &tmp);
+				tag = "SYMLINK";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_DFSR) {
-				napi_create_string_latin1(env, "DFSR", NAPI_AUTO_LENGTH, &tmp);
+				tag = "DFSR";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_DEDUP) {
-				napi_create_string_latin1(env, "DEDUP", NAPI_AUTO_LENGTH, &tmp);
+				tag = "DEDUP";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_NFS) {
-				napi_create_string_latin1(env, "NFS", NAPI_AUTO_LENGTH, &tmp);
+				tag = "NFS";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_FILE_PLACEHOLDER) {
-				napi_create_string_latin1(env, "FILE_PLACEHOLDER", NAPI_AUTO_LENGTH, &tmp);
+				tag = "FILE_PLACEHOLDER";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_WOF) {
-				napi_create_string_latin1(env, "WOF", NAPI_AUTO_LENGTH, &tmp);
+				tag = "WOF";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_WCI) {
-				napi_create_string_latin1(env, "WCI", NAPI_AUTO_LENGTH, &tmp);
+				tag = "WCI";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_WCI_1) {
-				napi_create_string_latin1(env, "WCI_1", NAPI_AUTO_LENGTH, &tmp);
+				tag = "WCI_1";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_GLOBAL_REPARSE) {
-				napi_create_string_latin1(env, "GLOBAL_REPARSE", NAPI_AUTO_LENGTH, &tmp);
+				tag = "GLOBAL_REPARSE";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD) {
-				napi_create_string_latin1(env, "CLOUD", NAPI_AUTO_LENGTH, &tmp);
+				tag = "CLOUD";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_1) {
-				napi_create_string_latin1(env, "CLOUD_1", NAPI_AUTO_LENGTH, &tmp);
+				tag = "CLOUD_1";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_2) {
-				napi_create_string_latin1(env, "CLOUD_2", NAPI_AUTO_LENGTH, &tmp);
+				tag = "CLOUD_2";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_3) {
-				napi_create_string_latin1(env, "CLOUD_3", NAPI_AUTO_LENGTH, &tmp);
+				tag = "CLOUD_3";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_4) {
-				napi_create_string_latin1(env, "CLOUD_4", NAPI_AUTO_LENGTH, &tmp);
+				tag = "CLOUD_4";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_5) {
-				napi_create_string_latin1(env, "CLOUD_5", NAPI_AUTO_LENGTH, &tmp);
+				tag = "CLOUD_5";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_6) {
-				napi_create_string_latin1(env, "CLOUD_6", NAPI_AUTO_LENGTH, &tmp);
+				tag = "CLOUD_6";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_7) {
-				napi_create_string_latin1(env, "CLOUD_7", NAPI_AUTO_LENGTH, &tmp);
+				tag = "CLOUD_7";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_8) {
-				napi_create_string_latin1(env, "CLOUD_8", NAPI_AUTO_LENGTH, &tmp);
+				tag = "CLOUD_8";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_9) {
-				napi_create_string_latin1(env, "CLOUD_9", NAPI_AUTO_LENGTH, &tmp);
+				tag = "CLOUD_9";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_A) {
-				napi_create_string_latin1(env, "CLOUD_A", NAPI_AUTO_LENGTH, &tmp);
+				tag = "CLOUD_A";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_B) {
-				napi_create_string_latin1(env, "CLOUD_B", NAPI_AUTO_LENGTH, &tmp);
+				tag = "CLOUD_B";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_C) {
-				napi_create_string_latin1(env, "CLOUD_C", NAPI_AUTO_LENGTH, &tmp);
+				tag = "CLOUD_C";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_D) {
-				napi_create_string_latin1(env, "CLOUD_D", NAPI_AUTO_LENGTH, &tmp);
+				tag = "CLOUD_D";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_E) {
-				napi_create_string_latin1(env, "CLOUD_E", NAPI_AUTO_LENGTH, &tmp);
+				tag = "CLOUD_E";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_F) {
-				napi_create_string_latin1(env, "CLOUD_F", NAPI_AUTO_LENGTH, &tmp);
+				tag = "CLOUD_F";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_CLOUD_MASK) {
-				napi_create_string_latin1(env, "CLOUD_MASK", NAPI_AUTO_LENGTH, &tmp);
+				tag = "CLOUD_MASK";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_APPEXECLINK) {
-				napi_create_string_latin1(env, "APPEXECLINK", NAPI_AUTO_LENGTH, &tmp);
+				tag = "APPEXECLINK";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_GVFS) {
-				napi_create_string_latin1(env, "GVFS", NAPI_AUTO_LENGTH, &tmp);
+				tag = "GVFS";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_STORAGE_SYNC) {
-				napi_create_string_latin1(env, "STORAGE_SYNC", NAPI_AUTO_LENGTH, &tmp);
+				tag = "STORAGE_SYNC";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_WCI_TOMBSTONE) {
-				napi_create_string_latin1(env, "WCI_TOMBSTONE", NAPI_AUTO_LENGTH, &tmp);
+				tag = "WCI_TOMBSTONE";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_UNHANDLED) {
-				napi_create_string_latin1(env, "UNHANDLED", NAPI_AUTO_LENGTH, &tmp);
+				tag = "UNHANDLED";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_ONEDRIVE) {
-				napi_create_string_latin1(env, "ONEDRIVE", NAPI_AUTO_LENGTH, &tmp);
+				tag = "ONEDRIVE";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_GVFS_TOMBSTONE) {
-				napi_create_string_latin1(env, "TOMBSTONE", NAPI_AUTO_LENGTH, &tmp);
+				tag = "TOMBSTONE";
 			} else {
-				napi_create_string_latin1(env, "UNKNOWN", NAPI_AUTO_LENGTH, &tmp);
+				tag = "UNKNOWN";
 			}
 		} else {
-			napi_create_string_latin1(env, NULL, 0, &tmp);
+			tag = NULL;
 		}
+		napi_create_string_latin1(env, tag, tag ? NAPI_AUTO_LENGTH : 0, &tmp);
 		napi_set_named_property(env, result, "REPARSE_POINT_TAG", tmp);
 		return result;
 	}

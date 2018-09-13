@@ -24,7 +24,7 @@ public:
 			{"close", NULL, close, NULL, NULL, NULL, napi_default, NULL}
 		};
 		napi_value result;
-		napi_define_class(env, "dirWatcher", NAPI_AUTO_LENGTH, Create, NULL, 1, properties, &result);
+		napi_define_class(env, NULL, 0, Create, NULL, 1, properties, &result);
 		napi_create_reference(env, result, 1, &constructor);
 		return result;
 	}
