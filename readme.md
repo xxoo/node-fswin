@@ -6,7 +6,7 @@ It has ported some platform specified filesystem APIs. And made them easy to use
 
 For details and examples see [wiki](https://github.com/xxoo/node-fswin/wiki)
 
-NOTE: fswin is based on n-api since v3. which requires node.js v8 or later.
+NOTE: fswin depends on n-api since v3. which requires node.js v8 or later.
 
 License
 =======
