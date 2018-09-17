@@ -20,11 +20,11 @@ constexpr auto SYB_OPT_CHANGE_SECURITY = "CHANGE_SECURITY";
 class dirWatcher {
 public:
 	static napi_value init(napi_env env) {
-		napi_property_descriptor properties[] = {
-			{"close", NULL, close, NULL, NULL, NULL, napi_default, NULL}
-		};
-		napi_value result;
-		napi_define_class(env, NULL, 0, Create, NULL, 1, properties, &result);
+		napi_value result, proto, tmp;
+		napi_create_function(env, NULL, 0, Create, NULL, &result);
+		napi_create_function(env, NULL, 0, close, NULL, &tmp);
+		napi_get_named_property(env, result, "prototype", &proto);
+		napi_set_named_property(env, proto, "close", tmp);
 		napi_create_reference(env, result, 1, &constructor);
 		return result;
 	}
@@ -32,15 +32,15 @@ private:
 	const struct msg {
 		const char *type;
 		const wchar_t *content;
-		msg* next;
+		msg *next;
 	};
 	static napi_ref constructor;
 
 	static napi_value Create(napi_env env, napi_callback_info info) {
 		napi_value result, target, argv[3];
 		size_t argc = 3;
-		napi_get_new_target(env, info, &target);
 		napi_get_cb_info(env, info, &argc, argv, &result, NULL);
+		napi_get_new_target(env, info, &target);
 		if (target) {
 			if (argc < 2) {
 				napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
@@ -133,7 +133,7 @@ private:
 		} else {
 			napi_value cons;
 			napi_get_reference_value(env, constructor, &cons);
-			napi_new_instance(env, cons, argc, (napi_value*)&argv, &result);
+			napi_new_instance(env, cons, argc, argv, &result);
 		}
 		return result;
 	}

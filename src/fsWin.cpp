@@ -1,6 +1,6 @@
 #include "dirWatcher.h"
-#include "convertPath.h"
 #include "splitPath.h"
+#include "convertPath.h"
 #include "find.h"
 #include "getVolumeSize.h"
 #include "getAttributes.h"
@@ -11,12 +11,12 @@
 
 napi_value init_all(napi_env env, napi_value exports) {
 	napi_value o;
-	napi_create_string_latin1(env, "3.18.917", NAPI_AUTO_LENGTH, &o);
+	napi_create_string_latin1(env, "3.18.918", NAPI_AUTO_LENGTH, &o);
 	napi_set_named_property(env, exports, "version", o);
 	napi_set_named_property(env, exports, "dirWatcher", dirWatcher::init(env));
+	napi_set_named_property(env, exports, "splitPath", splitPath::init(env));
 	napi_set_named_property(env, exports, "convertPath", convertPath::init(env));
 	napi_set_named_property(env, exports, "convertPathSync", convertPath::init(env, true));
-	napi_set_named_property(env, exports, "splitPath", splitPath::init(env));
 	napi_set_named_property(env, exports, "find", find::init(env));
 	napi_set_named_property(env, exports, "findSync", find::init(env, true));
 	napi_set_named_property(env, exports, "getVolumeSize", getVolumeSize::init(env));
