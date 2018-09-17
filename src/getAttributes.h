@@ -143,7 +143,7 @@ private:
 	static void execute(napi_env env, void* data) {
 		cbdata *d = (cbdata*)data;
 		d->result = (WIN32_FILE_ATTRIBUTE_DATA*)malloc(sizeof(WIN32_FILE_ATTRIBUTE_DATA));
-		if (!GetFileAttributesExW((wchar_t*)d->path, GetFileExInfoStandard, d->result)) {
+		if (!GetFileAttributesExW(d->path, GetFileExInfoStandard, d->result)) {
 			free(d->result);
 			d->result = NULL;
 		}
