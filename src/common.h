@@ -89,6 +89,6 @@ ULONGLONG combineHiLow(const DWORD hi, const DWORD low) {
 	ul.LowPart = low;
 	return ul.QuadPart;
 }
-double fileTimeToJsDateVal(const FILETIME *ft) {//Date::New(fileTimeToJsDateVal(&filetime)) converts FILETIME to javascript date
-	return (double)(combineHiLow(ft->dwHighDateTime, ft->dwLowDateTime) / 10000 - 11644473600000);
+int64_t fileTimeToJsDateVal(const FILETIME *ft) {//converts FILETIME to javascript date value
+	return combineHiLow(ft->dwHighDateTime, ft->dwLowDateTime) / 10000 - 11644473600000;
 }
