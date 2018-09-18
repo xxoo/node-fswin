@@ -48,7 +48,7 @@ private:
 				napi_valuetype t;
 				napi_typeof(env, argv[1], &t);
 				if (t == napi_function) {
-					dirWatcher* self = new dirWatcher();
+					dirWatcher *self = new dirWatcher();
 					self->watchingParent = self->watchingPath = 0;
 					self->pathmsg = self->parentmsg = NULL;
 					self->oldName = self->newName = self->longName = self->shortName = NULL;
@@ -137,7 +137,7 @@ private:
 		}
 		return result;
 	}
-	static void Destroy(napi_env env, void* nativeObject, void* finalize_hint) {
+	static void Destroy(napi_env env, void *nativeObject, void *finalize_hint) {
 		dirWatcher *self = (dirWatcher*)nativeObject;
 		napi_delete_reference(env, self->wrapper);
 		napi_delete_reference(env, self->callback);
@@ -187,7 +187,7 @@ private:
 					napi_value v;
 					napi_create_string_utf16(env, (char16_t*)self->pathmsg->content, NAPI_AUTO_LENGTH, &v);
 					self->callCb(env, self->pathmsg->type, v);
-					msg* m = self->pathmsg;
+					msg *m = self->pathmsg;
 					self->pathmsg = m->next;
 					free(m);
 				}
@@ -284,7 +284,7 @@ private:
 					napi_value v;
 					napi_create_string_utf16(env, (char16_t*)self->parentmsg->content, NAPI_AUTO_LENGTH, &v);
 					self->callCb(env, self->parentmsg->type, v);
-					msg* m = self->parentmsg;
+					msg *m = self->parentmsg;
 					self->parentmsg = m->next;
 					free(m);
 				}

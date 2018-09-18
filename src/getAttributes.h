@@ -140,7 +140,7 @@ private:
 		napi_set_named_property(env, result, "IS_REPARSE_POINT", tmp);
 		return result;
 	}
-	static void execute(napi_env env, void* data) {
+	static void execute(napi_env env, void *data) {
 		cbdata *d = (cbdata*)data;
 		d->result = (WIN32_FILE_ATTRIBUTE_DATA*)malloc(sizeof(WIN32_FILE_ATTRIBUTE_DATA));
 		if (!GetFileAttributesExW(d->path, GetFileExInfoStandard, d->result)) {

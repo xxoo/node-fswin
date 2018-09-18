@@ -104,7 +104,7 @@ private:
 		}
 		return result;
 	}
-	static void execute(napi_env env, void* data) {
+	static void execute(napi_env env, void *data) {
 		cbdata *d = (cbdata*)data;
 		d->result = func(d->path, d->compress);
 	}

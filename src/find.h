@@ -349,7 +349,7 @@ private:
 		napi_get_value_bool(d->env, res, &result);
 		return result;
 	}
-	static void execute(napi_env env, void* data) {
+	static void execute(napi_env env, void *data) {
 		asyncCbData *d = (asyncCbData*)data;
 		if (d->hnd) {
 			WIN32_FIND_DATAW *info = (WIN32_FIND_DATAW*)malloc(sizeof(WIN32_FIND_DATAW));
