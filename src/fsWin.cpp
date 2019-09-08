@@ -9,9 +9,9 @@
 #include "getCompressedSize.h"
 #include "setCompression.h"
 
-napi_value init_all(napi_env env, napi_value exports) {
+NAPI_MODULE_INIT() {
 	napi_value o;
-	napi_create_string_latin1(env, "3.18.918", NAPI_AUTO_LENGTH, &o);
+	napi_create_string_latin1(env, "3.19.908", NAPI_AUTO_LENGTH, &o);
 	napi_set_named_property(env, exports, "version", o);
 	napi_set_named_property(env, exports, "dirWatcher", dirWatcher::init(env));
 	napi_set_named_property(env, exports, "splitPath", splitPath::init(env));
@@ -33,8 +33,6 @@ napi_value init_all(napi_env env, napi_value exports) {
 	napi_set_named_property(env, o, "getCompressedSizeSync", getCompressedSize::init(env, true));
 	napi_set_named_property(env, o, "setCompression", setCompression::init(env));
 	napi_set_named_property(env, o, "setCompressionSync", setCompression::init(env, true));
-	
+
 	return exports;
 }
-
-NAPI_MODULE(NODE_GYP_MODULE_NAME, init_all)
