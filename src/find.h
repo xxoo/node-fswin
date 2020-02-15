@@ -1,6 +1,13 @@
 #pragma once
 #include "common.h"
 
+#ifndef IO_REPARSE_TAG_GVFS
+	#define IO_REPARSE_TAG_GVFS                     (0x9000001CL)
+#endif
+#ifndef IO_REPARSE_TAG_GVFS_TOMBSTONE
+	#define IO_REPARSE_TAG_GVFS_TOMBSTONE           (0xA0000022L)
+#endif
+
 class find {
 public:
 	const struct resultData {//this is a linked table
