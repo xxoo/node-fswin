@@ -3,9 +3,9 @@
 
 class setSparse {
 public:
-	static bool func(const wchar_t *path) {
+	static bool func(const wchar_t *path, const bool create) {
 		bool result = false;
-		HANDLE hnd = CreateFileW(path, FILE_GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_ALWAYS, 0, NULL);
+		HANDLE hnd = CreateFileW(path, FILE_GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, NULL, create ? OPEN_ALWAYS : OPEN_EXISTING, 0, NULL);
 		if (hnd != INVALID_HANDLE_VALUE) {
 			DWORD d;
 			if (DeviceIoControl(hnd, FSCTL_SET_SPARSE, NULL, 0, NULL, 0, &d, NULL)) {
@@ -26,6 +26,7 @@ private:
 		napi_ref self;
 		napi_ref cb;
 		wchar_t *path;
+		bool create;
 		bool result;
 	};
 	static napi_value sync(napi_env env, napi_callback_info info) {
@@ -48,7 +49,12 @@ private:
 				str_len += 1;
 				wchar_t *path = (wchar_t*)malloc(sizeof(wchar_t) * str_len);
 				napi_get_value_string_utf16(env, tmp, (char16_t*)path, str_len, NULL);
-				napi_get_boolean(env, func(path), &result);
+				bool create = false;
+				if (argc > 1) {
+					napi_coerce_to_bool(env, argv[1], &tmp);
+					napi_get_value_bool(env, tmp, &create);
+				}
+				napi_get_boolean(env, func(path, create), &result);
 				free(path);
 			}
 		}
@@ -68,19 +74,24 @@ private:
 				napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
 			} else {
 				napi_valuetype t;
-				napi_typeof(env, argv[2], &t);
+				napi_typeof(env, argv[1], &t);
 				if (t == napi_function) {
 					cbdata *data = (cbdata*)malloc(sizeof(cbdata));
+					data->create = false;
 					size_t str_len;
 					napi_value tmp;
-					napi_create_reference(env, argv[2], 1, &data->cb);
+					napi_create_reference(env, argv[1], 1, &data->cb);
 					napi_create_reference(env, self, 1, &data->self);
 					napi_coerce_to_string(env, argv[0], &tmp);
 					napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
 					str_len += 1;
 					data->path = (wchar_t*)malloc(sizeof(wchar_t) * str_len);
 					napi_get_value_string_utf16(env, tmp, (char16_t*)data->path, str_len, NULL);
-					napi_create_string_latin1(env, "fswin.setSparse", NAPI_AUTO_LENGTH, &tmp);
+					if (argc > 2) {
+						napi_coerce_to_bool(env, argv[2], &tmp);
+						napi_get_value_bool(env, tmp, &data->create);
+					}
+					napi_create_string_latin1(env, "fswin.ntfs.setSparse", NAPI_AUTO_LENGTH, &tmp);
 					napi_create_async_work(env, argv[0], tmp, execute, complete, data, &data->work);
 					if (napi_queue_async_work(env, data->work) == napi_ok) {
 						napi_get_boolean(env, true, &result);
@@ -101,7 +112,7 @@ private:
 	}
 	static void execute(napi_env env, void *data) {
 		cbdata *d = (cbdata*)data;
-		d->result = func(d->path);
+		d->result = func(d->path, d->create);
 	}
 	static void complete(napi_env env, napi_status status, void *data) {
 		cbdata *d = (cbdata*)data;
