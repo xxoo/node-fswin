@@ -8,6 +8,7 @@
 #include "setShortName.h"
 #include "getCompressedSize.h"
 #include "setCompression.h"
+#include "setSparse.h"
 
 NAPI_MODULE_INIT() {
 	napi_value o;
@@ -33,6 +34,8 @@ NAPI_MODULE_INIT() {
 	napi_set_named_property(env, o, "getCompressedSizeSync", getCompressedSize::init(env, true));
 	napi_set_named_property(env, o, "setCompression", setCompression::init(env));
 	napi_set_named_property(env, o, "setCompressionSync", setCompression::init(env, true));
+	napi_set_named_property(env, o, "setSparse", setSparse::init(env));
+	napi_set_named_property(env, o, "setSparseSync", setSparse::init(env, true));
 
 	return exports;
 }
