@@ -100,7 +100,7 @@ private:
 			napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_NOT_A_CONSTRUCTOR);
 		} else {
 			napi_value argv[2], self;
-			size_t argc;
+			size_t argc = 2;
 			napi_get_cb_info(env, info, &argc, argv, &self, NULL);
 			if (argc < 1) {
 				napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
@@ -227,6 +227,8 @@ private:
 		napi_set_named_property(env, result, SYB_FILEATTR_LASTWRITETIME, tmp);
 		napi_create_int64(env, combineHiLow(info->nFileSizeHigh, info->nFileSizeLow), &tmp);
 		napi_set_named_property(env, result, SYB_FILEATTR_SIZE, tmp);
+		napi_create_int32(env, info->dwFileAttributes, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_RAWATTRS, tmp);
 		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_ARCHIVE, &tmp);
 		napi_set_named_property(env, result, SYB_FILEATTR_ISARCHIVED, tmp);
 		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_COMPRESSED, &tmp);
@@ -255,7 +257,11 @@ private:
 		napi_set_named_property(env, result, SYB_FILEATTR_ISINTEGERITYSTREAM, tmp);
 		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_NO_SCRUB_DATA, &tmp);
 		napi_set_named_property(env, result, SYB_FILEATTR_ISNOSCRUBDATA, tmp);
-		char *tag;
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISRECALLONDATAACCESS, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_RECALL_ON_OPEN, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISRECALLONOPEN, tmp);
+		const char* tag;
 		if (info->dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) {
 			if (info->dwReserved0 == IO_REPARSE_TAG_MOUNT_POINT) {
 				tag = "MOUNT_POINT";
@@ -338,12 +344,16 @@ private:
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_GVFS_TOMBSTONE) {
 				tag = "TOMBSTONE";
 			} else {
-				tag = "UNKNOWN";
+				tag = NULL;
 			}
 		} else {
-			tag = NULL;
+			tag = "";
 		}
-		napi_create_string_latin1(env, tag, tag ? NAPI_AUTO_LENGTH : 0, &tmp);
+		if (tag) {
+			napi_create_string_latin1(env, tag, NAPI_AUTO_LENGTH, &tmp);
+		} else {
+			napi_create_int32(env, info->dwReserved0, &tmp);
+		}
 		napi_set_named_property(env, result, "REPARSE_POINT_TAG", tmp);
 		return result;
 	}

@@ -108,6 +108,8 @@ private:
 		napi_set_named_property(env, result, SYB_FILEATTR_LASTWRITETIME, tmp);
 		napi_create_int64(env, combineHiLow(info->nFileSizeHigh, info->nFileSizeLow), &tmp);
 		napi_set_named_property(env, result, SYB_FILEATTR_SIZE, tmp);
+		napi_create_int32(env, info->dwFileAttributes, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_RAWATTRS, tmp);
 		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_ARCHIVE, &tmp);
 		napi_set_named_property(env, result, SYB_FILEATTR_ISARCHIVED, tmp);
 		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_COMPRESSED, &tmp);
@@ -136,6 +138,10 @@ private:
 		napi_set_named_property(env, result, SYB_FILEATTR_ISINTEGERITYSTREAM, tmp);
 		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_NO_SCRUB_DATA, &tmp);
 		napi_set_named_property(env, result, SYB_FILEATTR_ISNOSCRUBDATA, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISRECALLONDATAACCESS, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_RECALL_ON_OPEN, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISRECALLONOPEN, tmp);
 		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT, &tmp);
 		napi_set_named_property(env, result, "IS_REPARSE_POINT", tmp);
 		return result;
