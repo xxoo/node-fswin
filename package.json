@@ -1,6 +1,6 @@
 {
 	"name": "fswin",
-	"version": "3.21.902",
+	"version": "3.21.903",
 	"description": "nodejs fs extensions for windows",
 	"main": "index.js",
 	"engines": {

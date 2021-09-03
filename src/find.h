@@ -16,16 +16,20 @@ public:
 	};
 	//progressive callback type, if this callback returns true, the search will stop immediately. the contents of info will be rewritten or released after the callback returns, so make a copy before starting a new thread if you still need to use it
 	typedef bool(*findResultCall)(const WIN32_FIND_DATAW *info, void *data);
-	static resultData *func(const wchar_t *path) {//you have to free every linked data yourself if it is not NULL
-		resultData *result = (resultData*)malloc(sizeof(resultData));
+	static resultData *func(const wchar_t *path) {//you have to delete every linked data yourself if it is not NULL
+		resultData *result = new resultData;
+		CHAR bak;
+		if ((void*)RtlSetThreadPlaceholderCompatibilityMode) {
+			bak = RtlSetThreadPlaceholderCompatibilityMode(2);
+		}
 		HANDLE hnd = FindFirstFileExW(path, FindExInfoStandard, &result->data, FindExSearchNameMatch, NULL, NULL);
 		if (hnd == INVALID_HANDLE_VALUE) {
-			free(result);
+			delete result;
 			result = NULL;
 		} else {
 			resultData *resultnew, *resultold;
 			if (isValidInfo(&result->data)) {
-				resultnew = (resultData*)malloc(sizeof(resultData));
+				resultnew = new resultData;
 				resultold = result;
 			} else {
 				resultnew = result;
@@ -43,16 +47,25 @@ public:
 					resultnew = new resultData;
 				}
 			}
-			resultold->next = NULL;
+			if (resultold) {
+				resultold->next = NULL;
+			}
 			FindClose(hnd);
 			if (resultnew != result) {
-				free(resultnew);
+				delete resultnew;
 			}
+		}
+		if ((void*)RtlSetThreadPlaceholderCompatibilityMode && bak != 2) {
+			RtlSetThreadPlaceholderCompatibilityMode(bak);
 		}
 		return result;
 	}
 	static DWORD funcWithCallback(const wchar_t *path, const findResultCall callback, void *data) {//data could be anything that will directly pass to the callback
 		WIN32_FIND_DATAW info;
+		CHAR bak;
+		if ((void*)RtlSetThreadPlaceholderCompatibilityMode) {
+			bak = RtlSetThreadPlaceholderCompatibilityMode(2);
+		}
 		HANDLE hnd = FindFirstFileExW(path, FindExInfoStandard, &info, FindExSearchNameMatch, NULL, NULL);
 		DWORD result = 0;
 		bool stop = false;
@@ -68,6 +81,9 @@ public:
 				}
 			}
 			FindClose(hnd);
+		}
+		if ((void*)RtlSetThreadPlaceholderCompatibilityMode && bak != 2) {
+			RtlSetThreadPlaceholderCompatibilityMode(bak);
 		}
 		return result;
 	}
@@ -110,7 +126,7 @@ private:
 				napi_coerce_to_string(env, argv[0], &tmp);
 				napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
 				str_len += 1;
-				wchar_t *str = (wchar_t*)malloc(sizeof(wchar_t) * str_len);
+				wchar_t *str = new wchar_t[str_len];
 				napi_get_value_string_utf16(env, tmp, (char16_t*)str, str_len, NULL);
 				if (argc > 1) {
 					napi_valuetype t;
@@ -125,7 +141,7 @@ private:
 				} else {
 					result = resultDataToArray(env, func(str));
 				}
-				free(str);
+				delete[]str;
 			}
 		}
 		return result;
@@ -147,13 +163,13 @@ private:
 				napi_typeof(env, argv[1], &t);
 				if (t == napi_function) {
 					bool isProgressive = false;
-					asyncCbData *data = (asyncCbData*)malloc(sizeof(asyncCbData));
+					asyncCbData *data = new asyncCbData;
 					size_t str_len;
 					napi_value tmp;
 					napi_coerce_to_string(env, argv[0], &tmp);
 					napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
 					str_len += 1;
-					data->data = malloc(sizeof(wchar_t) * str_len);
+					data->data = new wchar_t[str_len];
 					napi_get_value_string_utf16(env, tmp, (char16_t*)data->data, str_len, NULL);
 					if (argc > 2) {
 						napi_coerce_to_bool(env, argv[2], &tmp);
@@ -169,7 +185,7 @@ private:
 						data->hnd = NULL;
 					}
 					napi_create_string_latin1(env, "fswin.find", NAPI_AUTO_LENGTH, &tmp);
-					napi_create_async_work(env, argv[0], tmp, execute, complete, data, &data->work);
+					napi_create_async_work(env, NULL, tmp, execute, complete, data, &data->work);
 					if (napi_queue_async_work(env, data->work) == napi_ok) {
 						napi_get_boolean(env, true, &result);
 					} else {
@@ -177,8 +193,8 @@ private:
 						napi_delete_async_work(env, data->work);
 						napi_delete_reference(env, data->cb);
 						napi_delete_reference(env, data->self);
-						free(data->data);
-						free(data);
+						delete[]data->data;
+						delete data;
 					}
 				} else {
 					napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
@@ -201,7 +217,7 @@ private:
 				tmp = convert(env, &r->data);
 				napi_call_function(env, result, push, 1, &tmp, NULL);
 				resultData *n = r->next;
-				free(r);
+				delete r;
 				r = n;
 			}
 		}
@@ -261,6 +277,14 @@ private:
 		napi_set_named_property(env, result, SYB_FILEATTR_ISRECALLONDATAACCESS, tmp);
 		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_RECALL_ON_OPEN, &tmp);
 		napi_set_named_property(env, result, SYB_FILEATTR_ISRECALLONOPEN, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_VIRTUAL, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISVIRTUAL, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_EA, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISEA, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_PINNED, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISPINNED, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_UNPINNED, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISUNPINNED, tmp);
 		const char* tag;
 		if (info->dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) {
 			if (info->dwReserved0 == IO_REPARSE_TAG_MOUNT_POINT) {
@@ -369,10 +393,14 @@ private:
 	static void execute(napi_env env, void *data) {
 		asyncCbData *d = (asyncCbData*)data;
 		if (d->hnd) {
-			WIN32_FIND_DATAW *info = (WIN32_FIND_DATAW*)malloc(sizeof(WIN32_FIND_DATAW));
+			WIN32_FIND_DATAW *info = new WIN32_FIND_DATAW;
 			if (d->hnd == INVALID_HANDLE_VALUE) {
+				CHAR bak;
+				if ((void*)RtlSetThreadPlaceholderCompatibilityMode) {
+					bak = RtlSetThreadPlaceholderCompatibilityMode(2);
+				}
 				d->hnd = FindFirstFileExW((wchar_t*)d->data, FindExInfoStandard, info, FindExSearchNameMatch, NULL, NULL);
-				free(d->data);
+				delete[]d->data;
 				if (d->hnd != INVALID_HANDLE_VALUE) {
 					while (!isValidInfo(info)) {
 						if (!FindNextFileW(d->hnd, info)) {
@@ -382,11 +410,18 @@ private:
 						}
 					}
 				}
+				if ((void*)RtlSetThreadPlaceholderCompatibilityMode && bak != 2) {
+					RtlSetThreadPlaceholderCompatibilityMode(bak);
+				}
 			} else {
 				if (d->stop) {
 					FindClose(d->hnd);
 					d->hnd = INVALID_HANDLE_VALUE;
 				} else {
+					CHAR bak;
+					if ((void*)RtlSetThreadPlaceholderCompatibilityMode) {
+						bak = RtlSetThreadPlaceholderCompatibilityMode(2);
+					}
 					if (FindNextFileW(d->hnd, info)) {
 						while (!isValidInfo(info)) {
 							if (!FindNextFileW(d->hnd, info)) {
@@ -399,16 +434,19 @@ private:
 						FindClose(d->hnd);
 						d->hnd = INVALID_HANDLE_VALUE;
 					}
+					if ((void*)RtlSetThreadPlaceholderCompatibilityMode && bak != 2) {
+						RtlSetThreadPlaceholderCompatibilityMode(bak);
+					}
 				}
 			}
 			if (d->hnd == INVALID_HANDLE_VALUE) {
-				free(info);
+				delete info;
 			} else {
 				d->data = info;
 			}
 		} else {
 			resultData *rdata = func((wchar_t*)d->data);
-			free(d->data);
+			delete[]d->data;
 			d->data = rdata;
 		}
 	}
@@ -426,7 +464,7 @@ private:
 					napi_create_int64(env, (int64_t)d->count, &argv[1]);
 					finish = 1;
 				} else {
-					WIN32_FIND_DATAW *info = (WIN32_FIND_DATAW*)d->data;
+					WIN32_FIND_DATAW* info = (WIN32_FIND_DATAW*)d->data;
 					if (d->stop) {
 						napi_create_string_latin1(env, "INTERRUPTED", NAPI_AUTO_LENGTH, &argv[0]);
 						napi_create_int64(env, (int64_t)d->count, &argv[1]);
@@ -439,7 +477,7 @@ private:
 							finish = 2;
 						}
 					}
-					free(info);
+					delete info;
 				}
 				napi_call_function(env, self, cb, 2, (napi_value*)&argv, &result);
 				napi_coerce_to_bool(env, result, &result);
@@ -472,7 +510,7 @@ private:
 			napi_delete_reference(env, d->cb);
 			napi_delete_reference(env, d->self);
 			napi_delete_async_work(env, d->work);
-			free(d);
+			delete d;
 		}
 	}
 };

@@ -97,12 +97,12 @@ private:
 					napi_coerce_to_string(env, argv[0], &tmp);
 					napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
 					str_len += 1;
-					wchar_t *str = (wchar_t*)malloc(sizeof(wchar_t) * str_len);
+					wchar_t *str = new wchar_t[str_len];
 					napi_get_value_string_utf16(env, tmp, (char16_t*)str, str_len, NULL);
 					attrVal *attr = convert(env, argv[1]);
 					napi_get_boolean(env, func(str, attr), &result);
-					free(attr);
-					free(str);
+					delete attr;
+					delete[]str;
 				} else {
 					napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
 				}
@@ -127,7 +127,7 @@ private:
 				napi_typeof(env, argv[1], &t1);
 				napi_typeof(env, argv[2], &t);
 				if (t1 == napi_object && t == napi_function) {
-					cbdata *data = (cbdata*)malloc(sizeof(cbdata));
+					cbdata *data = new cbdata;
 					size_t str_len;
 					napi_value tmp;
 					data->attr = convert(env, argv[1]);
@@ -136,10 +136,10 @@ private:
 					napi_coerce_to_string(env, argv[0], &tmp);
 					napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
 					str_len += 1;
-					data->path = (wchar_t*)malloc(sizeof(wchar_t) * str_len);
+					data->path = new wchar_t[str_len];
 					napi_get_value_string_utf16(env, tmp, (char16_t*)data->path, str_len, NULL);
 					napi_create_string_latin1(env, "fswin.setAttrubutes", NAPI_AUTO_LENGTH, &tmp);
-					napi_create_async_work(env, argv[0], tmp, execute, complete, data, &data->work);
+					napi_create_async_work(env, NULL, tmp, execute, complete, data, &data->work);
 					if (napi_queue_async_work(env, data->work) == napi_ok) {
 						napi_get_boolean(env, true, &result);
 					} else {
@@ -147,8 +147,8 @@ private:
 						napi_delete_reference(env, data->cb);
 						napi_delete_reference(env, data->self);
 						napi_delete_async_work(env, data->work);
-						free(data->path);
-						free(data);
+						delete[]data->path;
+						delete data;
 					}
 				} else {
 					napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
@@ -157,8 +157,8 @@ private:
 		}
 		return result;
 	}
-	static attrVal *convert(napi_env env, napi_value attr) {//free the result yourself
-		attrVal *result = (attrVal*)malloc(sizeof(attrVal));
+	static attrVal *convert(napi_env env, napi_value attr) {//delete the result yourself
+		attrVal *result = new attrVal;
 		bool tmp;
 		napi_value val;
 		napi_has_named_property(env, attr, SYB_FILEATTR_ISARCHIVED, &tmp);
@@ -225,8 +225,8 @@ private:
 	}
 	static void complete(napi_env env, napi_status status, void *data) {
 		cbdata *d = (cbdata*)data;
-		free(d->path);
-		free(d->attr);
+		delete[]d->path;
+		delete d->attr;
 		napi_value cb, self, argv;
 		napi_get_reference_value(env, d->cb, &cb);
 		napi_get_reference_value(env, d->self, &self);
@@ -235,6 +235,6 @@ private:
 		napi_delete_reference(env, d->cb);
 		napi_delete_reference(env, d->self);
 		napi_delete_async_work(env, d->work);
-		free(d);
+		delete d;
 	}
 };

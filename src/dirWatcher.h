@@ -117,14 +117,14 @@ private:
 					size_t str_len;
 					napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
 					str_len += 1;
-					self->path = (wchar_t*)malloc(sizeof(wchar_t) * str_len);
+					self->path = new wchar_t[str_len];
 					napi_get_value_string_utf16(env, tmp, (char16_t*)self->path, str_len, NULL);
 					napi_value resname;
 					napi_create_string_latin1(env, "fswin.dirWatcher", NAPI_AUTO_LENGTH, &resname);
 					napi_wrap(env, result, self, Destroy, NULL, &self->wrapper);
 					napi_create_reference(env, argv[1], 1, &self->callback);
-					napi_create_async_work(env, tmp, resname, beginWatchingPath, finishWatchingPath, self, &self->pathwork);
-					napi_create_async_work(env, tmp, resname, beginWatchingParent, finishWatchingParent, self, &self->parentwork);
+					napi_create_async_work(env, NULL, resname, beginWatchingPath, finishWatchingPath, self, &self->pathwork);
+					napi_create_async_work(env, NULL, resname, beginWatchingParent, finishWatchingParent, self, &self->parentwork);
 					self->watchPath(env);
 				} else {
 					napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
@@ -143,7 +143,7 @@ private:
 		napi_delete_reference(env, self->callback);
 		napi_delete_async_work(env, self->pathwork);
 		napi_delete_async_work(env, self->parentwork);
-		free(self->path);
+		delete[]self->path;
 		delete self;
 	}
 	static napi_value close(napi_env env, napi_callback_info info) {//this method returns false if dirWatcher is failed to create or already closed
@@ -165,7 +165,7 @@ private:
 		if (self->pathhnd == INVALID_HANDLE_VALUE) {
 			self->pathhnd = CreateFileW(self->path, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, NULL);
 			if (self->pathhnd == INVALID_HANDLE_VALUE) {
-				self->pathmsg = (msg*)malloc(sizeof(msg));
+				self->pathmsg = new msg;
 				self->pathmsg->type = SYB_EVT_ERR;
 				self->pathmsg->content = SYB_EVT_ERR_INITIALIZATION_FAILED;
 				self->pathmsg->next = NULL;
@@ -174,8 +174,12 @@ private:
 			}
 		} else {
 			self->pathbuffer = malloc(SYB_BUFFERSIZE);
-			DWORD b;
-			self->watchingPathResult = ReadDirectoryChangesW(self->pathhnd, self->pathbuffer, SYB_BUFFERSIZE, self->subDirs, self->options, &b, NULL, NULL);
+			if (self->pathbuffer) {
+				DWORD b;
+				self->watchingPathResult = ReadDirectoryChangesW(self->pathhnd, self->pathbuffer, SYB_BUFFERSIZE, self->subDirs, self->options, &b, NULL, NULL);
+			} else {
+				self->watchingPathResult = FALSE;
+			}
 		}
 	}
 	static void finishWatchingPath(napi_env env, napi_status status, void *data) {
@@ -189,7 +193,7 @@ private:
 					self->callCb(env, self->pathmsg->type, v);
 					msg *m = self->pathmsg;
 					self->pathmsg = m->next;
-					free(m);
+					delete m;
 				}
 				if (self->pathhnd == INVALID_HANDLE_VALUE) {
 					self->checkWatchingStoped(env);
@@ -225,12 +229,12 @@ private:
 										napi_set_named_property(env, arg, SYB_EVT_RENAMED_OLD_NAME, filename);
 										napi_create_string_utf16(env, (char16_t*)self->newName, NAPI_AUTO_LENGTH, &tmp);
 										napi_set_named_property(env, arg, SYB_EVT_RENAMED_NEW_NAME, tmp);
-										free(self->newName);
+										delete[]self->newName;
 										self->newName = NULL;
 										self->callCb(env, SYB_EVT_RENAMED, arg);
 									} else {
-										size_t sz = pInfo->FileNameLength + 1;
-										self->oldName = (wchar_t*)malloc(sizeof(wchar_t) * sz);
+										size_t sz = (size_t)pInfo->FileNameLength + 1;
+										self->oldName = new wchar_t[sz];
 										wcscpy_s(self->oldName, sz, pInfo->FileName);
 									}
 								} else if (pInfo->Action == FILE_ACTION_RENAMED_NEW_NAME) {
@@ -240,12 +244,12 @@ private:
 										napi_set_named_property(env, arg, SYB_EVT_RENAMED_NEW_NAME, filename);
 										napi_create_string_utf16(env, (char16_t*)self->oldName, NAPI_AUTO_LENGTH, &tmp);
 										napi_set_named_property(env, arg, SYB_EVT_RENAMED_OLD_NAME, tmp);
-										free(self->oldName);
+										delete[]self->oldName;
 										self->oldName = NULL;
 										self->callCb(env, SYB_EVT_RENAMED, arg);
 									} else {
-										size_t sz = pInfo->FileNameLength + 1;
-										self->newName = (wchar_t*)malloc(sizeof(wchar_t) * sz);
+										size_t sz = (size_t)pInfo->FileNameLength + 1;
+										self->newName = new wchar_t[sz];
 										wcscpy_s(self->newName, sz, pInfo->FileName);
 									}
 								}
@@ -286,7 +290,7 @@ private:
 					self->callCb(env, self->parentmsg->type, v);
 					msg *m = self->parentmsg;
 					self->parentmsg = m->next;
-					free(m);
+					delete m;
 				}
 				if (self->parenthnd == INVALID_HANDLE_VALUE) {
 					self->checkWatchingStoped(env);
@@ -369,31 +373,36 @@ private:
 		wchar_t *realPath = getCurrentPathByHandle(this->pathhnd);
 		bool e = false;
 		if (realPath) {
-			free(this->path);
+			delete[]this->path;
 			this->path = realPath;
 			splitPath::splitedPath *sp = splitPath::func(this->path);
 			if (sp->parentLen > 0) {
 				if (this->shortName) {
-					free(this->shortName);
+					delete[]this->shortName;
 					this->shortName = NULL;
 				}
 				if (this->longName) {
-					free(this->longName);
+					delete[]this->longName;
 					this->longName = NULL;
 				}
 				find::resultData *fr = find::func(this->path);
 				if (fr) {
-					this->longName = _wcsdup(fr->data.cFileName);
+					size_t l = wcslen(fr->data.cFileName) + 1;
+					this->longName = new wchar_t[l];
+					wcscpy_s(this->longName, l, fr->data.cFileName);
 					if (wcslen(fr->data.cAlternateFileName) > 0 && wcscmp(fr->data.cFileName, fr->data.cAlternateFileName) != 0) {
-						this->shortName = _wcsdup(fr->data.cAlternateFileName);
+						l = wcslen(fr->data.cAlternateFileName) + 1;
+						this->shortName = new wchar_t[l];
+						wcscpy_s(this->shortName, l, fr->data.cAlternateFileName);
 					}
-					free(fr);
+					delete fr;
 				}
 				if (this->longName) {
-					wchar_t *parent = (wchar_t*)malloc(sizeof(wchar_t) * (sp->parentLen + 1));
-					wcsncpy_s(parent, sp->parentLen + 1, realPath, sp->parentLen);
+					size_t l = (size_t)sp->parentLen + 1;
+					wchar_t *parent = new wchar_t[l];
+					wcsncpy_s(parent, l, realPath, sp->parentLen);
 					this->parenthnd = CreateFileW(parent, FILE_LIST_DIRECTORY, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
-					free(parent);
+					delete[]parent;
 					if (this->parenthnd == INVALID_HANDLE_VALUE) {
 						e = true;
 					} else if (starting) {
@@ -407,11 +416,11 @@ private:
 			} else {
 				this->stopWatchingParent(env);
 			}
-			free(sp);
+			delete sp;
 		} else {
 			e = true;
 		}
-		msg *m = (msg*)malloc(sizeof(msg));
+		msg *m = new msg;
 		m->content = this->path;
 		if (starting) {
 			m->type = "STARTED";
@@ -421,7 +430,7 @@ private:
 			this->parentmsg = m;
 		}
 		if (e) {
-			m->next = (msg*)malloc(sizeof(msg));
+			m->next = new msg;
 			m->next->type = SYB_EVT_ERR;
 			m->next->content = SYB_EVT_ERR_UNABLE_TO_WATCH_SELF;
 			m->next->next = NULL;
@@ -436,11 +445,11 @@ private:
 			this->pathhnd = INVALID_HANDLE_VALUE;
 		}
 		if (this->newName) {
-			free(this->newName);
+			delete[]this->newName;
 			this->newName = NULL;
 		}
 		if (this->oldName) {
-			free(this->oldName);
+			delete[]this->oldName;
 			this->oldName = NULL;
 		}
 		if (this->watchingPath == 1) {
@@ -455,11 +464,11 @@ private:
 			this->parenthnd = INVALID_HANDLE_VALUE;
 		}
 		if (this->longName) {
-			free(this->longName);
+			delete[]this->longName;
 			this->longName = NULL;
 		}
 		if (this->shortName) {
-			free(this->shortName);
+			delete[]this->shortName;
 			this->shortName = NULL;
 		}
 		if (this->watchingParent == 1) {

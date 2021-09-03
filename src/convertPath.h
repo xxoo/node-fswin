@@ -3,11 +3,11 @@
 
 class convertPath {
 public:
-	static wchar_t *func(const wchar_t *path, bool islong) {//you need to free the result yourself if it is not NULL
+	static wchar_t *func(const wchar_t *path, bool islong) {//you need to delete the result yourself if it is not NULL
 		wchar_t *tpath;
 		DWORD sz = islong ? GetLongPathNameW(path, NULL, 0) : GetShortPathNameW(path, NULL, 0);
 		if (sz > 0) {
-			tpath = (wchar_t*)malloc(sz * sizeof(wchar_t));
+			tpath = new wchar_t[sz];
 			islong ? GetLongPathNameW(path, tpath, sz) : GetShortPathNameW(path, tpath, sz);
 		} else {
 			tpath = NULL;
@@ -46,7 +46,7 @@ private:
 				napi_coerce_to_string(env, argv[0], &tmp);
 				napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
 				str_len += 1;
-				wchar_t *str = (wchar_t*)malloc(sizeof(wchar_t) * str_len);
+				wchar_t *str = new wchar_t[str_len];
 				napi_get_value_string_utf16(env, tmp, (char16_t*)str, str_len, NULL);
 				bool islong = false;
 				if (argc > 1) {
@@ -54,10 +54,10 @@ private:
 					napi_get_value_bool(env, tmp, &islong);
 				}
 				wchar_t *s = func(str, islong);
-				free(str);
+				delete[]str;
 				if (s) {
 					napi_create_string_utf16(env, (char16_t*)s, wcslen(s), &result);
-					free(s);
+					delete[]s;
 				} else {
 					napi_get_null(env, &result);
 				}
@@ -81,7 +81,7 @@ private:
 				napi_valuetype t;
 				napi_typeof(env, argv[1], &t);
 				if (t == napi_function) {
-					cbdata *data = (cbdata*)malloc(sizeof(cbdata));
+					cbdata *data = new cbdata;
 					data->islong = false;
 					size_t str_len;
 					napi_value tmp;
@@ -90,14 +90,14 @@ private:
 					napi_coerce_to_string(env, argv[0], &tmp);
 					napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
 					str_len += 1;
-					data->path = (wchar_t*)malloc(sizeof(wchar_t) * str_len);
+					data->path = new wchar_t[str_len];
 					napi_get_value_string_utf16(env, tmp, (char16_t*)data->path, str_len, NULL);
 					if (argc > 2) {
 						napi_coerce_to_bool(env, argv[2], &tmp);
 						napi_get_value_bool(env, tmp, &data->islong);
 					}
 					napi_create_string_latin1(env, "fswin.convertPath", NAPI_AUTO_LENGTH, &tmp);
-					napi_create_async_work(env, argv[0], tmp, execute, complete, data, &data->work);
+					napi_create_async_work(env, NULL, tmp, execute, complete, data, &data->work);
 					if (napi_queue_async_work(env, data->work) == napi_ok) {
 						napi_get_boolean(env, true, &result);
 					} else {
@@ -105,8 +105,8 @@ private:
 						napi_delete_reference(env, data->cb);
 						napi_delete_reference(env, data->self);
 						napi_delete_async_work(env, data->work);
-						free(data->path);
-						free(data);
+						delete[]data->path;
+						delete data;
 					}
 				} else {
 					napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
@@ -121,13 +121,13 @@ private:
 	}
 	static void complete(napi_env env, napi_status status, void *data) {
 		cbdata *d = (cbdata*)data;
-		free(d->path);
+		delete[]d->path;
 		napi_value cb, self, argv;
 		napi_get_reference_value(env, d->cb, &cb);
 		napi_get_reference_value(env, d->self, &self);
 		if (status == napi_ok && d->result) {
 			napi_create_string_utf16(env, (char16_t*)d->result, wcslen(d->result), &argv);
-			free(d->result);
+			delete[]d->result;
 		} else {
 			napi_get_null(env, &argv);
 		}
@@ -135,6 +135,6 @@ private:
 		napi_delete_reference(env, d->cb);
 		napi_delete_reference(env, d->self);
 		napi_delete_async_work(env, d->work);
-		free(d);
+		delete d;
 	}
 };

@@ -34,15 +34,22 @@ private:
 				napi_coerce_to_string(env, argv, &tmp);
 				napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
 				str_len += 1;
-				wchar_t *str = (wchar_t*)malloc(sizeof(wchar_t) * str_len);
+				wchar_t *str = new wchar_t[str_len];
 				napi_get_value_string_utf16(env, tmp, (char16_t*)str, str_len, NULL);
 				WIN32_FILE_ATTRIBUTE_DATA data;
+				CHAR bak;
+				if ((void*)RtlSetThreadPlaceholderCompatibilityMode) {
+					bak = RtlSetThreadPlaceholderCompatibilityMode(2);
+				}
 				if (GetFileAttributesExW(str, GetFileExInfoStandard, &data)) {
 					result = convert(env, &data);
 				} else {
 					napi_get_null(env, &result);
 				}
-				free(str);
+				if ((void*)RtlSetThreadPlaceholderCompatibilityMode && bak != 2) {
+					RtlSetThreadPlaceholderCompatibilityMode(bak);
+				}
+				delete[]str;
 			}
 		}
 		return result;
@@ -63,7 +70,7 @@ private:
 				napi_valuetype t;
 				napi_typeof(env, argv[1], &t);
 				if (t == napi_function) {
-					cbdata *data = (cbdata*)malloc(sizeof(cbdata));
+					cbdata *data = new cbdata;
 					size_t str_len;
 					napi_value tmp;
 					napi_create_reference(env, argv[1], 1, &data->cb);
@@ -71,10 +78,10 @@ private:
 					napi_coerce_to_string(env, argv[0], &tmp);
 					napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
 					str_len += 1;
-					data->path = (wchar_t*)malloc(sizeof(wchar_t) * str_len);
+					data->path = new wchar_t[str_len];
 					napi_get_value_string_utf16(env, tmp, (char16_t*)data->path, str_len, NULL);
 					napi_create_string_latin1(env, "fswin.getAttributes", NAPI_AUTO_LENGTH, &tmp);
-					napi_create_async_work(env, argv[0], tmp, execute, complete, data, &data->work);
+					napi_create_async_work(env, NULL, tmp, execute, complete, data, &data->work);
 					if (napi_queue_async_work(env, data->work) == napi_ok) {
 						napi_get_boolean(env, true, &result);
 					} else {
@@ -82,8 +89,8 @@ private:
 						napi_delete_reference(env, data->cb);
 						napi_delete_reference(env, data->self);
 						napi_delete_async_work(env, data->work);
-						free(data->path);
-						free(data);
+						delete[]data->path;
+						delete data;
 					}
 				} else {
 					napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
@@ -142,27 +149,42 @@ private:
 		napi_set_named_property(env, result, SYB_FILEATTR_ISRECALLONDATAACCESS, tmp);
 		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_RECALL_ON_OPEN, &tmp);
 		napi_set_named_property(env, result, SYB_FILEATTR_ISRECALLONOPEN, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_VIRTUAL, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISVIRTUAL, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_EA, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISEA, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_PINNED, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISPINNED, tmp);
+		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_UNPINNED, &tmp);
+		napi_set_named_property(env, result, SYB_FILEATTR_ISUNPINNED, tmp);
 		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT, &tmp);
 		napi_set_named_property(env, result, "IS_REPARSE_POINT", tmp);
 		return result;
 	}
 	static void execute(napi_env env, void *data) {
 		cbdata *d = (cbdata*)data;
-		d->result = (WIN32_FILE_ATTRIBUTE_DATA*)malloc(sizeof(WIN32_FILE_ATTRIBUTE_DATA));
+		d->result = new WIN32_FILE_ATTRIBUTE_DATA;
+		CHAR bak;
+		if ((void*)RtlSetThreadPlaceholderCompatibilityMode) {
+			bak = RtlSetThreadPlaceholderCompatibilityMode(2);
+		}
 		if (!GetFileAttributesExW(d->path, GetFileExInfoStandard, d->result)) {
-			free(d->result);
+			delete d->result;
 			d->result = NULL;
+		}
+		if ((void*)RtlSetThreadPlaceholderCompatibilityMode && bak != 2) {
+			RtlSetThreadPlaceholderCompatibilityMode(bak);
 		}
 	}
 	static void complete(napi_env env, napi_status status, void *data) {
 		cbdata *d = (cbdata*)data;
-		free(d->path);
+		delete[]d->path;
 		napi_value cb, self, argv;
 		napi_get_reference_value(env, d->cb, &cb);
 		napi_get_reference_value(env, d->self, &self);
 		if (status == napi_ok && d->result) {
 			argv = convert(env, d->result);
-			free(d->result);
+			delete d->result;
 		} else {
 			napi_get_null(env, &argv);
 		}
@@ -170,6 +192,6 @@ private:
 		napi_delete_reference(env, d->cb);
 		napi_delete_reference(env, d->self);
 		napi_delete_async_work(env, d->work);
-		free(d);
+		delete d;
 	}
 };

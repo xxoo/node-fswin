@@ -29,30 +29,39 @@ constexpr auto SYB_FILEATTR_ISINTEGERITYSTREAM = "IS_INTEGRITY_STREAM";
 constexpr auto SYB_FILEATTR_ISNOSCRUBDATA = "IS_NO_SCRUB_DATA";
 constexpr auto SYB_FILEATTR_ISRECALLONDATAACCESS = "IS_RECALL_ON_DATA_ACCESS";
 constexpr auto SYB_FILEATTR_ISRECALLONOPEN = "IS_RECALL_ON_OPEN";
+constexpr auto SYB_FILEATTR_ISVIRTUAL = "IS_VIRTUAL";
+constexpr auto SYB_FILEATTR_ISEA = "IS_EA";
+constexpr auto SYB_FILEATTR_ISPINNED = "IS_PINNED";
+constexpr auto SYB_FILEATTR_ISUNPINNED = "IS_UNPINNED";
 constexpr auto SYB_FILEATTR_RAWATTRS = "RAW_ATTRIBUTES";
 constexpr auto NETWORK_PATH = L"\\\\?\\UNC\\";
 constexpr auto LOCALE_PATH = L"\\\\?\\";
 constexpr auto MAX_LONG_PATH = 32767;
 
+typedef CHAR(__stdcall* _RtlSetThreadPlaceholderCompatibilityMode)(__in CHAR Mode);
+static const _RtlSetThreadPlaceholderCompatibilityMode RtlSetThreadPlaceholderCompatibilityMode = (_RtlSetThreadPlaceholderCompatibilityMode)GetProcAddress(GetModuleHandleA("ntdll.dll"), "RtlSetThreadPlaceholderCompatibilityMode");
+
 wchar_t *getCurrentPathByHandle(HANDLE hnd) {
-	wchar_t *r = NULL;
-	DWORD sz = GetFinalPathNameByHandleW(hnd, NULL, 0, FILE_NAME_NORMALIZED);
+	wchar_t* r = NULL;
+	DWORD sz0, sz = GetFinalPathNameByHandleW(hnd, NULL, 0, FILE_NAME_NORMALIZED);
 	if (sz > 0) {
-		wchar_t *s = (wchar_t*)malloc(sizeof(wchar_t)*sz);
+		wchar_t* s = new wchar_t[sz];
 		DWORD sz1 = (DWORD)wcslen(NETWORK_PATH);
 		DWORD sz2 = (DWORD)wcslen(LOCALE_PATH);
 		GetFinalPathNameByHandleW(hnd, s, sz, FILE_NAME_NORMALIZED);
 		if (wcsncmp(s, NETWORK_PATH, sz1) == 0) {
-			sz = sz1 - 2;
-			s[sz] = L'\\';
+			sz0 = sz1 - 2;
+			s[sz0] = L'\\';
 		} else if (wcsncmp(s, LOCALE_PATH, sz2) == 0 && ((s[sz2] >= L'a'&&s[sz2] <= L'z') || (s[sz2] >= L'A'&&s[sz2] <= L'Z')) && s[sz2 + 1] == L':') {
-			sz = (DWORD)wcslen(LOCALE_PATH);
+			sz0 = (DWORD)wcslen(LOCALE_PATH);
 		} else {
-			sz = 0;
+			sz0 = 0;
 		}
-		if (sz > 0) {
-			r = _wcsdup(&s[sz]);
-			free(s);
+		if (sz0 > 0) {
+			size_t l = sz - sz0;
+			r = new wchar_t[l];
+			wcscpy_s(r, l, &s[sz0]);
+			delete[]s;
 		} else {
 			r = s;
 		}

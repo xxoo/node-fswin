@@ -1,18 +1,18 @@
 #pragma once
 #include "common.h"
 
-class getVolumeSize {
+class getVolumeSpace {
 public:
 	const struct spaces {
 		ULONGLONG totalSpace;
 		ULONGLONG freeSpace;
 	};
-	static spaces *func(const wchar_t *path) {//you need to free the result yourself if it is not NULL
+	static spaces *func(const wchar_t *path) {//you need to delete the result yourself if it is not NULL
 		ULARGE_INTEGER u1;
 		ULARGE_INTEGER u2;
 		spaces *result;
 		if (GetDiskFreeSpaceExW(path, &u1, &u2, NULL)) {
-			result = (spaces*)malloc(sizeof(spaces));
+			result = new spaces;
 			result->freeSpace = u1.QuadPart;
 			result->totalSpace = u2.QuadPart;
 		} else {
@@ -51,13 +51,13 @@ private:
 				napi_coerce_to_string(env, argv, &tmp);
 				napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
 				str_len += 1;
-				wchar_t *str = (wchar_t*)malloc(sizeof(wchar_t) * str_len);
+				wchar_t *str = new wchar_t[str_len];
 				napi_get_value_string_utf16(env, tmp, (char16_t*)str, str_len, NULL);
 				spaces *r = func(str);
-				free(str);
+				delete[]str;
 				if (r) {
 					result = convert(env, r);
-					free(r);
+					delete r;
 				} else {
 					napi_get_null(env, &result);
 				}
@@ -81,7 +81,7 @@ private:
 				napi_valuetype t;
 				napi_typeof(env, argv[1], &t);
 				if (t == napi_function) {
-					cbdata *data = (cbdata*)malloc(sizeof(cbdata));
+					cbdata *data = new cbdata;
 					size_t str_len;
 					napi_value tmp;
 					napi_create_reference(env, argv[1], 1, &data->cb);
@@ -89,10 +89,10 @@ private:
 					napi_coerce_to_string(env, argv[0], &tmp);
 					napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
 					str_len += 1;
-					data->path = (wchar_t*)malloc(sizeof(wchar_t) * str_len);
+					data->path = new wchar_t[str_len];
 					napi_get_value_string_utf16(env, tmp, (char16_t*)data->path, str_len, NULL);
 					napi_create_string_latin1(env, "fswin.getVolumeSize", NAPI_AUTO_LENGTH, &tmp);
-					napi_create_async_work(env, argv[0], tmp, execute, complete, data, &data->work);
+					napi_create_async_work(env, NULL, tmp, execute, complete, data, &data->work);
 					if (napi_queue_async_work(env, data->work) == napi_ok) {
 						napi_get_boolean(env, true, &result);
 					} else {
@@ -100,8 +100,8 @@ private:
 						napi_delete_reference(env, data->cb);
 						napi_delete_reference(env, data->self);
 						napi_delete_async_work(env, data->work);
-						free(data->path);
-						free(data);
+						delete[]data->path;
+						delete data;
 					}
 				} else {
 					napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
@@ -125,13 +125,13 @@ private:
 	}
 	static void complete(napi_env env, napi_status status, void *data) {
 		cbdata *d = (cbdata*)data;
-		free(d->path);
+		delete[]d->path;
 		napi_value cb, self, argv;
 		napi_get_reference_value(env, d->cb, &cb);
 		napi_get_reference_value(env, d->self, &self);
 		if (status == napi_ok && d->result) {
 			argv = convert(env, d->result);
-			free(d->result);
+			delete d->result;
 		} else {
 			napi_get_null(env, &argv);
 		}
@@ -139,6 +139,6 @@ private:
 		napi_delete_reference(env, d->cb);
 		napi_delete_reference(env, d->self);
 		napi_delete_async_work(env, d->work);
-		free(d);
+		delete d;
 	}
 };
