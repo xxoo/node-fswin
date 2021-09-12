@@ -14,7 +14,7 @@ private:
 		napi_ref self;
 		napi_ref cb;
 		wchar_t *path;
-		WIN32_FILE_ATTRIBUTE_DATA *result;
+		BY_HANDLE_FILE_INFORMATION *result;
 	};
 	static napi_value sync(napi_env env, napi_callback_info info) {
 		napi_value result;
@@ -36,15 +36,19 @@ private:
 				str_len += 1;
 				wchar_t *str = new wchar_t[str_len];
 				napi_get_value_string_utf16(env, tmp, (char16_t*)str, str_len, NULL);
-				WIN32_FILE_ATTRIBUTE_DATA data;
+				BY_HANDLE_FILE_INFORMATION data;
 				CHAR bak;
 				if ((void*)RtlSetThreadPlaceholderCompatibilityMode) {
 					bak = RtlSetThreadPlaceholderCompatibilityMode(2);
 				}
-				if (GetFileAttributesExW(str, GetFileExInfoStandard, &data)) {
+				HANDLE h = CreateFileW(str, 0, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT, NULL);
+				if (GetFileInformationByHandle(h, &data)) {
 					result = convert(env, &data);
 				} else {
 					napi_get_null(env, &result);
+				}
+				if (h != INVALID_HANDLE_VALUE) {
+					CloseHandle(h);
 				}
 				if ((void*)RtlSetThreadPlaceholderCompatibilityMode && bak != 2) {
 					RtlSetThreadPlaceholderCompatibilityMode(bak);
@@ -99,7 +103,7 @@ private:
 		}
 		return result;
 	}
-	static napi_value convert(napi_env env, WIN32_FILE_ATTRIBUTE_DATA *info) {
+	static napi_value convert(napi_env env, BY_HANDLE_FILE_INFORMATION *info) {
 		napi_value result, tmp, date;
 		napi_get_global(env, &date);
 		napi_get_named_property(env, date, "Date", &date);
@@ -115,6 +119,8 @@ private:
 		napi_set_named_property(env, result, SYB_FILEATTR_LASTWRITETIME, tmp);
 		napi_create_int64(env, combineHiLow(info->nFileSizeHigh, info->nFileSizeLow), &tmp);
 		napi_set_named_property(env, result, SYB_FILEATTR_SIZE, tmp);
+		napi_create_int32(env, info->nNumberOfLinks, &tmp);
+		napi_set_named_property(env, result, "LINK_COUNT", tmp);
 		napi_create_int32(env, info->dwFileAttributes, &tmp);
 		napi_set_named_property(env, result, SYB_FILEATTR_RAWATTRS, tmp);
 		napi_get_boolean(env, info->dwFileAttributes & FILE_ATTRIBUTE_ARCHIVE, &tmp);
@@ -163,14 +169,18 @@ private:
 	}
 	static void execute(napi_env env, void *data) {
 		cbdata *d = (cbdata*)data;
-		d->result = new WIN32_FILE_ATTRIBUTE_DATA;
+		d->result = new BY_HANDLE_FILE_INFORMATION;
 		CHAR bak;
 		if ((void*)RtlSetThreadPlaceholderCompatibilityMode) {
 			bak = RtlSetThreadPlaceholderCompatibilityMode(2);
 		}
-		if (!GetFileAttributesExW(d->path, GetFileExInfoStandard, d->result)) {
+		HANDLE h = CreateFileW(d->path, 0, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT, NULL);
+		if (!GetFileInformationByHandle(h, d->result)) {
 			delete d->result;
 			d->result = NULL;
+		}
+		if (h != INVALID_HANDLE_VALUE) {
+			CloseHandle(h);
 		}
 		if ((void*)RtlSetThreadPlaceholderCompatibilityMode && bak != 2) {
 			RtlSetThreadPlaceholderCompatibilityMode(bak);

@@ -1,13 +1,6 @@
 #pragma once
 #include "common.h"
 
-#ifndef IO_REPARSE_TAG_GVFS
-	#define IO_REPARSE_TAG_GVFS                     (0x9000001CL)
-#endif
-#ifndef IO_REPARSE_TAG_GVFS_TOMBSTONE
-	#define IO_REPARSE_TAG_GVFS_TOMBSTONE           (0xA0000022L)
-#endif
-
 class find {
 public:
 	const struct resultData {//this is a linked table
@@ -355,8 +348,8 @@ private:
 				tag = "CLOUD_MASK";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_APPEXECLINK) {
 				tag = "APPEXECLINK";
-			} else if (info->dwReserved0 == IO_REPARSE_TAG_GVFS) {
-				tag = "GVFS";
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_PROJFS) {
+				tag = "PROJFS";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_STORAGE_SYNC) {
 				tag = "STORAGE_SYNC";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_WCI_TOMBSTONE) {
@@ -365,8 +358,16 @@ private:
 				tag = "UNHANDLED";
 			} else if (info->dwReserved0 == IO_REPARSE_TAG_ONEDRIVE) {
 				tag = "ONEDRIVE";
-			} else if (info->dwReserved0 == IO_REPARSE_TAG_GVFS_TOMBSTONE) {
-				tag = "TOMBSTONE";
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_PROJFS_TOMBSTONE) {
+				tag = "PROJFS_TOMBSTONE";
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_AF_UNIX) {
+				tag = "AF_UNIX";
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_WCI_LINK) {
+				tag = "WCI_LINK";
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_WCI_LINK_1) {
+				tag = "WCI_LINK_1";
+			} else if (info->dwReserved0 == IO_REPARSE_TAG_DATALESS_CIM) {
+				tag = "DATALESS_CIM";
 			} else {
 				tag = NULL;
 			}
