@@ -41,7 +41,7 @@ private:
 				if ((void*)RtlSetThreadPlaceholderCompatibilityMode) {
 					bak = RtlSetThreadPlaceholderCompatibilityMode(2);
 				}
-				HANDLE h = CreateFileW(str, 0, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT, NULL);
+				HANDLE h = CreateFileW(str, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, NULL);
 				if (GetFileInformationByHandle(h, &data)) {
 					result = convert(env, &data);
 				} else {
@@ -174,7 +174,7 @@ private:
 		if ((void*)RtlSetThreadPlaceholderCompatibilityMode) {
 			bak = RtlSetThreadPlaceholderCompatibilityMode(2);
 		}
-		HANDLE h = CreateFileW(d->path, 0, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT, NULL);
+		HANDLE h = CreateFileW(d->path, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, NULL);
 		if (!GetFileInformationByHandle(h, d->result)) {
 			delete d->result;
 			d->result = NULL;
