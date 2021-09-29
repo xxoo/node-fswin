@@ -76,9 +76,7 @@ private:
 			napi_value argv[4], self;
 			size_t argc = 4;
 			napi_get_cb_info(env, info, &argc, argv, &self, NULL);
-			if (argc < 2) {
-				napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
-			} else {
+			if (argc >= 2) {
 				napi_valuetype t;
 				napi_typeof(env, argv[1], &t);
 				if (t == napi_function) {
@@ -113,9 +111,10 @@ private:
 						delete[]data->path;
 						delete data;
 					}
-				} else {
-					napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
 				}
+			}
+			if (!result) {
+				napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
 			}
 		}
 		return result;

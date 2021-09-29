@@ -1,23 +1,8 @@
 #pragma once
 #include "common.h"
 
-class setShortName {
+class setVolumeLabel {
 public:
-	static bool func(const wchar_t *path, const wchar_t *newname) {
-		bool result;
-		if (ensurePrivilege("SeRestorePrivilege")) {//make sure the process has SE_RESTORE_NAME privilege
-			HANDLE hnd = CreateFileW(path, GENERIC_WRITE | DELETE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
-			if (hnd == INVALID_HANDLE_VALUE) {
-				result = false;
-			} else {
-				result = SetFileShortNameW(hnd, newname ? newname : L"") ? true : false;
-				CloseHandle(hnd);
-			}
-		} else {
-			result = false;
-		}
-		return result;
-	}
 	static napi_value init(napi_env env, bool isSync = false) {
 		napi_value f;
 		napi_create_function(env, NULL, 0, isSync ? sync : async, NULL, &f);
@@ -28,9 +13,9 @@ private:
 		napi_async_work work;
 		napi_ref self;
 		napi_ref cb;
-		wchar_t *path;
-		wchar_t *newname;
-		bool result;
+		wchar_t* path;
+		wchar_t* label;
+		BOOL result;
 	};
 	static napi_value sync(napi_env env, napi_callback_info info) {
 		napi_value result;
@@ -55,11 +40,11 @@ private:
 				napi_coerce_to_string(env, argv[1], &tmp);
 				napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
 				str_len += 1;
-				wchar_t *newname = new wchar_t[str_len];
-				napi_get_value_string_utf16(env, tmp, (char16_t*)path, str_len, NULL);
-				napi_get_boolean(env, func(path, newname), &result);
+				wchar_t* label = new wchar_t[str_len];
+				napi_get_value_string_utf16(env, tmp, (char16_t*)label, str_len, NULL);
+				napi_get_boolean(env, SetVolumeLabelW(path, label), &result);
 				delete[]path;
-				delete[]newname;
+				delete[]label;
 			}
 		}
 		return result;
@@ -91,9 +76,9 @@ private:
 					napi_coerce_to_string(env, argv[1], &tmp);
 					napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
 					str_len += 1;
-					data->newname = new wchar_t[str_len];
-					napi_get_value_string_utf16(env, tmp, (char16_t*)data->newname, str_len, NULL);
-					napi_create_string_latin1(env, "fswin.ntfs.setShortName", NAPI_AUTO_LENGTH, &tmp);
+					data->label = new wchar_t[str_len];
+					napi_get_value_string_utf16(env, tmp, (char16_t*)data->label, str_len, NULL);
+					napi_create_string_latin1(env, "fswin.setVolumeLabel", NAPI_AUTO_LENGTH, &tmp);
 					napi_create_async_work(env, NULL, tmp, execute, complete, data, &data->work);
 					if (napi_queue_async_work(env, data->work) == napi_ok) {
 						napi_get_boolean(env, true, &result);
@@ -103,7 +88,7 @@ private:
 						napi_delete_reference(env, data->self);
 						napi_delete_async_work(env, data->work);
 						delete[]data->path;
-						delete[]data->newname;
+						delete[]data->label;
 						delete data;
 					}
 				}
@@ -116,12 +101,12 @@ private:
 	}
 	static void execute(napi_env env, void *data) {
 		cbdata *d = (cbdata*)data;
-		d->result = func(d->path, d->newname);
+		d->result = SetVolumeLabelW(d->path, d->label);
 	}
 	static void complete(napi_env env, napi_status status, void *data) {
 		cbdata *d = (cbdata*)data;
 		delete[]d->path;
-		delete[]d->newname;
+		delete[]d->label;
 		napi_value cb, self, argv;
 		napi_get_reference_value(env, d->cb, &cb);
 		napi_get_reference_value(env, d->self, &self);

@@ -1,5 +1,4 @@
 #pragma once
-#define UNICODE
 #include <windows.h>
 #include <node_api.h>
 //#include <iostream>
@@ -68,12 +67,12 @@ wchar_t *getCurrentPathByHandle(HANDLE hnd) {
 	}
 	return r;
 }
-bool ensurePrivilege(const wchar_t *privilegeName) {
+bool ensurePrivilege(const char *privilegeName) {
 	bool result = false;
 	HANDLE hToken;
 	if (OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken)) {
 		LUID tkid;
-		if (LookupPrivilegeValueW(NULL, privilegeName, &tkid)) {
+		if (LookupPrivilegeValueA(NULL, privilegeName, &tkid)) {
 			PRIVILEGE_SET ps;
 			ps.PrivilegeCount = 1;
 			ps.Control = PRIVILEGE_SET_ALL_NECESSARY;

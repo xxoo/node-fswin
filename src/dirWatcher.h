@@ -42,9 +42,7 @@ private:
 		napi_get_cb_info(env, info, &argc, argv, &result, NULL);
 		napi_get_new_target(env, info, &target);
 		if (target) {
-			if (argc < 2) {
-				napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
-			} else {
+			if (argc >= 2) {
 				napi_valuetype t;
 				napi_typeof(env, argv[1], &t);
 				if (t == napi_function) {
@@ -126,9 +124,10 @@ private:
 					napi_create_async_work(env, NULL, resname, beginWatchingPath, finishWatchingPath, self, &self->pathwork);
 					napi_create_async_work(env, NULL, resname, beginWatchingParent, finishWatchingParent, self, &self->parentwork);
 					self->watchPath(env);
-				} else {
-					napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
 				}
+			}
+			if (!result) {
+				napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
 			}
 		} else {
 			napi_value cons;

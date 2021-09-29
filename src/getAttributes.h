@@ -38,7 +38,7 @@ private:
 				napi_get_value_string_utf16(env, tmp, (char16_t*)str, str_len, NULL);
 				BY_HANDLE_FILE_INFORMATION data;
 				CHAR bak;
-				if ((void*)RtlSetThreadPlaceholderCompatibilityMode) {
+				if (RtlSetThreadPlaceholderCompatibilityMode) {
 					bak = RtlSetThreadPlaceholderCompatibilityMode(2);
 				}
 				HANDLE h = CreateFileW(str, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, NULL);
@@ -50,7 +50,7 @@ private:
 				if (h != INVALID_HANDLE_VALUE) {
 					CloseHandle(h);
 				}
-				if ((void*)RtlSetThreadPlaceholderCompatibilityMode && bak != 2) {
+				if (RtlSetThreadPlaceholderCompatibilityMode && bak != 2) {
 					RtlSetThreadPlaceholderCompatibilityMode(bak);
 				}
 				delete[]str;
@@ -68,9 +68,7 @@ private:
 			napi_value argv[2], self;
 			size_t argc = 2;
 			napi_get_cb_info(env, info, &argc, argv, &self, NULL);
-			if (argc < 2) {
-				napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
-			} else {
+			if (argc == 2) {
 				napi_valuetype t;
 				napi_typeof(env, argv[1], &t);
 				if (t == napi_function) {
@@ -96,9 +94,10 @@ private:
 						delete[]data->path;
 						delete data;
 					}
-				} else {
-					napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
 				}
+			}
+			if (!result) {
+				napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
 			}
 		}
 		return result;
@@ -171,7 +170,7 @@ private:
 		cbdata *d = (cbdata*)data;
 		d->result = new BY_HANDLE_FILE_INFORMATION;
 		CHAR bak;
-		if ((void*)RtlSetThreadPlaceholderCompatibilityMode) {
+		if (RtlSetThreadPlaceholderCompatibilityMode) {
 			bak = RtlSetThreadPlaceholderCompatibilityMode(2);
 		}
 		HANDLE h = CreateFileW(d->path, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, NULL);
@@ -182,7 +181,7 @@ private:
 		if (h != INVALID_HANDLE_VALUE) {
 			CloseHandle(h);
 		}
-		if ((void*)RtlSetThreadPlaceholderCompatibilityMode && bak != 2) {
+		if (RtlSetThreadPlaceholderCompatibilityMode && bak != 2) {
 			RtlSetThreadPlaceholderCompatibilityMode(bak);
 		}
 	}
