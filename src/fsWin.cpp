@@ -18,7 +18,7 @@
 
 NAPI_MODULE_INIT() {
 	napi_value o;
-	napi_create_string_latin1(env, "3.21.1007", NAPI_AUTO_LENGTH, &o);
+	napi_create_string_latin1(env, "3.21.1008", NAPI_AUTO_LENGTH, &o);
 	napi_set_named_property(env, exports, "version", o);
 	napi_set_named_property(env, exports, "dirWatcher", dirWatcher::init(env));
 	napi_set_named_property(env, exports, "splitPath", splitPath::init(env));

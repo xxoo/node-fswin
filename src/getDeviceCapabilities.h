@@ -127,10 +127,9 @@ private:
 	}
 	static void complete(napi_env env, napi_status status, void *data) {
 		cbdata *d = (cbdata*)data;
-		napi_value cb, self, argv;
+		napi_value cb, self, argv = convert(env, d->result);
 		napi_get_reference_value(env, d->cb, &cb);
 		napi_get_reference_value(env, d->self, &self);
-		napi_get_boolean(env, status == napi_ok && d->result, &argv);
 		napi_call_function(env, self, cb, 1, &argv, NULL);
 		napi_delete_reference(env, d->cb);
 		napi_delete_reference(env, d->self);
