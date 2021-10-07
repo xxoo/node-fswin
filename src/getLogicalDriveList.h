@@ -73,7 +73,7 @@ private:
 			napi_value argv, self;
 			size_t argc = 1;
 			napi_get_cb_info(env, info, &argc, &argv, &self, NULL);
-			if (argc == 1) {
+			if (argc >= 1) {
 				napi_valuetype t;
 				napi_typeof(env, argv, &t);
 				if (t == napi_function) {

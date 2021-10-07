@@ -1,7 +1,10 @@
 #pragma once
 #include <windows.h>
+#include <setupapi.h>
+#include <cfgmgr32.h>
 #include <node_api.h>
 //#include <iostream>
+#pragma comment(lib, "setupapi.lib")
 
 #define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
 
@@ -40,7 +43,7 @@ constexpr auto MAX_LONG_PATH = 32767;
 typedef CHAR(__stdcall* _RtlSetThreadPlaceholderCompatibilityMode)(__in CHAR Mode);
 static const _RtlSetThreadPlaceholderCompatibilityMode RtlSetThreadPlaceholderCompatibilityMode = (_RtlSetThreadPlaceholderCompatibilityMode)GetProcAddress(GetModuleHandleA("ntdll.dll"), "RtlSetThreadPlaceholderCompatibilityMode");
 
-wchar_t *getCurrentPathByHandle(HANDLE hnd) {
+wchar_t* getCurrentPathByHandle(HANDLE hnd) {
 	wchar_t* r = NULL;
 	DWORD sz0, sz = GetFinalPathNameByHandleW(hnd, NULL, 0, FILE_NAME_NORMALIZED);
 	if (sz > 0) {
@@ -67,7 +70,7 @@ wchar_t *getCurrentPathByHandle(HANDLE hnd) {
 	}
 	return r;
 }
-bool ensurePrivilege(const char *privilegeName) {
+bool ensurePrivilege(const char* privilegeName) {
 	bool result = false;
 	HANDLE hToken;
 	if (OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken)) {
@@ -100,6 +103,6 @@ ULONGLONG combineHiLow(const DWORD hi, const DWORD low) {
 	ul.LowPart = low;
 	return ul.QuadPart;
 }
-int64_t fileTimeToJsDateVal(const FILETIME *ft) {//converts FILETIME to javascript date value
+int64_t fileTimeToJsDateVal(const FILETIME* ft) {//converts FILETIME to javascript date value
 	return combineHiLow(ft->dwHighDateTime, ft->dwLowDateTime) / 10000 - 11644473600000;
 }
