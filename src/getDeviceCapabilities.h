@@ -5,8 +5,8 @@ class getDeviceCapabilities {
 public:
 	static DWORD func(wchar_t* devid) {
 		HDEVINFO hDevInfo = SetupDiGetClassDevsW(NULL, devid, NULL, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE | DIGCF_ALLCLASSES);
-		SP_DEVINFO_DATA spdd;
 		DWORD cap = 0;
+		SP_DEVINFO_DATA spdd;
 		spdd.cbSize = sizeof(SP_DEVINFO_DATA);
 		if (SetupDiEnumDeviceInfo(hDevInfo, 0, &spdd)) {
 			SetupDiGetDeviceRegistryPropertyA(hDevInfo, &spdd, SPDRP_CAPABILITIES, NULL, (BYTE*)&cap, sizeof(DWORD), NULL);

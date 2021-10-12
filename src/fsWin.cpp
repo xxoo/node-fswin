@@ -3,7 +3,8 @@
 #include "convertPath.h"
 #include "find.h"
 #include "getLogicalDriveList.h"
-#include "getDriveParentDevice.h"
+#include "getDriveDevice.h"
+#include "getStroageProperties.h"
 #include "getDeviceCapabilities.h"
 #include "getVolumeInformation.h"
 #include "getVolumeSpace.h"
@@ -28,10 +29,12 @@ NAPI_MODULE_INIT() {
 	napi_set_named_property(env, exports, "findSync", find::init(env, true));
 	napi_set_named_property(env, exports, "getLogicalDriveList", getLogicalDriveList::init(env));
 	napi_set_named_property(env, exports, "getLogicalDriveListSync", getLogicalDriveList::init(env, true));
-	napi_set_named_property(env, exports, "getDriveParentDevice", getDriveParentDevice::init(env));
-	napi_set_named_property(env, exports, "getDriveParentDeviceSync", getDriveParentDevice::init(env, true));
+	napi_set_named_property(env, exports, "getDriveDevice", getDriveDevice::init(env));
+	napi_set_named_property(env, exports, "getDriveDeviceSync", getDriveDevice::init(env, true));
 	napi_set_named_property(env, exports, "getDeviceCapabilities", getDeviceCapabilities::init(env));
 	napi_set_named_property(env, exports, "getDeviceCapabilitiesSync", getDeviceCapabilities::init(env, true));
+	napi_set_named_property(env, exports, "getStroageProperties", getStroageProperties::init(env));
+	napi_set_named_property(env, exports, "getStroagePropertiesSync", getStroageProperties::init(env, true));
 	napi_set_named_property(env, exports, "getVolumeInformation", getVolumeInformation::init(env));
 	napi_set_named_property(env, exports, "getVolumeInformationSync", getVolumeInformation::init(env, true));
 	napi_set_named_property(env, exports, "getVolumeSpace", getVolumeSpace::init(env));

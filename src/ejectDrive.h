@@ -6,9 +6,9 @@ public:
 	static bool func(const char l, const uint32_t method = 0) {
 		bool result = false;
 		if (method) {
-			DEVINST DevInst = getDriveParentDevice::getDevInst(l);
+			DEVINST DevInst = getDriveDevice::getParentDevInst(l);
 			if (DevInst) {
-				wchar_t* devid = getDriveParentDevice::getDevInstIdByDevInst(DevInst);
+				wchar_t* devid = getDriveDevice::getDevInstIdByDevInst(DevInst);
 				if (devid) {
 					if (method == 1) {
 						DWORD cap = getDeviceCapabilities::func(devid);
@@ -30,7 +30,7 @@ public:
 				}
 			}
 		} else {
-			char p1[] = { '\\', '\\', '.', '\\', l, ':', 0 };
+			char p1[] = { '\\', '\\', '?', '\\', l, ':', 0 };
 			HANDLE handle = CreateFileA(p1, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
 			if (handle != INVALID_HANDLE_VALUE) {
 				DWORD bytes = 0;
