@@ -4,7 +4,7 @@
 #include "find.h"
 #include "getLogicalDriveList.h"
 #include "getDriveDevice.h"
-#include "getStroageProperties.h"
+#include "getStorageProperties.h"
 #include "getDeviceCapabilities.h"
 #include "getVolumeInformation.h"
 #include "getVolumeSpace.h"
@@ -19,7 +19,7 @@
 
 NAPI_MODULE_INIT() {
 	napi_value o;
-	napi_create_string_latin1(env, "3.21.1008", NAPI_AUTO_LENGTH, &o);
+	napi_create_string_latin1(env, "3.21.1014", NAPI_AUTO_LENGTH, &o);
 	napi_set_named_property(env, exports, "version", o);
 	napi_set_named_property(env, exports, "dirWatcher", dirWatcher::init(env));
 	napi_set_named_property(env, exports, "splitPath", splitPath::init(env));
@@ -33,8 +33,8 @@ NAPI_MODULE_INIT() {
 	napi_set_named_property(env, exports, "getDriveDeviceSync", getDriveDevice::init(env, true));
 	napi_set_named_property(env, exports, "getDeviceCapabilities", getDeviceCapabilities::init(env));
 	napi_set_named_property(env, exports, "getDeviceCapabilitiesSync", getDeviceCapabilities::init(env, true));
-	napi_set_named_property(env, exports, "getStroageProperties", getStroageProperties::init(env));
-	napi_set_named_property(env, exports, "getStroagePropertiesSync", getStroageProperties::init(env, true));
+	napi_set_named_property(env, exports, "getStorageProperties", getStorageProperties::init(env));
+	napi_set_named_property(env, exports, "getStoragePropertiesSync", getStorageProperties::init(env, true));
 	napi_set_named_property(env, exports, "getVolumeInformation", getVolumeInformation::init(env));
 	napi_set_named_property(env, exports, "getVolumeInformationSync", getVolumeInformation::init(env, true));
 	napi_set_named_property(env, exports, "getVolumeSpace", getVolumeSpace::init(env));
