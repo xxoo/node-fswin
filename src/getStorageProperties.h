@@ -1,7 +1,7 @@
 #pragma once
 #include "common.h"
 
-class getStroageProperties {
+class getStorageProperties {
 public:
 	const struct infor {
 		STORAGE_DEVICE_DESCRIPTOR* DP;
