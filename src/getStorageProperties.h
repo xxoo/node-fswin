@@ -20,9 +20,9 @@ public:
 		STORAGE_TEMPERATURE_DATA_DESCRIPTOR* DTP;
 		STORAGE_ADAPTER_SERIAL_NUMBER* ASN;
 	};
-	static infor *func(const wchar_t* path, bool params[]) {//you need to delete the result yourself if it is not NULL
-		infor *result = NULL;
-		HANDLE hDrive = CreateFileW(path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
+	static infor* func(const char* path, bool params[]) {//you need to delete the result yourself if it is not NULL
+		infor* result = NULL;
+		HANDLE hDrive = CreateFileA(path, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
 		if (hDrive != INVALID_HANDLE_VALUE) {
 			result = new infor({ 0 });
 			DWORD bytes = 0;
@@ -175,7 +175,7 @@ private:
 		napi_async_work work;
 		napi_ref self;
 		napi_ref cb;
-		wchar_t* path;
+		char* path;
 		bool params[15];
 		infor* result;
 	};
@@ -619,10 +619,10 @@ private:
 					size_t str_len;
 					napi_value tmp;
 					napi_coerce_to_string(env, argv[0], &tmp);
-					napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
+					napi_get_value_string_latin1(env, tmp, NULL, 0, &str_len);
 					str_len += 1;
-					wchar_t* str = new wchar_t[str_len];
-					napi_get_value_string_utf16(env, tmp, (char16_t*)str, str_len, NULL);
+					char* str = new char[str_len];
+					napi_get_value_string_latin1(env, tmp, str, str_len, NULL);
 					bool params[15];
 					getParams(env, argv[1], params);
 					infor* r = func(str, params);
@@ -662,10 +662,10 @@ private:
 						napi_create_reference(env, argv[2], 1, &data->cb);
 						napi_create_reference(env, self, 1, &data->self);
 						napi_coerce_to_string(env, argv[0], &tmp);
-						napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
+						napi_get_value_string_latin1(env, tmp, NULL, 0, &str_len);
 						str_len += 1;
-						data->path = new wchar_t[str_len];
-						napi_get_value_string_utf16(env, tmp, (char16_t*)data->path, str_len, NULL);
+						data->path = new char[str_len];
+						napi_get_value_string_latin1(env, tmp, data->path, str_len, NULL);
 						getParams(env, argv[1], data->params);
 						napi_create_string_latin1(env, "fswin.getStroageProperties", NAPI_AUTO_LENGTH, &tmp);
 						napi_create_async_work(env, NULL, tmp, execute, complete, data, &data->work);
@@ -688,12 +688,12 @@ private:
 		}
 		return result;
 	}
-	static void execute(napi_env env, void *data) {
-		cbdata *d = (cbdata*)data;
+	static void execute(napi_env env, void* data) {
+		cbdata* d = (cbdata*)data;
 		d->result = func(d->path, d->params);
 	}
-	static void complete(napi_env env, napi_status status, void *data) {
-		cbdata *d = (cbdata*)data;
+	static void complete(napi_env env, napi_status status, void* data) {
+		cbdata* d = (cbdata*)data;
 		delete[]d->path;
 		napi_value cb, self, argv;
 		napi_get_reference_value(env, d->cb, &cb);

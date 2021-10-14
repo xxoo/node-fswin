@@ -13,7 +13,7 @@ public:
 		DEVINST DevInst = 0;
 		if ((l >= 'A' && l <= 'Z') || (l >= 'a' && l <= 'z')) {
 			char p1[] = { '\\', '\\', '?', '\\', l, ':', 0 };
-			char p2[] = { l, ':', 0 };
+			char* p2 = &p1[4];
 			HANDLE hVolume = CreateFileA(p1, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
 			if (hVolume != INVALID_HANDLE_VALUE) {
 				STORAGE_DEVICE_NUMBER sdn;
