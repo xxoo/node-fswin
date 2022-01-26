@@ -11,6 +11,7 @@ public:
 		char readonly;
 		char system;
 		char temporary;
+        char unpinned;
 	};
 	static bool func(const wchar_t *file, const attrVal *attr) {
 		bool result;
@@ -54,6 +55,11 @@ public:
 			} else if (attr->temporary > 0 && !(newattr&FILE_ATTRIBUTE_TEMPORARY)) {
 				newattr |= FILE_ATTRIBUTE_TEMPORARY;
 			}
+            if (attr->unpinned < 0 && newattr&FILE_ATTRIBUTE_UNPINNED) {
+                newattr ^= FILE_ATTRIBUTE_UNPINNED;
+            } else if (attr->unpinned > 0 && !(newattr&FILE_ATTRIBUTE_UNPINNED)) {
+                newattr |= FILE_ATTRIBUTE_UNPINNED;
+            }
 			if (newattr == oldattr) {
 				result = true;
 			} else {
@@ -215,6 +221,14 @@ private:
 		} else {
 			result->temporary = 0;
 		}
+        napi_has_named_property(env, attr, SYB_FILEATTR_ISUNPINNED, &tmp);
+        if (tmp) {
+            napi_get_named_property(env, attr, SYB_FILEATTR_ISUNPINNED, &val);
+            napi_get_value_bool(env, val, &tmp);
+            result->unpinned = tmp ? 1 : -1;
+        } else {
+            result->unpinned = 0;
+        }
 		return result;
 	}
 	static void execute(napi_env env, void *data) {
