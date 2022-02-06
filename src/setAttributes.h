@@ -11,7 +11,8 @@ public:
 		char readonly;
 		char system;
 		char temporary;
-        char unpinned;
+		char unpinned;
+		char pinned;
 	};
 	static bool func(const wchar_t *file, const attrVal *attr) {
 		bool result;
@@ -20,46 +21,51 @@ public:
 			result = false;
 		} else {
 			DWORD newattr = oldattr;
-			if (attr->archive < 0 && newattr&FILE_ATTRIBUTE_ARCHIVE) {
+			if (attr->archive < 0 && newattr & FILE_ATTRIBUTE_ARCHIVE) {
 				newattr ^= FILE_ATTRIBUTE_ARCHIVE;
-			} else if (attr->archive > 0 && !(newattr&FILE_ATTRIBUTE_ARCHIVE)) {
+			} else if (attr->archive > 0 && !(newattr & FILE_ATTRIBUTE_ARCHIVE)) {
 				newattr |= FILE_ATTRIBUTE_ARCHIVE;
 			}
-			if (attr->hidden < 0 && newattr&FILE_ATTRIBUTE_HIDDEN) {
+			if (attr->hidden < 0 && newattr & FILE_ATTRIBUTE_HIDDEN) {
 				newattr ^= FILE_ATTRIBUTE_HIDDEN;
-			} else if (attr->hidden > 0 && !(newattr&FILE_ATTRIBUTE_HIDDEN)) {
+			} else if (attr->hidden > 0 && !(newattr & FILE_ATTRIBUTE_HIDDEN)) {
 				newattr |= FILE_ATTRIBUTE_HIDDEN;
 			}
-			if (attr->notContentIndexed < 0 && newattr&FILE_ATTRIBUTE_NOT_CONTENT_INDEXED) {
+			if (attr->notContentIndexed < 0 && newattr & FILE_ATTRIBUTE_NOT_CONTENT_INDEXED) {
 				newattr ^= FILE_ATTRIBUTE_NOT_CONTENT_INDEXED;
-			} else if (attr->notContentIndexed > 0 && !(newattr&FILE_ATTRIBUTE_NOT_CONTENT_INDEXED)) {
+			} else if (attr->notContentIndexed > 0 && !(newattr & FILE_ATTRIBUTE_NOT_CONTENT_INDEXED)) {
 				newattr |= FILE_ATTRIBUTE_NOT_CONTENT_INDEXED;
 			}
-			if (attr->offline < 0 && newattr&FILE_ATTRIBUTE_OFFLINE) {
+			if (attr->offline < 0 && newattr & FILE_ATTRIBUTE_OFFLINE) {
 				newattr ^= FILE_ATTRIBUTE_OFFLINE;
-			} else if (attr->offline > 0 && !(newattr&FILE_ATTRIBUTE_OFFLINE)) {
+			} else if (attr->offline > 0 && !(newattr & FILE_ATTRIBUTE_OFFLINE)) {
 				newattr |= FILE_ATTRIBUTE_OFFLINE;
 			}
-			if (attr->readonly < 0 && newattr&FILE_ATTRIBUTE_READONLY) {
+			if (attr->readonly < 0 && newattr & FILE_ATTRIBUTE_READONLY) {
 				newattr ^= FILE_ATTRIBUTE_READONLY;
-			} else if (attr->readonly > 0 && !(newattr&FILE_ATTRIBUTE_READONLY)) {
+			} else if (attr->readonly > 0 && !(newattr & FILE_ATTRIBUTE_READONLY)) {
 				newattr |= FILE_ATTRIBUTE_READONLY;
 			}
 			if (attr->system < 0 && newattr&FILE_ATTRIBUTE_SYSTEM) {
 				newattr ^= FILE_ATTRIBUTE_SYSTEM;
-			} else if (attr->system > 0 && !(newattr&FILE_ATTRIBUTE_SYSTEM)) {
+			} else if (attr->system > 0 && !(newattr & FILE_ATTRIBUTE_SYSTEM)) {
 				newattr |= FILE_ATTRIBUTE_SYSTEM;
 			}
-			if (attr->temporary < 0 && newattr&FILE_ATTRIBUTE_TEMPORARY) {
+			if (attr->temporary < 0 && newattr & FILE_ATTRIBUTE_TEMPORARY) {
 				newattr ^= FILE_ATTRIBUTE_TEMPORARY;
-			} else if (attr->temporary > 0 && !(newattr&FILE_ATTRIBUTE_TEMPORARY)) {
+			} else if (attr->temporary > 0 && !(newattr & FILE_ATTRIBUTE_TEMPORARY)) {
 				newattr |= FILE_ATTRIBUTE_TEMPORARY;
 			}
-            if (attr->unpinned < 0 && newattr&FILE_ATTRIBUTE_UNPINNED) {
-                newattr ^= FILE_ATTRIBUTE_UNPINNED;
-            } else if (attr->unpinned > 0 && !(newattr&FILE_ATTRIBUTE_UNPINNED)) {
-                newattr |= FILE_ATTRIBUTE_UNPINNED;
-            }
+			if (attr->unpinned < 0 && newattr & FILE_ATTRIBUTE_UNPINNED) {
+				newattr ^= FILE_ATTRIBUTE_UNPINNED;
+			} else if (attr->unpinned > 0 && !(newattr & FILE_ATTRIBUTE_UNPINNED)) {
+				newattr |= FILE_ATTRIBUTE_UNPINNED;
+			}
+			if (attr->pinned < 0 && newattr & FILE_ATTRIBUTE_PINNED) {
+				newattr ^= FILE_ATTRIBUTE_PINNED;
+			} else if (attr->pinned > 0 && !(newattr & FILE_ATTRIBUTE_PINNED)) {
+				newattr |= FILE_ATTRIBUTE_PINNED;
+			}
 			if (newattr == oldattr) {
 				result = true;
 			} else {
@@ -221,14 +227,22 @@ private:
 		} else {
 			result->temporary = 0;
 		}
-        napi_has_named_property(env, attr, SYB_FILEATTR_ISUNPINNED, &tmp);
-        if (tmp) {
-            napi_get_named_property(env, attr, SYB_FILEATTR_ISUNPINNED, &val);
-            napi_get_value_bool(env, val, &tmp);
-            result->unpinned = tmp ? 1 : -1;
-        } else {
-            result->unpinned = 0;
-        }
+		napi_has_named_property(env, attr, SYB_FILEATTR_ISUNPINNED, &tmp);
+		if (tmp) {
+			napi_get_named_property(env, attr, SYB_FILEATTR_ISUNPINNED, &val);
+			napi_get_value_bool(env, val, &tmp);
+			result->unpinned = tmp ? 1 : -1;
+		} else {
+			result->unpinned = 0;
+		}
+		napi_has_named_property(env, attr, SYB_FILEATTR_ISPINNED, &tmp);
+		if (tmp) {
+			napi_get_named_property(env, attr, SYB_FILEATTR_ISPINNED, &val);
+			napi_get_value_bool(env, val, &tmp);
+			result->pinned = tmp ? 1 : -1;
+		} else {
+			result->pinned = 0;
+		}
 		return result;
 	}
 	static void execute(napi_env env, void *data) {
