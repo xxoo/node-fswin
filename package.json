@@ -3,6 +3,7 @@
 	"version": "3.22.106",
 	"description": "nodejs fs extensions for windows",
 	"main": "index.js",
+	"types": "index.d.ts",
 	"engines": {
 		"node": ">= 8.0"
 	},
