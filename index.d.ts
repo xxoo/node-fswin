@@ -332,14 +332,14 @@ export class dirWatcher {
 }
 
 // https://github.com/xxoo/node-fswin/wiki/ejectDrive-and-ejectDriveSync
-export function ejectDrive(letter: string, method: EjectDriveMethod, callback: (succeeded: boolean) => void);
+export function ejectDrive(letter: string, method: EjectDriveMethod, callback: (succeeded: boolean) => void): boolean;
 export function ejectDriveSync(letter: string, method: EjectDriveMethod): boolean
 
 // https://github.com/xxoo/node-fswin/wiki/find-and-findSync
 export function find(pathToFind: string, callback: Find.AsyncProgressiveCallback, isProgressiveMode: Find.ProgressiveModeEnabled): boolean;
 export function find(pathToFind: string, callback: Find.AsyncBasicCallback): boolean;
-export function findSync(pathToFind, callback: Find.SyncCallback): number;
-export function findSync(pathToFind): Find.File[];
+export function findSync(pathToFind: string, callback: Find.SyncCallback): number;
+export function findSync(pathToFind: string): Find.File[];
 
 // https://github.com/xxoo/node-fswin/wiki/getAttributes-and-getAttributesSync
 export function getAttributes(path: string, callback: (result?: Attributes) => void): boolean;
@@ -377,8 +377,8 @@ export function setAttributes(path: string, attributes: SetAttributes, callback:
 export function setAttributesSync(path: string, attributes: SetAttributes): boolean;
 
 // https://github.com/xxoo/node-fswin/wiki/setVolumeLabel-and-setVolumeLabelSync
-export function setVolumeLabel(path: string, label, callback: (succeeded: boolean) => void): boolean;
-export function setVolumeLabelSync(volume: string, label): boolean;
+export function setVolumeLabel(path: string, label: string, callback: (succeeded: boolean) => void): boolean;
+export function setVolumeLabelSync(volume: string, label: string): boolean;
 
 export namespace ntfs {
     // https://github.com/xxoo/node-fswin/wiki/getCompressedSize-and-getCompressedSizeSync
