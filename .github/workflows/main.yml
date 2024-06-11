@@ -9,14 +9,28 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x, 22.x]
+        python-version: [3.12]
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-      - name: install build tools
-        run: npm -g install windows-build-tools
-        shell: cmd
-      - name: build
-        run: node-gyp rebuild
-        shell: cmd
+    
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+    - name: Install msvc-dev-cmd
+      uses: ilammy/msvc-dev-cmd@v1.4.1
+      with:
+        arch: x64
+        
+    - name: build
+      run: npm -g install node-gyp
+      shell: cmd
+        
+    - name: build
+      run: node-gyp rebuild
+      shell: cmd
