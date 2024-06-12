@@ -1,4 +1,4 @@
-# Introduction ![](https://github.com/xxoo/node-fswin/actions/workflows/main.yml/badge.svg)
+# Introduction [![Build with node-gyp](https://github.com/xxoo/node-fswin/actions/workflows/main.yml/badge.svg)](https://github.com/xxoo/node-fswin/actions/workflows/main.yml)
 
 [`fswin`](https://www.npmjs.com/package/fswin) is a native [`node.js`](http://nodejs.org) add-on that works on windows.
 It has ported some platform specified filesystem APIs. And made them easy to use in javascript.
