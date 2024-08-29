@@ -3,7 +3,7 @@
 
 class setCompression {
 public:
-	static bool func(const wchar_t *path, const bool compress, const bool create) {
+	static bool func(const wchar_t* path, const bool compress, const bool create) {
 		bool result = false;
 		HANDLE hnd = CreateFileW(path, FILE_GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, NULL, create ? OPEN_ALWAYS : OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
 		if (hnd != INVALID_HANDLE_VALUE) {
@@ -26,7 +26,7 @@ private:
 		napi_async_work work;
 		napi_ref self;
 		napi_ref cb;
-		wchar_t *path;
+		wchar_t* path;
 		bool compress;
 		bool create;
 		bool result;
@@ -49,7 +49,7 @@ private:
 				napi_coerce_to_string(env, argv[0], &tmp);
 				napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
 				str_len += 1;
-				wchar_t *path = new wchar_t[str_len];
+				wchar_t* path = new wchar_t[str_len];
 				napi_get_value_string_utf16(env, tmp, (char16_t*)path, str_len, NULL);
 				bool compress = false, create = false;
 				if (argc > 1) {
@@ -80,7 +80,7 @@ private:
 				napi_valuetype t;
 				napi_typeof(env, argv[1], &t);
 				if (t == napi_function) {
-					cbdata *data = new cbdata;
+					cbdata* data = new cbdata;
 					data->compress = data->create = false;
 					size_t str_len;
 					napi_value tmp;
@@ -119,12 +119,12 @@ private:
 		}
 		return result;
 	}
-	static void execute(napi_env env, void *data) {
-		cbdata *d = (cbdata*)data;
+	static void execute(napi_env env, void* data) {
+		cbdata* d = (cbdata*)data;
 		d->result = func(d->path, d->compress, d->create);
 	}
-	static void complete(napi_env env, napi_status status, void *data) {
-		cbdata *d = (cbdata*)data;
+	static void complete(napi_env env, napi_status status, void* data) {
+		cbdata* d = (cbdata*)data;
 		delete[]d->path;
 		napi_value cb, self, argv;
 		napi_get_reference_value(env, d->cb, &cb);

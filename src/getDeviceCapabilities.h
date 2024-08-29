@@ -121,12 +121,12 @@ private:
 		}
 		return result;
 	}
-	static void execute(napi_env env, void *data) {
-		cbdata *d = (cbdata*)data;
+	static void execute(napi_env env, void* data) {
+		cbdata* d = (cbdata*)data;
 		d->result = func(d->DevInstId);
 	}
-	static void complete(napi_env env, napi_status status, void *data) {
-		cbdata *d = (cbdata*)data;
+	static void complete(napi_env env, napi_status status, void* data) {
+		cbdata* d = (cbdata*)data;
 		napi_value cb, self, argv = convert(env, d->result);
 		napi_get_reference_value(env, d->cb, &cb);
 		napi_get_reference_value(env, d->self, &self);

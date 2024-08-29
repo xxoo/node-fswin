@@ -3,8 +3,8 @@
 
 class convertPath {
 public:
-	static wchar_t *func(const wchar_t *path, bool islong) {//you need to delete the result yourself if it is not NULL
-		wchar_t *tpath;
+	static wchar_t* func(const wchar_t* path, bool islong) {//you need to delete the result yourself if it is not NULL
+		wchar_t* tpath;
 		DWORD sz = islong ? GetLongPathNameW(path, NULL, 0) : GetShortPathNameW(path, NULL, 0);
 		if (sz > 0) {
 			tpath = new wchar_t[sz];
@@ -24,9 +24,9 @@ private:
 		napi_async_work work;
 		napi_ref self;
 		napi_ref cb;
-		wchar_t *path;
+		wchar_t* path;
 		bool islong;
-		wchar_t *result;
+		wchar_t* result;
 	};
 	static napi_value sync(napi_env env, napi_callback_info info) {
 		napi_value result;
@@ -46,14 +46,14 @@ private:
 				napi_coerce_to_string(env, argv[0], &tmp);
 				napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
 				str_len += 1;
-				wchar_t *str = new wchar_t[str_len];
+				wchar_t* str = new wchar_t[str_len];
 				napi_get_value_string_utf16(env, tmp, (char16_t*)str, str_len, NULL);
 				bool islong = false;
 				if (argc > 1) {
 					napi_coerce_to_bool(env, argv[1], &tmp);
 					napi_get_value_bool(env, tmp, &islong);
 				}
-				wchar_t *s = func(str, islong);
+				wchar_t* s = func(str, islong);
 				delete[]str;
 				if (s) {
 					napi_create_string_utf16(env, (char16_t*)s, wcslen(s), &result);
@@ -79,7 +79,7 @@ private:
 				napi_valuetype t;
 				napi_typeof(env, argv[1], &t);
 				if (t == napi_function) {
-					cbdata *data = new cbdata;
+					cbdata* data = new cbdata;
 					data->islong = false;
 					size_t str_len;
 					napi_value tmp;
@@ -114,12 +114,12 @@ private:
 		}
 		return result;
 	}
-	static void execute(napi_env env, void *data) {
-		cbdata *d = (cbdata*)data;
+	static void execute(napi_env env, void* data) {
+		cbdata* d = (cbdata*)data;
 		d->result = func(d->path, d->islong);
 	}
-	static void complete(napi_env env, napi_status status, void *data) {
-		cbdata *d = (cbdata*)data;
+	static void complete(napi_env env, napi_status status, void* data) {
+		cbdata* d = (cbdata*)data;
 		delete[]d->path;
 		napi_value cb, self, argv;
 		napi_get_reference_value(env, d->cb, &cb);

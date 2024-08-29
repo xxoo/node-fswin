@@ -106,7 +106,7 @@ private:
 				napi_valuetype t;
 				napi_typeof(env, argv[2], &t);
 				if (t == napi_function) {
-					cbdata *data = new cbdata;
+					cbdata* data = new cbdata;
 					size_t str_len;
 					napi_value tmp;
 					napi_coerce_to_number(env, argv[1], &tmp);
@@ -141,12 +141,12 @@ private:
 		}
 		return result;
 	}
-	static void execute(napi_env env, void *data) {
-		cbdata *d = (cbdata*)data;
+	static void execute(napi_env env, void* data) {
+		cbdata* d = (cbdata*)data;
 		d->result = func(d->l, d->method);
 	}
-	static void complete(napi_env env, napi_status status, void *data) {
-		cbdata *d = (cbdata*)data;
+	static void complete(napi_env env, napi_status status, void* data) {
+		cbdata* d = (cbdata*)data;
 		napi_value cb, self, argv;
 		napi_get_reference_value(env, d->cb, &cb);
 		napi_get_reference_value(env, d->self, &self);

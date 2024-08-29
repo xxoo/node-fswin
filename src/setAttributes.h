@@ -14,7 +14,7 @@ public:
 		char unpinned;
 		char pinned;
 	};
-	static bool func(const wchar_t *file, const attrVal *attr) {
+	static bool func(const wchar_t* file, const attrVal* attr) {
 		bool result;
 		DWORD oldattr = GetFileAttributesW(file);
 		if (oldattr == INVALID_FILE_ATTRIBUTES) {
@@ -84,8 +84,8 @@ private:
 		napi_async_work work;
 		napi_ref self;
 		napi_ref cb;
-		wchar_t *path;
-		attrVal *attr;
+		wchar_t* path;
+		attrVal* attr;
 		bool result;
 	};
 	static napi_value sync(napi_env env, napi_callback_info info) {
@@ -107,9 +107,9 @@ private:
 					napi_coerce_to_string(env, argv[0], &tmp);
 					napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
 					str_len += 1;
-					wchar_t *str = new wchar_t[str_len];
+					wchar_t* str = new wchar_t[str_len];
 					napi_get_value_string_utf16(env, tmp, (char16_t*)str, str_len, NULL);
-					attrVal *attr = convert(env, argv[1]);
+					attrVal* attr = convert(env, argv[1]);
 					napi_get_boolean(env, func(str, attr), &result);
 					delete attr;
 					delete[]str;
@@ -136,7 +136,7 @@ private:
 				napi_typeof(env, argv[1], &t1);
 				napi_typeof(env, argv[2], &t);
 				if (t1 == napi_object && t == napi_function) {
-					cbdata *data = new cbdata;
+					cbdata* data = new cbdata;
 					size_t str_len;
 					napi_value tmp;
 					data->attr = convert(env, argv[1]);
@@ -167,8 +167,8 @@ private:
 		}
 		return result;
 	}
-	static attrVal *convert(napi_env env, napi_value attr) {//delete the result yourself
-		attrVal *result = new attrVal;
+	static attrVal* convert(napi_env env, napi_value attr) {//delete the result yourself
+		attrVal* result = new attrVal;
 		bool tmp;
 		napi_value val;
 		napi_has_named_property(env, attr, SYB_FILEATTR_ISARCHIVED, &tmp);
@@ -245,12 +245,12 @@ private:
 		}
 		return result;
 	}
-	static void execute(napi_env env, void *data) {
-		cbdata *d = (cbdata*)data;
+	static void execute(napi_env env, void* data) {
+		cbdata* d = (cbdata*)data;
 		d->result = func(d->path, d->attr);
 	}
-	static void complete(napi_env env, napi_status status, void *data) {
-		cbdata *d = (cbdata*)data;
+	static void complete(napi_env env, napi_status status, void* data) {
+		cbdata* d = (cbdata*)data;
 		delete[]d->path;
 		delete d->attr;
 		napi_value cb, self, argv;

@@ -5,12 +5,12 @@ class find {
 public:
 	const struct resultData {//this is a linked table
 		WIN32_FIND_DATAW data;
-		resultData *next;
+		resultData* next;
 	};
 	//progressive callback type, if this callback returns true, the search will stop immediately. the contents of info will be rewritten or released after the callback returns, so make a copy before starting a new thread if you still need to use it
-	typedef bool(*findResultCall)(const WIN32_FIND_DATAW *info, void *data);
-	static resultData *func(const wchar_t *path) {//you have to delete every linked data yourself if it is not NULL
-		resultData *result = new resultData;
+	typedef bool(*findResultCall)(const WIN32_FIND_DATAW* info, void* data);
+	static resultData* func(const wchar_t* path) {//you have to delete every linked data yourself if it is not NULL
+		resultData* result = new resultData;
 		CHAR bak;
 		if (RtlSetThreadPlaceholderCompatibilityMode) {
 			bak = RtlSetThreadPlaceholderCompatibilityMode(2);
@@ -20,7 +20,7 @@ public:
 			delete result;
 			result = NULL;
 		} else {
-			resultData *resultnew, *resultold;
+			resultData* resultnew,* resultold;
 			if (isValidInfo(&result->data)) {
 				resultnew = new resultData;
 				resultold = result;
@@ -53,7 +53,7 @@ public:
 		}
 		return result;
 	}
-	static DWORD funcWithCallback(const wchar_t *path, const findResultCall callback, void *data) {//data could be anything that will directly pass to the callback
+	static DWORD funcWithCallback(const wchar_t* path, const findResultCall callback, void* data) {//data could be anything that will directly pass to the callback
 		WIN32_FIND_DATAW info;
 		CHAR bak;
 		if (RtlSetThreadPlaceholderCompatibilityMode) {
@@ -95,7 +95,7 @@ private:
 		napi_async_work work;
 		napi_ref self;
 		napi_ref cb;
-		void *data;
+		void* data;
 		//the following data is only used in progressive mode
 		HANDLE hnd;
 		size_t count;
@@ -119,7 +119,7 @@ private:
 				napi_coerce_to_string(env, argv[0], &tmp);
 				napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
 				str_len += 1;
-				wchar_t *str = new wchar_t[str_len];
+				wchar_t* str = new wchar_t[str_len];
 				napi_get_value_string_utf16(env, tmp, (char16_t*)str, str_len, NULL);
 				if (argc > 1) {
 					napi_valuetype t;
@@ -154,7 +154,7 @@ private:
 				napi_typeof(env, argv[1], &t);
 				if (t == napi_function) {
 					bool isProgressive = false;
-					asyncCbData *data = new asyncCbData;
+					asyncCbData* data = new asyncCbData;
 					size_t str_len;
 					napi_value tmp;
 					napi_coerce_to_string(env, argv[0], &tmp);
@@ -195,10 +195,10 @@ private:
 		}
 		return result;
 	}
-	static bool isValidInfo(const WIN32_FIND_DATAW *info) {//determine whether it is the real content 
+	static bool isValidInfo(const WIN32_FIND_DATAW* info) {//determine whether it is the real content 
 		return wcscmp(info->cFileName, L".") != 0 && wcscmp(info->cFileName, L"..") != 0;
 	}
-	static napi_value resultDataToArray(napi_env env, resultData *r) {
+	static napi_value resultDataToArray(napi_env env, resultData* r) {
 		napi_value result;
 		napi_create_array(env, &result);
 		if (r) {
@@ -208,14 +208,14 @@ private:
 			while (r) {
 				tmp = convert(env, &r->data);
 				napi_call_function(env, result, push, 1, &tmp, NULL);
-				resultData *n = r->next;
+				resultData* n = r->next;
 				delete r;
 				r = n;
 			}
 		}
 		return result;
 	}
-	static napi_value convert(napi_env env, const WIN32_FIND_DATAW *info) {
+	static napi_value convert(napi_env env, const WIN32_FIND_DATAW* info) {
 		napi_value result, tmp, date;
 		napi_create_object(env, &result);
 		napi_get_global(env, &date);
@@ -381,19 +381,19 @@ private:
 		napi_set_named_property(env, result, "REPARSE_POINT_TAG", tmp);
 		return result;
 	}
-	static bool syncCallback(const WIN32_FIND_DATAW *info, void *data) {
+	static bool syncCallback(const WIN32_FIND_DATAW* info, void* data) {
 		bool result;
-		syncCbData *d = (syncCbData*)data;
+		syncCbData* d = (syncCbData*)data;
 		napi_value res, o = convert(d->env, info);
 		napi_call_function(d->env, d->self, d->cb, 1, &o, &res);
 		napi_coerce_to_bool(d->env, res, &res);
 		napi_get_value_bool(d->env, res, &result);
 		return result;
 	}
-	static void execute(napi_env env, void *data) {
-		asyncCbData *d = (asyncCbData*)data;
+	static void execute(napi_env env, void* data) {
+		asyncCbData* d = (asyncCbData*)data;
 		if (d->hnd) {
-			WIN32_FIND_DATAW *info = new WIN32_FIND_DATAW;
+			WIN32_FIND_DATAW* info = new WIN32_FIND_DATAW;
 			if (d->hnd == INVALID_HANDLE_VALUE) {
 				CHAR bak;
 				if ((void*)RtlSetThreadPlaceholderCompatibilityMode) {
@@ -445,13 +445,13 @@ private:
 				d->data = info;
 			}
 		} else {
-			resultData *rdata = func((wchar_t*)d->data);
+			resultData* rdata = func((wchar_t*)d->data);
 			delete[]d->data;
 			d->data = rdata;
 		}
 	}
-	static void complete(napi_env env, napi_status status, void *data) {
-		asyncCbData *d = (asyncCbData*)data;
+	static void complete(napi_env env, napi_status status, void* data) {
+		asyncCbData* d = (asyncCbData*)data;
 		napi_value cb, self;
 		napi_get_reference_value(env, d->cb, &cb);
 		napi_get_reference_value(env, d->self, &self);

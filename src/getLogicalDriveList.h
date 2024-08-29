@@ -77,7 +77,7 @@ private:
 				napi_valuetype t;
 				napi_typeof(env, argv, &t);
 				if (t == napi_function) {
-					cbdata *data = new cbdata;
+					cbdata* data = new cbdata;
 					napi_value tmp;
 					napi_create_reference(env, argv, 1, &data->cb);
 					napi_create_reference(env, self, 1, &data->self);
@@ -129,12 +129,12 @@ private:
 		}
 		return result;
 	}
-	static void execute(napi_env env, void *data) {
-		cbdata *d = (cbdata*)data;
+	static void execute(napi_env env, void* data) {
+		cbdata* d = (cbdata*)data;
 		d->result = func();
 	}
-	static void complete(napi_env env, napi_status status, void *data) {
-		cbdata *d = (cbdata*)data;
+	static void complete(napi_env env, napi_status status, void* data) {
+		cbdata* d = (cbdata*)data;
 		napi_value cb, self, argv;
 		napi_get_reference_value(env, d->cb, &cb);
 		napi_get_reference_value(env, d->self, &self);

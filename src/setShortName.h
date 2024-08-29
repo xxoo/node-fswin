@@ -3,7 +3,7 @@
 
 class setShortName {
 public:
-	static bool func(const wchar_t *path, const wchar_t *newname) {
+	static bool func(const wchar_t* path, const wchar_t* newname) {
 		bool result;
 		if (ensurePrivilege("SeRestorePrivilege")) {//make sure the process has SE_RESTORE_NAME privilege
 			HANDLE hnd = CreateFileW(path, GENERIC_WRITE | DELETE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
@@ -28,8 +28,8 @@ private:
 		napi_async_work work;
 		napi_ref self;
 		napi_ref cb;
-		wchar_t *path;
-		wchar_t *newname;
+		wchar_t* path;
+		wchar_t* newname;
 		bool result;
 	};
 	static napi_value sync(napi_env env, napi_callback_info info) {
@@ -50,12 +50,12 @@ private:
 				napi_coerce_to_string(env, argv[0], &tmp);
 				napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
 				str_len += 1;
-				wchar_t *path = new wchar_t[str_len];
+				wchar_t* path = new wchar_t[str_len];
 				napi_get_value_string_utf16(env, tmp, (char16_t*)path, str_len, NULL);
 				napi_coerce_to_string(env, argv[1], &tmp);
 				napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
 				str_len += 1;
-				wchar_t *newname = new wchar_t[str_len];
+				wchar_t* newname = new wchar_t[str_len];
 				napi_get_value_string_utf16(env, tmp, (char16_t*)path, str_len, NULL);
 				napi_get_boolean(env, func(path, newname), &result);
 				delete[]path;
@@ -78,7 +78,7 @@ private:
 				napi_valuetype t;
 				napi_typeof(env, argv[2], &t);
 				if (t == napi_function) {
-					cbdata *data = new cbdata;
+					cbdata* data = new cbdata;
 					size_t str_len;
 					napi_value tmp;
 					napi_create_reference(env, argv[2], 1, &data->cb);
@@ -114,12 +114,12 @@ private:
 		}
 		return result;
 	}
-	static void execute(napi_env env, void *data) {
-		cbdata *d = (cbdata*)data;
+	static void execute(napi_env env, void* data) {
+		cbdata* d = (cbdata*)data;
 		d->result = func(d->path, d->newname);
 	}
-	static void complete(napi_env env, napi_status status, void *data) {
-		cbdata *d = (cbdata*)data;
+	static void complete(napi_env env, napi_status status, void* data) {
+		cbdata* d = (cbdata*)data;
 		delete[]d->path;
 		delete[]d->newname;
 		napi_value cb, self, argv;

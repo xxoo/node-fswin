@@ -7,10 +7,10 @@ public:
 		ULONGLONG totalSpace;
 		ULONGLONG freeSpace;
 	};
-	static spaces *func(const wchar_t *path) {//you need to delete the result yourself if it is not NULL
+	static spaces* func(const wchar_t* path) {//you need to delete the result yourself if it is not NULL
 		ULARGE_INTEGER u1;
 		ULARGE_INTEGER u2;
-		spaces *result;
+		spaces* result;
 		if (GetDiskFreeSpaceExW(path, &u1, &u2, NULL)) {
 			result = new spaces;
 			result->freeSpace = u1.QuadPart;
@@ -30,8 +30,8 @@ private:
 		napi_async_work work;
 		napi_ref self;
 		napi_ref cb;
-		wchar_t *path;
-		spaces *result;
+		wchar_t* path;
+		spaces* result;
 	};
 	static napi_value sync(napi_env env, napi_callback_info info) {
 		napi_value result;
@@ -51,9 +51,9 @@ private:
 				napi_coerce_to_string(env, argv, &tmp);
 				napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
 				str_len += 1;
-				wchar_t *str = new wchar_t[str_len];
+				wchar_t* str = new wchar_t[str_len];
 				napi_get_value_string_utf16(env, tmp, (char16_t*)str, str_len, NULL);
-				spaces *r = func(str);
+				spaces* r = func(str);
 				delete[]str;
 				if (r) {
 					result = convert(env, r);
@@ -79,7 +79,7 @@ private:
 				napi_valuetype t;
 				napi_typeof(env, argv[1], &t);
 				if (t == napi_function) {
-					cbdata *data = new cbdata;
+					cbdata* data = new cbdata;
 					size_t str_len;
 					napi_value tmp;
 					napi_create_reference(env, argv[1], 1, &data->cb);
@@ -109,7 +109,7 @@ private:
 		}
 		return result;
 	}
-	static napi_value convert(napi_env env, spaces *data) {
+	static napi_value convert(napi_env env, spaces* data) {
 		napi_value tmp, result;
 		napi_create_object(env, &result);
 		napi_create_int64(env, data->freeSpace, &tmp);
@@ -118,12 +118,12 @@ private:
 		napi_set_named_property(env, result, "TOTAL", tmp);
 		return result;
 	}
-	static void execute(napi_env env, void *data) {
-		cbdata *d = (cbdata*)data;
+	static void execute(napi_env env, void* data) {
+		cbdata* d = (cbdata*)data;
 		d->result = func(d->path);
 	}
-	static void complete(napi_env env, napi_status status, void *data) {
-		cbdata *d = (cbdata*)data;
+	static void complete(napi_env env, napi_status status, void* data) {
+		cbdata* d = (cbdata*)data;
 		delete[]d->path;
 		napi_value cb, self, argv;
 		napi_get_reference_value(env, d->cb, &cb);

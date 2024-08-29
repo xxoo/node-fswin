@@ -35,7 +35,7 @@ private:
 				napi_coerce_to_string(env, argv[0], &tmp);
 				napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
 				str_len += 1;
-				wchar_t *path = new wchar_t[str_len];
+				wchar_t* path = new wchar_t[str_len];
 				napi_get_value_string_utf16(env, tmp, (char16_t*)path, str_len, NULL);
 				napi_coerce_to_string(env, argv[1], &tmp);
 				napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
@@ -63,7 +63,7 @@ private:
 				napi_valuetype t;
 				napi_typeof(env, argv[2], &t);
 				if (t == napi_function) {
-					cbdata *data = new cbdata;
+					cbdata* data = new cbdata;
 					size_t str_len;
 					napi_value tmp;
 					napi_create_reference(env, argv[2], 1, &data->cb);
@@ -99,12 +99,12 @@ private:
 		}
 		return result;
 	}
-	static void execute(napi_env env, void *data) {
-		cbdata *d = (cbdata*)data;
+	static void execute(napi_env env, void* data) {
+		cbdata* d = (cbdata*)data;
 		d->result = SetVolumeLabelW(d->path, d->label);
 	}
-	static void complete(napi_env env, napi_status status, void *data) {
-		cbdata *d = (cbdata*)data;
+	static void complete(napi_env env, napi_status status, void* data) {
+		cbdata* d = (cbdata*)data;
 		delete[]d->path;
 		delete[]d->label;
 		napi_value cb, self, argv;

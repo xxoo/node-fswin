@@ -5,10 +5,10 @@ class splitPath {
 public:
 	const struct splitedPath {
 		DWORD parentLen;//the length of the parent
-		const wchar_t *name;//this could also be considered as the start position of the name
+		const wchar_t* name;//this could also be considered as the start position of the name
 	};
-	static splitedPath *func(const wchar_t *path) {//you need to delete the return value your self
-		const wchar_t *s = L"\\\\", s1 = L'\\';
+	static splitedPath* func(const wchar_t* path) {//you need to delete the return value your self
+		const wchar_t* s = L"\\\\", s1 = L'\\';
 		DWORD i, j = 0, k = 0, l = (DWORD)wcslen(path), m = (DWORD)wcslen(s);
 		if (wcsncmp(s, path, m) == 0) {//is network path
 			for (i = m + 1; i < l - 1; i++) {
@@ -44,7 +44,7 @@ public:
 				}
 			}
 		}
-		splitedPath *r = new splitedPath;
+		splitedPath* r = new splitedPath;
 		r->parentLen = j;
 		r->name = &path[j > 0 ? j + k : j];
 		return r;
@@ -73,9 +73,9 @@ private:
 				napi_coerce_to_string(env, argv, &tmp);
 				napi_get_value_string_utf16(env, tmp, NULL, 0, &str_len);
 				str_len += 1;
-				wchar_t *str = new wchar_t[str_len];
+				wchar_t* str = new wchar_t[str_len];
 				napi_get_value_string_utf16(env, tmp, (char16_t*)str, str_len, NULL);
-				splitedPath *s = func(str);
+				splitedPath* s = func(str);
 				napi_create_object(env, &result);
 				napi_create_string_utf16(env, (char16_t*)str, s->parentLen, &tmp);
 				napi_set_named_property(env, result, "PARENT", tmp);
