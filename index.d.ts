@@ -16,7 +16,15 @@ export declare module DirWatcher {
         NEW_NAME?: string;
     }
 
-    export type Event = 'STARTED' | 'MOVED' | 'ADDED' | 'REMOVED' | 'MODIFIED' | 'RENAMED' | 'ENDED' | 'ERROR';
+    export type Event =
+        | 'STARTED'
+        | 'MOVED'
+        | 'ADDED'
+        | 'REMOVED'
+        | 'MODIFIED'
+        | 'RENAMED'
+        | 'ENDED'
+        | 'ERROR';
 }
 
 export enum EjectDriveMethod {
@@ -54,8 +62,56 @@ export declare module Find {
         IS_EA: boolean;
         IS_PINNED: boolean;
         IS_UNPINNED: boolean;
-        REPARSE_POINT_TAG: string;
+        REPARSE_POINT_TAG: ReparsePointTagType;
     }
+
+    export type ReparsePointTagType =
+        | 'MOUNT_POINT'
+        | 'HSM'
+        | 'HSM2'
+        | 'SIS'
+        | 'WIM'
+        | 'CSV'
+        | 'DFS'
+        | 'SYMLINK'
+        | 'DFSR'
+        | 'DEDUP'
+        | 'NFS'
+        | 'FILE_PLACEHOLDER'
+        | 'WOF'
+        | 'WCI'
+        | 'WCI_1'
+        | 'GLOBAL_REPARSE'
+        | 'CLOUD'
+        | 'CLOUD_1'
+        | 'CLOUD_2'
+        | 'CLOUD_3'
+        | 'CLOUD_4'
+        | 'CLOUD_5'
+        | 'CLOUD_6'
+        | 'CLOUD_7'
+        | 'CLOUD_8'
+        | 'CLOUD_9'
+        | 'CLOUD_A'
+        | 'CLOUD_B'
+        | 'CLOUD_C'
+        | 'CLOUD_D'
+        | 'CLOUD_E'
+        | 'CLOUD_F'
+        | 'CLOUD_MASK'
+        | 'APPEXECLINK'
+        | 'PROJFS'
+        | 'STORAGE_SYNC'
+        | 'WCI_TOMBSTONE'
+        | 'UNHANDLED'
+        | 'ONEDRIVE'
+        | 'PROJFS_TOMBSTONE'
+        | 'AF_UNIX'
+        | 'WCI_LINK'
+        | 'WCI_LINK_1'
+        | 'DATALESS_CIM'
+        | ''
+        | number;
 
     export type Event = 'FOUND' | 'SUCCEEDED'
 
@@ -128,7 +184,14 @@ export interface DriveDevice {
     parentDeviceId: string;
 }
 
-export type DriveType = string;
+export type DriveType =
+    | 'NO_ROOT_DIR'
+    | 'REMOVABLE'
+    | 'FIXED'
+    | 'REMOTE'
+    | 'CDROM'
+    | 'RAMDISK'
+    | 'UNKNOWN';
 export interface LogicalDriveList {
     [driveLetter: string]: DriveType;
 }
@@ -152,10 +215,62 @@ export declare module StorageProperties {
         adapterSerialNumber?: boolean
     }
 
+    export type BusType =
+        | 'SCSI'
+        | 'ATAPI'
+        | 'ATA'
+        | '1394'
+        | 'SSA'
+        | 'Fibre'
+        | 'USB'
+        | 'RAID'
+        | 'iSCSI'
+        | 'SAS'
+        | 'SATA'
+        | 'SD'
+        | 'MMC'
+        | 'Virtual'
+        | 'FileBackedVirtual'
+        | 'Spaces'
+        | 'NVMe'
+        | 'SCM'
+        | 'UFS'
+        | number;
+
+    export type SrbType =
+        | 'SCSIRequestBlock'
+        | 'StorageRequestBlock'
+        | number;
+
+    export type WriteCacheType =
+        | 'unknown'
+        | 'none'
+        | 'writeBack'
+        | 'writeThrough'
+        | number;
+
+    export type WriteCacheEnabledType =
+        | 'unknown'
+        | 'disabled'
+        | 'enabled'
+        | number;
+
+    export type WriteCacheChangeableType =
+        | 'unknown'
+        | 'notChangeable'
+        | 'changeable'
+        | number;
+
+    export type WriteCacheWriteThroughSupportedType =
+        | 'unknown'
+        | 'notSupported'
+        | 'supported'
+        | number;
+
     export interface DeviceProperty {
         deviceType: number;
         deviceTypeModifier: number;
-        busType: string;
+        busType: BusType;
         commandQueueing: boolean;
         removableMedia: boolean;
         vendorId: string;
@@ -174,16 +289,16 @@ export declare module StorageProperties {
         acceleratedTransfer: boolean;
         busMajorVersion: number;
         busMinorVersion: number;
-        busType: string;
-        srbType: string;
+        busType: BusType;
+        srbType: SrbType;
         addressType: string;
     }
 
     export interface DeviceWriteCacheProperty {
-        type: string;
-        isEnabled: string;
-        isChangeable: string;
-        isWriteThroughSupported: string;
+        type: WriteCacheType;
+        isEnabled: WriteCacheEnabledType;
+        isChangeable: WriteCacheChangeableType;
+        isWriteThroughSupported: WriteCacheWriteThroughSupportedType;
         flushCacheSupported: boolean;
         userDefinedPowerProtection: boolean;
         NVCacheEnabled: boolean;
@@ -231,6 +346,16 @@ export declare module StorageProperties {
         optimalTransferLengthGranularity: number;
     }
 
+    export type DeviceMediumProductType =
+        | 'CFast'
+        | 'CompactFlash'
+        | 'MemoryStick'
+        | 'MultiMediaCard'
+        | 'SecureDigitalCard'
+        | 'QXD'
+        | 'UniversalFlashStorage'
+        | number;
+
     export interface AdapterRpmbProperty {
         sizeInBytes: number;
         maxReliableWriteSizeInBytes: number;
@@ -268,7 +393,7 @@ export declare module StorageProperties {
         deviceLBProvisioningProperty: DeviceLBProvisioningProperty;
         devicePowerProperty: DevicePowerProperty;
         deviceCopyOffloadProperty: DeviceCopyOffloadProperty;
-        deviceMediumProductType: number;
+        deviceMediumProductType: DeviceMediumProductType;
         adapterRpmbProperty: AdapterRpmbProperty;
         deviceIoCapabilityProperty: DeviceIoCapabilityProperty;
         deviceTemperatureProperty: DeviceTemperatureProperty;
