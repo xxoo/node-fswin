@@ -28,5 +28,5 @@ jobs:
       shell: cmd
 
     - name: Test
-      run: node test.js
+      run: node test.mjs
       shell: cmd
