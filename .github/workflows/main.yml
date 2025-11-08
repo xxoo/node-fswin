@@ -23,6 +23,10 @@ jobs:
       run: npm -g install node-gyp
       shell: cmd
         
-    - name: build
+    - name: Build
       run: node-gyp rebuild
+      shell: cmd
+
+    - name: Test
+      run: node test.js
       shell: cmd
