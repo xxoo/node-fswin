@@ -11,7 +11,8 @@ public:
 				wchar_t* devid = getDriveDevice::getDevInstIdByDevInst(DevInst);
 				if (devid) {
 					if (method == 1) {
-						DWORD cap = getDeviceCapabilities::func(devid);
+						DWORD cap;
+						getDeviceCapabilities::func(devid, &cap);
 						if (cap & CM_DEVCAP_SURPRISEREMOVALOK) {
 							if (cap & CM_DEVCAP_DOCKDEVICE) {
 								ensurePrivilege("SeLoadDriverPrivilege");

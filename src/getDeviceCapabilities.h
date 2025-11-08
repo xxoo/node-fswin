@@ -3,16 +3,18 @@
 
 class getDeviceCapabilities {
 public:
-	static DWORD func(wchar_t* devid) {
+	static bool func(wchar_t* devid, DWORD* cap) {
 		HDEVINFO hDevInfo = SetupDiGetClassDevsW(NULL, devid, NULL, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE | DIGCF_ALLCLASSES);
-		DWORD cap = 0;
-		SP_DEVINFO_DATA spdd;
-		spdd.cbSize = sizeof(SP_DEVINFO_DATA);
-		if (SetupDiEnumDeviceInfo(hDevInfo, 0, &spdd)) {
-			SetupDiGetDeviceRegistryPropertyA(hDevInfo, &spdd, SPDRP_CAPABILITIES, NULL, (BYTE*)&cap, sizeof(DWORD), NULL);
+		if (hDevInfo != INVALID_HANDLE_VALUE) {
+			SP_DEVINFO_DATA spdd{};
+			spdd.cbSize = sizeof(SP_DEVINFO_DATA);
+			if (SetupDiEnumDeviceInfo(hDevInfo, 0, &spdd)) {
+				SetupDiGetDeviceRegistryPropertyA(hDevInfo, &spdd, SPDRP_CAPABILITIES, NULL, (BYTE*)cap, sizeof(DWORD), NULL);
+			}
+			SetupDiDestroyDeviceInfoList(hDevInfo);
+			return true;
 		}
-		SetupDiDestroyDeviceInfoList(hDevInfo);
-		return cap;
+		return false;
 	}
 	static napi_value init(napi_env env, bool isSync = false) {
 		napi_value f;
@@ -26,6 +28,7 @@ private:
 		napi_ref cb;
 		wchar_t* DevInstId;
 		DWORD result;
+		bool success;
 	};
 	static napi_value convert(napi_env env, DWORD data) {
 		napi_value tmp, result;
@@ -72,7 +75,12 @@ private:
 				str_len += 1;
 				wchar_t* DevInstId = new wchar_t[str_len];
 				napi_get_value_string_utf16(env, tmp, (char16_t*)DevInstId, str_len, NULL);
-				result = convert(env, func(DevInstId));
+				DWORD cap = 0;
+				if (func(DevInstId, &cap)) {
+					result = convert(env, cap);
+				} else {
+					napi_get_null(env, &result);
+				}
 			}
 		}
 		return result;
@@ -123,18 +131,23 @@ private:
 	}
 	static void execute(napi_env env, void* data) {
 		cbdata* d = (cbdata*)data;
-		d->result = func(d->DevInstId);
+		d->success = func(d->DevInstId, &d->result);
 	}
 	static void complete(napi_env env, napi_status status, void* data) {
 		cbdata* d = (cbdata*)data;
-		napi_value cb, self, argv = convert(env, d->result);
+		delete[]d->DevInstId;
+		napi_value cb, self, argv;
+		if (d->success) {
+			argv = convert(env, d->result);
+		} else {
+			napi_get_null(env, &argv);
+		}
 		napi_get_reference_value(env, d->cb, &cb);
 		napi_get_reference_value(env, d->self, &self);
 		napi_call_function(env, self, cb, 1, &argv, NULL);
 		napi_delete_reference(env, d->cb);
 		napi_delete_reference(env, d->self);
 		napi_delete_async_work(env, d->work);
-		delete[]d->DevInstId;
 		delete d;
 	}
 };

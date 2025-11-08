@@ -54,7 +54,7 @@ public:
 		return result;
 	}
 	static DWORD funcWithCallback(const wchar_t* path, const findResultCall callback, void* data) {//data could be anything that will directly pass to the callback
-		WIN32_FIND_DATAW info;
+		WIN32_FIND_DATAW info{};
 		CHAR bak;
 		if (RtlSetThreadPlaceholderCompatibilityMode) {
 			bak = RtlSetThreadPlaceholderCompatibilityMode(2);
@@ -502,7 +502,7 @@ private:
 		}
 		if (finish) {
 			if (finish > 1) {
-				napi_value argv[2];
+				napi_value argv[2]{};
 				napi_create_string_latin1(env, "FAILED", NAPI_AUTO_LENGTH, &argv[0]);
 				napi_create_int64(env, (int64_t)d->count, &argv[1]);
 				napi_call_function(env, self, cb, 2, (napi_value*)&argv, NULL);

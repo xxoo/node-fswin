@@ -16,7 +16,7 @@ public:
 			char* p2 = &p1[4];
 			HANDLE hVolume = CreateFileA(p1, 0, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
 			if (hVolume != INVALID_HANDLE_VALUE) {
-				STORAGE_DEVICE_NUMBER sdn;
+				STORAGE_DEVICE_NUMBER sdn{};
 				DWORD dwBytesReturned = 0;
 				if (DeviceIoControl(hVolume, IOCTL_STORAGE_GET_DEVICE_NUMBER, NULL, 0, &sdn, sizeof(STORAGE_DEVICE_NUMBER), &dwBytesReturned, NULL)) {
 					CloseHandle(hVolume);
@@ -138,6 +138,10 @@ private:
 		napi_set_named_property(env, result, "deviceId", tmp);
 		napi_create_string_utf16(env, (char16_t*)inf->parentDeviceId, NAPI_AUTO_LENGTH, &tmp);
 		napi_set_named_property(env, result, "parentDeviceId", tmp);
+		free(inf->pspdidd);
+		delete[]inf->deviceId;
+		delete[]inf->parentDeviceId;
+		delete inf;
 		return result;
 	}
 	static napi_value sync(napi_env env, napi_callback_info info) {
@@ -150,9 +154,7 @@ private:
 			napi_value argv;
 			size_t argc = 1;
 			napi_get_cb_info(env, info, &argc, &argv, NULL, NULL);
-			if (argc < 1) {
-				napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
-			} else {
+			if (argc > 0) {
 				size_t str_len;
 				napi_value tmp;
 				napi_coerce_to_string(env, argv, &tmp);
@@ -163,13 +165,14 @@ private:
 					infor* inf = func(path[0]);
 					if (inf) {
 						result = convert(env, inf);
-						free(inf->pspdidd);
-						delete[]inf->deviceId;
-						delete[]inf->parentDeviceId;
-						delete inf;
+					} else {
+						napi_get_null(env, &result);
 					}
 				}
 			}
+		}
+		if (!result) {
+			napi_throw_error(env, SYB_EXP_INVAL, SYB_ERR_WRONG_ARGUMENTS);
 		}
 		return result;
 	}
@@ -229,12 +232,8 @@ private:
 		napi_get_reference_value(env, d->self, &self);
 		if (d->result) {
 			argv = convert(env, d->result);
-			free(d->result->pspdidd);
-			delete[]d->result->deviceId;
-			delete[]d->result->parentDeviceId;
-			delete d->result;
 		} else {
-			argv = NULL;
+			napi_get_null(env, &argv);
 		}
 		napi_call_function(env, self, cb, 1, &argv, NULL);
 		napi_delete_reference(env, d->cb);

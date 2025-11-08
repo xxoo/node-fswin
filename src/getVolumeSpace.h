@@ -57,7 +57,6 @@ private:
 				delete[]str;
 				if (r) {
 					result = convert(env, r);
-					delete r;
 				} else {
 					napi_get_null(env, &result);
 				}
@@ -116,6 +115,7 @@ private:
 		napi_set_named_property(env, result, "FREE", tmp);
 		napi_create_int64(env, data->totalSpace, &tmp);
 		napi_set_named_property(env, result, "TOTAL", tmp);
+		delete data;
 		return result;
 	}
 	static void execute(napi_env env, void* data) {
@@ -128,9 +128,8 @@ private:
 		napi_value cb, self, argv;
 		napi_get_reference_value(env, d->cb, &cb);
 		napi_get_reference_value(env, d->self, &self);
-		if (status == napi_ok && d->result) {
+		if (d->result) {
 			argv = convert(env, d->result);
-			delete d->result;
 		} else {
 			napi_get_null(env, &argv);
 		}

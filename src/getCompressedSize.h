@@ -3,13 +3,12 @@
 
 class getCompressedSize {
 public:
-	static ULONGLONG func(const wchar_t* path) {
-		ULARGE_INTEGER u;
-		u.LowPart = GetCompressedFileSizeW(path, &u.HighPart);
-		if (u.LowPart == INVALID_FILE_SIZE && GetLastError() != NO_ERROR) {
-			u.QuadPart = 0;
+	static bool func(const wchar_t* path, ULARGE_INTEGER* u) {
+		u->LowPart = GetCompressedFileSizeW(path, &u->HighPart);
+		if (u->LowPart == INVALID_FILE_SIZE && GetLastError() != NO_ERROR) {
+			return false;
 		}
-		return u.QuadPart;
+		return true;
 	}
 	static napi_value init(napi_env env, bool isSync = false) {
 		napi_value f;
@@ -22,7 +21,8 @@ private:
 		napi_ref self;
 		napi_ref cb;
 		wchar_t* path;
-		ULONGLONG result;
+		ULARGE_INTEGER result;
+		bool success;
 	};
 	static napi_value sync(napi_env env, napi_callback_info info) {
 		napi_value result;
@@ -44,7 +44,12 @@ private:
 				str_len += 1;
 				wchar_t* str = new wchar_t[str_len];
 				napi_get_value_string_utf16(env, tmp, (char16_t*)str, str_len, NULL);
-				napi_create_int64(env, func(str), &result);
+				ULARGE_INTEGER u;
+				if (func(str, &u)) {
+					napi_create_int64(env, u.QuadPart, &result);
+				} else {
+					napi_get_null(env, &result);
+				}
 				delete[]str;
 			}
 		}
@@ -96,16 +101,16 @@ private:
 	}
 	static void execute(napi_env env, void* data) {
 		cbdata* d = (cbdata*)data;
-		d->result = func(d->path);
-		delete[]d->path;
+		d->success = func(d->path, &d->result);
 	}
 	static void complete(napi_env env, napi_status status, void* data) {
 		cbdata* d = (cbdata*)data;
+		delete[]d->path;
 		napi_value cb, self, argv;
 		napi_get_reference_value(env, d->cb, &cb);
 		napi_get_reference_value(env, d->self, &self);
-		if (status == napi_ok) {
-			napi_create_int64(env, d->result, &argv);
+		if (d->success) {
+			napi_create_int64(env, d->result.QuadPart, &argv);
 		} else {
 			napi_get_null(env, &argv);
 		}

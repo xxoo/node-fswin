@@ -14,7 +14,8 @@ private:
 		napi_ref self;
 		napi_ref cb;
 		wchar_t* path;
-		BY_HANDLE_FILE_INFORMATION* result;
+		BY_HANDLE_FILE_INFORMATION result;
+		bool success;
 	};
 	static napi_value sync(napi_env env, napi_callback_info info) {
 		napi_value result;
@@ -168,16 +169,12 @@ private:
 	}
 	static void execute(napi_env env, void* data) {
 		cbdata* d = (cbdata*)data;
-		d->result = new BY_HANDLE_FILE_INFORMATION;
 		CHAR bak;
 		if (RtlSetThreadPlaceholderCompatibilityMode) {
 			bak = RtlSetThreadPlaceholderCompatibilityMode(2);
 		}
 		HANDLE h = CreateFileW(d->path, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, NULL);
-		if (!GetFileInformationByHandle(h, d->result)) {
-			delete d->result;
-			d->result = NULL;
-		}
+		d->success = GetFileInformationByHandle(h, &d->result);
 		if (h != INVALID_HANDLE_VALUE) {
 			CloseHandle(h);
 		}
@@ -191,9 +188,8 @@ private:
 		napi_value cb, self, argv;
 		napi_get_reference_value(env, d->cb, &cb);
 		napi_get_reference_value(env, d->self, &self);
-		if (status == napi_ok && d->result) {
-			argv = convert(env, d->result);
-			delete d->result;
+		if (d->success) {
+			argv = convert(env, &d->result);
 		} else {
 			napi_get_null(env, &argv);
 		}

@@ -124,7 +124,7 @@ private:
 		napi_value cb, self, argv;
 		napi_get_reference_value(env, d->cb, &cb);
 		napi_get_reference_value(env, d->self, &self);
-		if (status == napi_ok && d->result) {
+		if (d->result) {
 			napi_create_string_utf16(env, (char16_t*)d->result, wcslen(d->result), &argv);
 			delete[]d->result;
 		} else {

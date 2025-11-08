@@ -119,7 +119,7 @@ private:
 		napi_value cb, self, argv;
 		napi_get_reference_value(env, d->cb, &cb);
 		napi_get_reference_value(env, d->self, &self);
-		napi_get_boolean(env, status == napi_ok && d->result, &argv);
+		napi_get_boolean(env, d->result, &argv);
 		napi_call_function(env, self, cb, 1, &argv, NULL);
 		napi_delete_reference(env, d->cb);
 		napi_delete_reference(env, d->self);
