@@ -130,7 +130,10 @@ const { test } = require('node:test');
 						setTimeout(() => {
 							fs.writeFileSync(scratch.watchTarget, 'watch-start');
 							setTimeout(() => {
-								fs.renameSync(scratch.watchDir, scratch.watchDir + '_moved');
+								fs.appendFileSync(scratch.watchTarget, '-updated');
+								setTimeout(() => {
+									fs.renameSync(scratch.watchDir, scratch.watchDir + '_moved');
+								}, 200);
 							}, 200);
 						}, 100);
 					} else if (event === 'ADDED' && message === 'watch.txt') {
