@@ -113,13 +113,7 @@ export declare namespace Find {
 		| ''
 		| number;
 
-	export type Event = 'FOUND' | 'SUCCEEDED'
-
-	export type SyncCallback = (file: File) => void
-	export type AsyncProgressiveCallback = (event: Event, message: File) => void
-	export type AsyncBasicCallback = (files: File[]) => void
-
-	export type ProgressiveModeEnabled = true
+	export type Event = 'FOUND' | 'SUCCEEDED' | 'INTERRUPTED';
 }
 
 export interface Attributes {
@@ -463,9 +457,9 @@ export function ejectDriveSync(letter: string, method: EjectDriveMethod): boolea
 export function ejectDriveAsync(letter: string, method: EjectDriveMethod): Promise<boolean>;
 
 // https://github.com/xxoo/node-fswin/wiki/find
-export function find(pathToFind: string, callback: Find.AsyncProgressiveCallback, isProgressiveMode: Find.ProgressiveModeEnabled): boolean;
-export function find(pathToFind: string, callback: Find.AsyncBasicCallback): boolean;
-export function findSync(pathToFind: string, callback: Find.SyncCallback): number;
+export function find(pathToFind: string, callback: (event: Find.Event, message: Find.File | number) => boolean, isProgressiveMode: true): boolean;
+export function find(pathToFind: string, callback: (files: Find.File[]) => void): boolean;
+export function findSync(pathToFind: string, callback: (file: Find.File) => boolean): number;
 export function findSync(pathToFind: string): Find.File[];
 export function findAsync(pathToFind: string): Promise<Find.File[]>;
 
